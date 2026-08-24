@@ -18,6 +18,32 @@ def _autosize(ws):
         ws.column_dimensions[get_column_letter(column_cells[0].column)].width = min(max(length + 2, 8), 60)
 
 
+CURATED_SPEC_COLUMNS = [
+    ("Item Form", "item_form"),
+    ("Skin Type", "skin_type"),
+    ("Item Weight", "item_weight"),
+    ("Unit Count", "unit_count"),
+    ("Active Ingredients", "active_ingredients"),
+    ("Material Type Free", "material_free"),
+    ("Sun Protection Factor", "spf"),
+    ("Age Range Description", "age_range"),
+    ("Country as Labeled", "country"),
+    ("Country of Origin", "country"),
+    ("Recommended Uses For Product", "recommended_uses"),
+    ("Product Benefits", "product_benefits"),
+]
+
+
+def _parse_specs(raw: str) -> dict[str, str]:
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+        return parsed if isinstance(parsed, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
 def export_day(settings: Settings, store: Store, date_str: str | None = None) -> Path:
     date_str = date_str or time.strftime("%Y-%m-%d")
     wb = Workbook()
@@ -49,6 +75,8 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None) ->
 
     details = store.detail_day_rows(date_str)
     if details:
+        parsed_details = [(row, _parse_specs(row.get("specs") or "")) for row in details]
+
         ws = wb.create_sheet("details")
         keys = [
             "asin", "brand", "manufacturer", "model_number", "seller_name",
@@ -56,17 +84,37 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None) ->
             "bsr_main_rank", "bsr_main_category", "date_first_available",
             "availability", "price_source", "variants_count",
         ]
-        ws.append(["fetched_at"] + keys + ["specs_json"])
+        header_cols: list[str] = []
+        for _, column in CURATED_SPEC_COLUMNS:
+            if column not in header_cols:
+                header_cols.append(column)
+        ws.append(["fetched_at"] + keys + header_cols + ["specs_json"])
         for cell in ws[1]:
             cell.font = header_font
-        for row in details:
-            specs = row.get("specs") or "{}"
-            try:
-                specs_pretty = json.dumps(json.loads(specs), ensure_ascii=False)[:3000]
-            except (json.JSONDecodeError, TypeError):
-                specs_pretty = str(specs)[:3000]
-            ws.append([row.get("fetched_at")] + [row.get(k) for k in keys] + [specs_pretty])
-            ws.cell(row=ws.max_row, column=len(keys) + 2).alignment = wrap
+        for row, specs in parsed_details:
+            curated_values = []
+            for column in header_cols:
+                value = ""
+                for label, target in CURATED_SPEC_COLUMNS:
+                    if target != column:
+                        continue
+                    candidate = specs.get(label)
+                    if candidate:
+                        value = candidate
+                        break
+                curated_values.append(value)
+            specs_pretty = json.dumps(specs, ensure_ascii=False)[:3000]
+            ws.append([row.get("fetched_at")] + [row.get(k) for k in keys] + curated_values + [specs_pretty])
+            ws.cell(row=ws.max_row, column=len(keys) + len(curated_values) + 2).alignment = wrap
+        _autosize(ws)
+
+        ws = wb.create_sheet("specs_long")
+        ws.append(["asin", "brand", "spec_key", "spec_value"])
+        for cell in ws[1]:
+            cell.font = header_font
+        for row, specs in parsed_details:
+            for key, value in sorted(specs.items()):
+                ws.append([row.get("asin"), row.get("brand"), key, str(value)[:500]])
         _autosize(ws)
 
     trend = store.trend_rows(days=14)
