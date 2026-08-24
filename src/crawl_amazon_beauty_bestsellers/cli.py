@@ -29,20 +29,27 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--node", required=True)
     p.add_argument("--pages", type=int, default=None)
     p.add_argument("--save-raw", action="store_true")
+    p.add_argument("--list-type", default="bestsellers",
+                   choices=["bestsellers", "new_releases", "movers_and_shakers", "most_wished_for"])
+    p.add_argument("--root-dept", default=None, help="department slug when node not in registry (e.g. beauty, electronics)")
 
     p = sub.add_parser("crawl-detail", help="enrich ASINs of a category with product detail")
     p.add_argument("--node", required=True)
     p.add_argument("--top", type=int, default=None)
     p.add_argument("--save-raw", action="store_true")
+    p.add_argument("--expand-variants", action="store_true")
 
     p = sub.add_parser("run", help="full cycle for one node or all approved nodes")
     p.add_argument("--node", default=None)
     p.add_argument("--active", action="store_true")
     p.add_argument("--no-detail", action="store_true")
+    p.add_argument("--list-type", default="bestsellers",
+                   choices=["bestsellers", "new_releases", "movers_and_shakers", "most_wished_for"])
 
     p = sub.add_parser("discover-categories", help="discover bestseller category tree into registry")
     p.add_argument("--root", default="11060451")
     p.add_argument("--max-depth", type=int, default=2)
+    p.add_argument("--root-dept", default=None)
 
     p = sub.add_parser("registry-list", help="show category registry")
 
@@ -53,6 +60,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--date", default=None)
 
     p = sub.add_parser("stats", help="database stats")
+
+    p = sub.add_parser("health", help="parser field-completeness trend")
+    p.add_argument("--limit", type=int, default=20)
 
     p = sub.add_parser("serve", help="local read API")
     p.add_argument("--host", default="127.0.0.1")
@@ -81,7 +91,8 @@ def main(argv: list[str] | None = None) -> int:
     pipeline = Pipeline(settings)
     try:
         if args.command == "crawl-list":
-            entries = pipeline.crawl_list(args.node, pages=args.pages)
+            entries = pipeline.crawl_list(args.node, pages=args.pages, list_type=args.list_type,
+                                          root_slug=args.root_dept)
             summary = {
                 "count": len(entries),
                 "with_price": sum(1 for e in entries if e.price_amount is not None),
@@ -98,7 +109,7 @@ def main(argv: list[str] | None = None) -> int:
             ordered = [e.asin for e in sorted(entries, key=lambda x: x.rank)]
             if args.top:
                 settings.crawler.detail_top = min(settings.crawler.detail_top, args.top)
-            details, failures = pipeline.crawl_details(ordered)
+            details, failures = pipeline.crawl_details(ordered, expand_variants=args.expand_variants)
             quality = {
                 "details": len(details),
                 "failures": len(failures),
@@ -125,14 +136,15 @@ def main(argv: list[str] | None = None) -> int:
             for index, node_id in enumerate(nodes, start=1):
                 print(f"[{index}/{len(nodes)}] node {node_id}")
                 try:
-                    results.append(pipeline.run_node(node_id, include_details=not args.no_detail))
+                    results.append(pipeline.run_node(node_id, include_details=not args.no_detail,
+                                                     list_type=args.list_type))
                 except Exception as exc:
                     failed += 1
                     results.append({"node_id": node_id, "error": str(exc)})
             _print({"runs": results, "ok": len(nodes) - failed, "failed": failed})
             return 1 if failed and not results else 0
         elif args.command == "discover-categories":
-            found = pipeline.discover_categories(args.root, max_depth=args.max_depth)
+            found = pipeline.discover_categories(args.root, max_depth=args.max_depth, root_slug=args.root_dept)
             unique = {d["node_id"]: d for d in found}
             _print({
                 "discovered_unique": len(unique),
@@ -150,6 +162,15 @@ def main(argv: list[str] | None = None) -> int:
             print(str(path))
         elif args.command == "stats":
             _print(pipeline.store.stats())
+        elif args.command == "health":
+            rows = pipeline.store.recent_health(args.limit)
+            alerts = []
+            for row in rows:
+                for metric in ("price_ratio", "bsr_ratio", "rating_ratio", "title_ratio"):
+                    value = row.get(metric)
+                    if value is not None and value < 0.5:
+                        alerts.append(f"{row['checked_at']} {row['node_id']}/{row['kind']} {metric}={value:.2f}")
+            _print({"recent": rows, "alerts_below_0.5": alerts})
         elif args.command == "serve":
             from .server import serve
 

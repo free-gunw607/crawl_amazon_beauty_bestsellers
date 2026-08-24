@@ -8,6 +8,7 @@ from bs4 import BeautifulSoup, Tag
 
 from ..models import ProductDetail
 
+HISTOGRAM_PATTERN = re.compile(r"(\d+)\s+percent of reviews have\s+(\d)\s+star", re.I)
 BSR_PATTERN = re.compile(r"#(\d[\d,]*)\s+in\s+([^(#\n]+)")
 HIRES_PATTERN = re.compile(r'"hiRes"\s*:\s*"(https://[^"]+)"')
 LARGE_IMG_PATTERN = re.compile(r'"large"\s*:\s*"(https://[^"]+)"')
@@ -200,6 +201,18 @@ def _parse_variants(soup: BeautifulSoup) -> list[dict[str, Any]]:
     return list(variants.values())
 
 
+def _parse_histogram(soup: BeautifulSoup) -> dict[str, int]:
+    histogram: dict[str, int] = {}
+    container = soup.select_one("#histogramTable")
+    if container is None:
+        return histogram
+    for anchor in container.find_all("a", attrs={"aria-label": True}):
+        match = HISTOGRAM_PATTERN.search(anchor["aria-label"])
+        if match:
+            histogram[f"{match.group(2)}star"] = int(match.group(1))
+    return histogram
+
+
 def parse_product_detail(html: str, asin: str, fetched_at: str, run_id: str) -> ProductDetail:
     soup = BeautifulSoup(html, "lxml")
     warnings: list[str] = []
@@ -320,6 +333,7 @@ def parse_product_detail(html: str, asin: str, fetched_at: str, run_id: str) -> 
         bsr_other=bsr_other,
         rating=rating,
         ratings_count=ratings_count,
+        ratings_histogram=_parse_histogram(soup),
         overview={},
         specs=specs,
         features=features,

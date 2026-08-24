@@ -30,18 +30,20 @@ class Registry:
                 return entry
         return None
 
-    def upsert_discovered(self, node_id: str, name: str, path: str) -> dict[str, Any]:
+    def upsert_discovered(self, node_id: str, name: str, path: str, root_slug: str = "beauty") -> dict[str, Any]:
         existing = self._find(node_id)
         if existing is not None:
             if name:
                 existing["name"] = name
             if path and len(path) >= len(str(existing.get("path", ""))):
                 existing["path"] = path
+            existing.setdefault("root_slug", root_slug)
             return existing
         entry = {
             "node_id": node_id,
             "name": name,
             "path": path,
+            "root_slug": root_slug,
             "status": "available",
             "discovered_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "approved_at": None,

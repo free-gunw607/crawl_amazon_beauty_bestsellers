@@ -18,6 +18,34 @@ E_NO_ACTIVE_NODES = 12
 E_RUN_FAILED = 13
 
 
+def _check_staleness() -> str | None:
+    import sqlite3
+
+    db_path = REPO_ROOT / "artifacts" / "db" / "bestsellers.sqlite"
+    if not db_path.exists():
+        return None
+    try:
+        conn = sqlite3.connect(db_path)
+        row = conn.execute(
+            "SELECT finished_at FROM runs WHERE status='completed' ORDER BY started_at DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+    except sqlite3.Error:
+        return None
+    if row is None or not row[0]:
+        return None
+    try:
+        from datetime import datetime
+
+        last = datetime.strptime(row[0][:19], "%Y-%m-%dT%H:%M:%S")
+        age_hours = (datetime.now() - last).total_seconds() / 3600
+    except ValueError:
+        return None
+    if age_hours > 3.5:
+        return f"WATCHDOG ALERT: last completed run is {age_hours:.1f}h old (>3.5h threshold)"
+    return None
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -76,6 +104,9 @@ def main() -> int:
     env["PYTHONPATH"] = str(REPO_ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")
     started = time.strftime("%Y-%m-%dT%H:%M:%S%z")
     print(f"[{started}] run_job start: {' '.join(cmd)}")
+    alert = _check_staleness()
+    if alert:
+        print(f"[{started}] {alert}")
     proc = subprocess.run(cmd, cwd=REPO_ROOT, env=env, capture_output=True, text=True)
     log_path.write_text(
         "\n".join([f"# started {started}", "# stdout", proc.stdout, "# stderr", proc.stderr]),

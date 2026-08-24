@@ -81,7 +81,9 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None) ->
         keys = [
             "asin", "brand", "manufacturer", "model_number", "seller_name",
             "buy_box_price", "buy_box_currency", "list_price_amount",
-            "bsr_main_rank", "bsr_main_category", "date_first_available",
+            "bsr_main_rank", "bsr_main_category",
+            "bsr_sub_1_rank", "bsr_sub_1_category", "bsr_sub_2_rank", "bsr_sub_2_category",
+            "ratings_histogram", "date_first_available",
             "availability", "price_source", "variants_count",
         ]
         header_cols: list[str] = []
@@ -91,7 +93,28 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None) ->
         ws.append(["fetched_at"] + keys + header_cols + ["specs_json"])
         for cell in ws[1]:
             cell.font = header_font
+
+        def _flatten(row: dict) -> dict:
+            flat = dict(row)
+            try:
+                bsr_other = json.loads(row.get("bsr_other") or "[]")
+            except (json.JSONDecodeError, TypeError):
+                bsr_other = []
+            for idx in range(2):
+                item = bsr_other[idx] if idx < len(bsr_other) else {}
+                flat[f"bsr_sub_{idx + 1}_rank"] = item.get("rank")
+                flat[f"bsr_sub_{idx + 1}_category"] = item.get("category")
+            try:
+                histogram = json.loads(row.get("ratings_histogram") or "{}")
+            except (json.JSONDecodeError, TypeError):
+                histogram = {}
+            flat["ratings_histogram"] = " ".join(
+                f"{star}:{pct}%" for star, pct in sorted(histogram.items(), reverse=True)
+            )
+            return flat
+
         for row, specs in parsed_details:
+            row = _flatten(row)
             curated_values = []
             for column in header_cols:
                 value = ""

@@ -52,6 +52,7 @@ class ProductDetail:
     bsr_other: list[dict[str, Any]] = field(default_factory=list)
     rating: float | None = None
     ratings_count: int | None = None
+    ratings_histogram: dict[str, int] = field(default_factory=dict)
     overview: dict[str, str] = field(default_factory=dict)
     specs: dict[str, str] = field(default_factory=dict)
     features: list[str] = field(default_factory=list)

@@ -67,6 +67,7 @@ CREATE TABLE IF NOT EXISTS product_details (
     bsr_other TEXT,
     rating REAL,
     ratings_count INTEGER,
+    ratings_histogram TEXT,
     overview TEXT,
     specs TEXT,
     features TEXT,
@@ -89,6 +90,20 @@ CREATE TABLE IF NOT EXISTS categories (
     status TEXT,
     last_crawled_at TEXT
 );
+CREATE TABLE IF NOT EXISTS health_checks (
+    run_id TEXT NOT NULL,
+    node_id TEXT NOT NULL,
+    list_type TEXT,
+    checked_at TEXT NOT NULL,
+    kind TEXT NOT NULL,
+    sample_size INTEGER,
+    price_ratio REAL,
+    rating_ratio REAL,
+    bsr_ratio REAL,
+    seller_ratio REAL,
+    title_ratio REAL
+);
+CREATE INDEX IF NOT EXISTS idx_health_node ON health_checks (node_id, checked_at);
 """
 
 
@@ -102,6 +117,10 @@ class Store:
         self.conn.row_factory = sqlite3.Row
         with self.lock:
             self.conn.executescript(SCHEMA)
+            try:
+                self.conn.execute("ALTER TABLE product_details ADD COLUMN ratings_histogram TEXT")
+            except sqlite3.OperationalError:
+                pass
             self.conn.commit()
 
     def close(self):
@@ -158,15 +177,15 @@ class Store:
             (asin, fetched_at, run_id, title, brand, manufacturer, model_number, seller_name,
              ships_from, buy_box_price, buy_box_currency, buy_box_raw, list_price_amount, list_price_raw,
              availability, date_first_available, bsr_main_rank, bsr_main_category, bsr_other, rating,
-             ratings_count, overview, specs, features, ingredients, safety_info, directions,
+             ratings_count, ratings_histogram, overview, specs, features, ingredients, safety_info, directions,
              description_head, image_urls, variants, variants_count, price_source, parse_warnings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 d.asin, d.fetched_at, d.run_id, d.title, d.brand, d.manufacturer, d.model_number,
                 d.seller_name, d.ships_from, d.buy_box_price, d.buy_box_currency, d.buy_box_raw,
                 d.list_price_amount, d.list_price_raw, d.availability, d.date_first_available,
                 d.bsr_main_rank, d.bsr_main_category, json.dumps(d.bsr_other), d.rating,
-                d.ratings_count, json.dumps(d.overview), json.dumps(d.specs),
+                d.ratings_count, json.dumps(d.ratings_histogram), json.dumps(d.overview), json.dumps(d.specs),
                 json.dumps(d.features), d.ingredients, d.safety_info, d.directions,
                 d.description_head, json.dumps(d.image_urls), json.dumps(d.variants),
                 d.variants_count, d.price_source, json.dumps(d.parse_warnings),
@@ -248,6 +267,40 @@ class Store:
             (date_str,),
         )
         return [dict(r) for r in rows]
+
+    def record_health(
+        self,
+        run_id: str,
+        node_id: str,
+        list_type: str,
+        kind: str,
+        sample_size: int,
+        price_ratio: float | None = None,
+        rating_ratio: float | None = None,
+        bsr_ratio: float | None = None,
+        seller_ratio: float | None = None,
+        title_ratio: float | None = None,
+    ):
+        self._execute(
+            "INSERT INTO health_checks VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                run_id, node_id, list_type, time.strftime("%Y-%m-%dT%H:%M:%S%z"), kind,
+                sample_size, price_ratio, rating_ratio, bsr_ratio, seller_ratio, title_ratio,
+            ),
+            commit=True,
+        )
+
+    def recent_health(self, limit: int = 20) -> list[dict[str, Any]]:
+        rows = self._query(
+            "SELECT * FROM health_checks ORDER BY checked_at DESC LIMIT ?", (limit,)
+        )
+        return [dict(r) for r in rows]
+
+    def last_completed_run(self) -> dict[str, Any] | None:
+        rows = self._query(
+            "SELECT run_id, finished_at, status FROM runs WHERE status='completed' ORDER BY started_at DESC LIMIT 1"
+        )
+        return dict(rows[0]) if rows else None
 
     def stats(self) -> dict[str, Any]:
         out: dict[str, Any] = {}
