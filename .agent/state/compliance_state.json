@@ -3,7 +3,7 @@
   "runtime_standard_version": "A3-v1.0",
   "lease_model_version": "lease-v1",
   "snapshot_policy_version": "snapshot-v1",
-  "last_checked_at": "2026-08-25T02:15:38+09:00",
+  "last_checked_at": "2026-08-25T03:43:52+09:00",
   "compliance_state": "ok",
   "missing_items": [],
   "notes": "All required runtime files present"
