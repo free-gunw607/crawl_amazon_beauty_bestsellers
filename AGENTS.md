@@ -24,9 +24,14 @@ Collect Amazon beauty bestseller lists and product detail vendor intelligence on
 
 ## Repository-specific rules
 - preferred approach:
-  - define after project scoping
+  - direct HTTP collection with curl_cffi chrome-transport impersonation; browser automation only if a verified blocker appears
+  - US delivery-location session pinning (settings `delivery_zip`) so price/seller data reflects the US marketplace
+  - registry-first category expansion: new categories stay `available` until a live dry-run passes, then owner-visible `registry-approve`
 - constraints:
-  - define after project scoping
+  - politeness defaults are mandatory: randomized delays, transient-only retries, immediate stop on captcha/block detection, no retry storms
+  - keep hourly request volume bounded: expand active categories gradually and observe block signals between batches
+  - never commit secrets (`.env`, tokens, service-account JSON); Drive credentials arrive only via env at runtime
+  - schedule activation (`run_job.py` timer) and any remote side effect require explicit owner approval
 - local expectations:
   - keep repository-local execution reproducible
   - keep repository-local docs aligned with reality

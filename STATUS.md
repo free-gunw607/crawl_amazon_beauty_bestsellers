@@ -6,66 +6,47 @@
 - standardized project name: `crawl_amazon_beauty_bestsellers`
 
 ## Current objective
-Collect Amazon beauty bestseller lists and product detail vendor intelligence on an hourly schedule
+Collect Amazon.com beauty-sector bestseller lists and product detail/vendor intelligence on an hourly schedule, accumulate time-series locally, publish Excel to Google Drive
 
 ## Current phase
-bootstrap
+v0.1 single-panel implementation live-verified (Skin Care 11060451)
 
 ## Current focus
-- initialize repository structure
-- clarify first approved scope
-- align repo with the universal autonomy policy
+- hourly schedule activation (owner approval gate)
+- Google Drive service-account registration (owner approval gate)
+- staged expansion to remaining 66 discovered categories
 
-## Recent completed work
-- project created via bootstrap script
-- launcher, .agent runtime, and durable handoff scaffolding generated
-- repo policy and status board created
+## Recent completed work (2026-08-25)
+- bootstrap via `new_project.sh`; registered in A2 `Projects.md` (2.11)
+- curl_cffi chrome-transport client with US delivery-location pinning (ZIP 10001) — USD confirmed on live probe
+- bestseller list parser live-verified: 60/60 entries, price/rating 100%, zero warnings
+- product detail parser live-verified at scale: 50/50 details, BSR 50/50, manufacturer 50/50, ingredients 38/50; buy-box price+seller captured for US-shippable items (19/50), unshippable items recorded with explicit availability reason
+- category discovery: 67 beauty categories registered with clean ancestor paths
+- end-to-end `./repo run --node 11060451`: list → detail → SQLite/jsonl/csv → atomic run manifest
+- daily Excel export verified (`artifacts/exports/xlsx/amazon_bs_20260825.xlsx`)
+- local read API verified (`serve`: /health /categories /latest /history /stats)
+- scheduler runner verified (`scripts/run_job.py --no-detail`, lockfile + log)
+- parser regression tests: 5 passed
 
 ## Current blockers
-- none yet
-- define after first implementation review
+- schedule activation and Drive upload await owner approval (per global policy §5.3)
 
 ## Capability and MCP status
-- required external capabilities: none confirmed yet
-- approved but not active: none
+- required external capabilities: none missing; curl_cffi installed to user site (PEP 668 --user)
+- approved but not active: Drive service-account upload (`drive_upload.py` ready, needs GDRIVE_CREDS + folder id)
 - active MCP dependencies: none
 
 ## Progress snapshot
-- overall progress: 5%
-- current confidence: early but structured
-- current stability: initial scaffold only
+- overall progress: 60%
+- current confidence: high for single-panel collection; medium for multi-category scale-up pacing
+- current stability: live-verified v0.1
 
 ## Next actions
-1. register the project in the vault
-2. define the first approved implementation scope
-3. start the first implementation cycle while keeping durable handoff files current
+1. owner decision: activate hourly systemd timer / cron for `run_job.py`
+2. owner decision: create GCP service account, register GDRIVE_CREDS, wire Drive upload into run cycle
+3. staged activation of remaining categories (batch dry-run then registry-approve)
 
-## Phase marker
-- current: keep explicit phase id (example: `PHASE-0`, `PHASE-1`)
-- next: keep one immediate next phase id
-- resume pointer: one file/section pointer for zero-warmup resume
-
-## Deliverable proof
-- latest artifact path(s): record concrete file paths for the latest deliverable
-- proof timestamp: record when the artifact was written or verified
-- note: do not mark completed from chat-only promises without file proof
-
-## Relevant anchors
-- global policy: `~/.codex/AGENTS.md`
-- A2 guide: `~/agent-coding/agent-system/A2-workspace-memory/Guide.md`
-- A2 structure: `~/agent-coding/agent-system/A2-workspace-memory/Structure.md`
-- target OS baseline: `~/agent-coding/agent-system/A1-system-governance/docs/TARGET_OS/00_ENTRY.md`
-
-## Notes for operators
-This file is the repository situation board.
-`ENTRY.md` should act as the owner-facing front door for the repo.
-A repo-local runtime workspace should exist under `.agent/`.
-A repo-root `LAST_ANSWER.md` should summarize the latest durable handoff, with archived copies under `.agent/answers/`.
-A human should be able to read this file and immediately understand:
-- what is happening now,
-- what happened recently,
-- what the blockers are,
-- whether any important capability gap exists,
-- whether MCP adoption changed repository behavior,
-- how much progress has been made,
-- what should happen next.
+## Reusable-pattern notes
+- anti-bot ladder and transient-only retry follow `WH-CRAWL-FIXFIN-001`
+- atomic run manifests follow `WH-RUNTIME-AGORA-001`
+- category registry lifecycle follows `WH-CATALOG-MULTI-001`

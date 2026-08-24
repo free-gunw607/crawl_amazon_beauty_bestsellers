@@ -1,0 +1,32 @@
+amazon:
+  base_url: https://www.amazon.com
+  delivery_zip: "10001"
+  marketplace_country: US
+  currency_pref: USD
+  language: en-US
+
+politeness:
+  min_delay_seconds: 1.5
+  max_delay_seconds: 4.0
+  max_attempts: 3
+  request_timeout_seconds: 30
+  category_gap_seconds: 8
+
+crawler:
+  list_pages: 2
+  detail_top: 50
+  save_raw_html: false
+
+storage:
+  db_path: artifacts/db/bestsellers.sqlite
+  snapshots_dir: artifacts/snapshots
+  details_dir: artifacts/details
+  exports_dir: artifacts/exports/xlsx
+  raw_dir: artifacts/raw
+  runs_dir: .agent/runs
+
+schedule:
+  interval_minutes: 60
+
+drive:
+  enabled: false

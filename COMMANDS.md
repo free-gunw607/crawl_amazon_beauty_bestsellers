@@ -73,21 +73,46 @@ Upload a repo snapshot to Google Drive via `gws`, update registry metadata, and 
 - preferred owner path on PowerShell: `\.\repo.ps1 ...`
 - raw Python module invocation is the lower-level contributor path
 
+## Project Commands (crawl_amazon_beauty_bestsellers)
+`bootstrap-session`
+Pin the US delivery location (ZIP from settings) and verify the transport; prints USD probe result.
+
+`crawl-list --node <id> [--pages N]`
+Crawl one bestseller category list into SQLite + jsonl/csv snapshots.
+
+`crawl-detail --node <id> [--top N]`
+Enrich the category's ranked ASINs with product/vendor details.
+
+`run --node <id> | --active [--no-detail]`
+Full cycle for one node or all `production_approved` registry nodes: list → detail → storage → manifest.
+
+`discover-categories --root <id> [--max-depth N]`
+Walk the bestseller sidebar tree and register categories as `available`.
+
+`registry-list` / `registry-approve --node <id>`
+Show the registry / promote a verified category to production.
+
+`export-xlsx [--date YYYY-MM-DD]`
+Build the daily Excel workbook (per-node sheets, details, 14-day trend).
+
+`serve [--port 8790]`
+Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`, `/stats`.
+
+`stats`
+Database accumulation summary.
+
 ## Examples
-- `./repo entry`
-- `./repo doctor`
-- `./repo agent-status`
-- `./repo last-answer`
-- `./repo agent-approvals`
-- `./repo preflight`
-- `./repo claim-node --node-id 1`
-- `./repo claim-write-session --path src/crawl_amazon_beauty_bestsellers`
-- `./repo create-manifest --target-repo some_other_repo --path STATUS.md --reason "approved shared change"`
-- `./repo snapshot-repo --reason "manual checkpoint"`
-- `./repo publish-repo-snapshot --drive-folder-id <google_drive_folder_id>`
-- add project-specific workflow examples here as the repo matures
+- `./repo bootstrap-session`
+- `./repo crawl-list --node 11060451`
+- `./repo run --node 11060451`
+- `./repo discover-categories --root 11060451 --max-depth 2`
+- `./repo registry-approve --node 11060521`
+- `./repo export-xlsx`
+- `./repo serve --port 8790`
+- `PYTHONPATH=src python3 scripts/run_job.py`  # hourly scheduler entry
+- add further workflow examples here as the repo matures
 
 ## Notes
 - prefer use-case examples over raw subcommand lists
 - use `LAST_ANSWER.md` and `.agent/` runtime files as the default progress trail
-- make any company-tracking or target-tracking mode explicit if the repo supports it
+- schedule activation and Drive upload are owner approval gates per global policy §5.3

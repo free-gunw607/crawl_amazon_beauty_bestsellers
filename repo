@@ -195,7 +195,9 @@ show_agent_queue() {
   find "$AGENT_DIR/queue" -mindepth 1 -maxdepth 1 | sort
 }
 
-if command -v python3 >/dev/null 2>&1; then
+if [[ -x "$SCRIPT_DIR/.venv/bin/python" ]]; then
+  DEFAULT_PYTHON_BIN="$SCRIPT_DIR/.venv/bin/python"
+elif command -v python3 >/dev/null 2>&1; then
   DEFAULT_PYTHON_BIN="python3"
 elif command -v python >/dev/null 2>&1; then
   DEFAULT_PYTHON_BIN="python"

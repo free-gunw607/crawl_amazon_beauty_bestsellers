@@ -1,0 +1,607 @@
+{
+  "categories": [
+    {
+      "node_id": "11060451",
+      "name": "Skin Care",
+      "path": "Beauty & Personal Care > Skin Care",
+      "status": "production_approved",
+      "discovered_at": "2026-08-25T00:00:00+0900",
+      "approved_at": "2026-08-25T00:32:56+0900",
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060521",
+      "name": "Body",
+      "path": "Beauty & Personal Care > Skin Care > Body",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061941",
+      "name": "Eyes",
+      "path": "Beauty & Personal Care > Skin Care > Eyes",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060711",
+      "name": "Face",
+      "path": "Beauty & Personal Care > Skin Care > Face",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "3761351",
+      "name": "Lip Care",
+      "path": "Beauty & Personal Care > Skin Care > Lip Care",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062371",
+      "name": "Maternity",
+      "path": "Beauty & Personal Care > Skin Care > Maternity",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062581",
+      "name": "Sets & Kits",
+      "path": "Beauty & Personal Care > Skin Care > Sets & Kits",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062591",
+      "name": "Sunscreens & Tanning Products",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:30+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056441",
+      "name": "Body Mud",
+      "path": "Beauty & Personal Care > Skin Care > Body > Body Mud",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:34+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056471",
+      "name": "Body Scrubs",
+      "path": "Beauty & Personal Care > Skin Care > Body > Body Scrubs",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:34+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056281",
+      "name": "Cleansers",
+      "path": "Beauty & Personal Care > Skin Care > Body > Cleansers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:34+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060661",
+      "name": "Moisturizers",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:34+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056581",
+      "name": "Sets & Kits",
+      "path": "Beauty & Personal Care > Skin Care > Body > Sets & Kits",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:34+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730087011",
+      "name": "Balms",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Balms",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730090011",
+      "name": "Creams",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730092011",
+      "name": "Gels",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Gels",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061971",
+      "name": "Masks",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Masks",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730098011",
+      "name": "Serums",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Serums",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730099011",
+      "name": "Wrinkle Pads & Patches",
+      "path": "Beauty & Personal Care > Skin Care > Eyes > Wrinkle Pads & Patches",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:38+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060901",
+      "name": "Cleansers",
+      "path": "Beauty & Personal Care > Skin Care > Face > Cleansers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061301",
+      "name": "Creams & Moisturizers",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792636011",
+      "name": "Facial Kits",
+      "path": "Beauty & Personal Care > Skin Care > Face > Facial Kits",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061091",
+      "name": "Polishes & Scrubs",
+      "path": "Beauty & Personal Care > Skin Care > Face > Polishes & Scrubs",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061931",
+      "name": "Toners & Astringents",
+      "path": "Beauty & Personal Care > Skin Care > Face > Toners & Astringents",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062031",
+      "name": "Treatments & Masks",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:41+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "979546011",
+      "name": "Balms & Moisturizers",
+      "path": "Beauty & Personal Care > Skin Care > Lip Care > Balms & Moisturizers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:44+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "18065339011",
+      "name": "Lip Butters",
+      "path": "Beauty & Personal Care > Skin Care > Lip Care > Lip Butters",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:44+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "21212387011",
+      "name": "Lip Plumpers",
+      "path": "Beauty & Personal Care > Skin Care > Lip Care > Lip Plumpers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:44+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "979548011",
+      "name": "Scrubs",
+      "path": "Beauty & Personal Care > Skin Care > Lip Care > Scrubs",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:44+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062601",
+      "name": "After Sun",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > After Sun",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:55+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062641",
+      "name": "Self-Tanners",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Self-Tanners",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:55+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062651",
+      "name": "Sunscreens",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:55+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062731",
+      "name": "Tanning Oils & Lotions",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Tanning Oils & Lotions",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:30:55+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056291",
+      "name": "Body Washes",
+      "path": "Beauty & Personal Care > Skin Care > Body > Cleansers > Body Washes",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:07+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062271",
+      "name": "Hand Wash",
+      "path": "Beauty & Personal Care > Skin Care > Body > Cleansers > Hand Wash",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:07+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056341",
+      "name": "Soaps",
+      "path": "Beauty & Personal Care > Skin Care > Body > Cleansers > Soaps",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:07+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060671",
+      "name": "Body Butters",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers > Body Butters",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:10+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060681",
+      "name": "Creams",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers > Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:10+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "14024031",
+      "name": "Lotions",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers > Lotions",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:10+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11056481",
+      "name": "Mousses",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers > Mousses",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:10+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060691",
+      "name": "Oils",
+      "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers > Oils",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:10+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730189011",
+      "name": "Bars",
+      "path": "Beauty & Personal Care > Skin Care > Face > Cleansers > Bars",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:42+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11060941",
+      "name": "Cloths & Towelettes",
+      "path": "Beauty & Personal Care > Skin Care > Face > Cleansers > Cloths & Towelettes",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:42+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061001",
+      "name": "Gels",
+      "path": "Beauty & Personal Care > Skin Care > Face > Cleansers > Gels",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:42+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7730193011",
+      "name": "Washes",
+      "path": "Beauty & Personal Care > Skin Care > Face > Cleansers > Washes",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:42+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792268011",
+      "name": "BB Creams",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > BB Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792269011",
+      "name": "CC Creams",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > CC Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792270011",
+      "name": "DD Creams",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > DD Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "15239989011",
+      "name": "Face Mists",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Face Mists",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "16479981011",
+      "name": "Face Moisturizers",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Face Moisturizers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792527011",
+      "name": "Face Oil",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Face Oil",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:46+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792277011",
+      "name": "Neck & Décolleté",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Neck & Décolleté",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:47+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792275011",
+      "name": "Night Creams",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Night Creams",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:47+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792276011",
+      "name": "Tinted Moisturizers",
+      "path": "Beauty & Personal Care > Skin Care > Face > Creams & Moisturizers > Tinted Moisturizers",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:47+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061151",
+      "name": "Polishes",
+      "path": "Beauty & Personal Care > Skin Care > Face > Polishes & Scrubs > Polishes",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:56+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061161",
+      "name": "Scrubs",
+      "path": "Beauty & Personal Care > Skin Care > Face > Polishes & Scrubs > Scrubs",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:31:56+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792926011",
+      "name": "Facial Peels",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Facial Peels",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:02+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11061121",
+      "name": "Masks",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Masks",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:02+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792934011",
+      "name": "Microdermabrasion",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Microdermabrasion",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:02+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792936011",
+      "name": "Pore Cleansing Strips",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Pore Cleansing Strips",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:02+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792528011",
+      "name": "Serums",
+      "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Serums",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:02+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "21388129011",
+      "name": "Body Self-Tanners",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Self-Tanners > Body Self-Tanners",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:23+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792568011",
+      "name": "Facial Self Tanners",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Self-Tanners > Facial Self Tanners",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:23+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "15239990011",
+      "name": "Body Sunscreens",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens > Body Sunscreens",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:26+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "7792567011",
+      "name": "Facial Sunscreens",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens > Facial Sunscreens",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:26+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "11062691",
+      "name": "Lip Sunscreens",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens > Lip Sunscreens",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:26+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    },
+    {
+      "node_id": "166860011",
+      "name": "Sun Protection",
+      "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens > Sun Protection",
+      "status": "available",
+      "discovered_at": "2026-08-25T00:32:26+0900",
+      "approved_at": null,
+      "last_crawled_at": null
+    }
+  ]
+}
