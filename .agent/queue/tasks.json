@@ -1,16 +1,28 @@
 {
   "tasks": [
     {
-      "id": "bootstrap-clarify-objective",
+      "id": "expansion-cooldown-recovery",
       "priority": "high",
       "status": "queued",
-      "summary": "Clarify the repo-local objective and first approved implementation scope."
+      "summary": "After >=1h cooldown from the 03:40 KST block event: light list probe on 7792528011; if clean, complete its detail run; if blocked, extend cooldown. See STATUS.md resume procedure."
     },
     {
-      "id": "bootstrap-establish-first-cycle",
+      "id": "owner-gate-hourly-schedule",
       "priority": "high",
-      "status": "queued",
-      "summary": "Start the first implementation cycle while keeping LAST_ANSWER.md and .agent runtime files current."
+      "status": "blocked-owner",
+      "summary": "Owner decision: activate hourly systemd user timer / cron for scripts/run_job.py. Never self-activate."
+    },
+    {
+      "id": "owner-gate-drive-upload",
+      "priority": "medium",
+      "status": "blocked-owner",
+      "summary": "Owner decision: GCP service account + GDRIVE_CREDS + folder id, then wire drive_upload.py into the run cycle."
+    },
+    {
+      "id": "expansion-next-batch",
+      "priority": "low",
+      "status": "deferred",
+      "summary": "Next category batch (registry-first: dry-run -> approve -> cycle) only after a clean multi-hour collection window post-recovery."
     }
   ]
 }

@@ -1,10 +1,10 @@
 {
-  "current_phase": "v0.1_single_panel_verified",
-  "current_task": "Define the first implementation path and keep the durable handoff files current",
-  "last_successful_step": "Bootstrap scaffold created with launcher-first UX, .agent runtime structure, LAST_ANSWER convention, and approval scaffolding",
-  "recommended_next_step": "Clarify repo-local objective and begin the first implementation cycle without interrupting for normal local work",
-  "approved_scope": "repo-local initial objective only",
+  "current_phase": "v0.2_multi_category_staged_expansion",
+  "current_task": "Staged category expansion: batch dry-run -> registry-approve -> full cycle, politeness-bounded",
+  "last_successful_step": "Session recovered after crash; baseline verified (tests 5 passed, preflight/compliance clean, live USD probe OK); commit 665f572 added universal list types, health_checks, variant expansion",
+  "recommended_next_step": "Run batch-1 list-only dry-runs (Face 11060711, Body 11060521, Eyes 11061941, Moisturizers 11060661), approve passing nodes, then full cycles",
+  "approved_scope": "autonomous repo-local collection expansion; schedule activation and Drive upload remain owner gates",
   "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears",
   "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence hourly; US marketplace pinned; Excel to Drive after approval",
-  "updated_at": "2026-08-25T00:55:00+0900"
+  "updated_at": "2026-08-25T02:40:00+0900"
 }

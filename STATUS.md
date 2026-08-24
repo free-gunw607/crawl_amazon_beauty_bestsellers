@@ -9,27 +9,38 @@
 Collect Amazon.com beauty-sector bestseller lists and product detail/vendor intelligence on an hourly schedule, accumulate time-series locally, publish Excel to Google Drive
 
 ## Current phase
-v0.1 single-panel implementation live-verified (Skin Care 11060451)
+v0.2 multi-category expansion — 7 panels live-collected; expansion HALTED by block event (2026-08-25 ~03:40 KST)
 
-## Current focus
-- hourly schedule activation (owner approval gate)
-- Google Drive service-account registration (owner approval gate)
-- staged expansion to remaining 66 discovered categories
+## Active production panels (7)
+| node | panel | last cycle |
+|---|---|---|
+| 11060451 | Skin Care | verified 2026-08-25 v0.1 (60 list / 103 details accumulated) |
+| 11060711 | Face | 2026-08-25 02:42 — 60 list / 75 detail, BSR 73/75 |
+| 11060521 | Body | 2026-08-25 03:10 — 60/75, BSR 74/75, USD+seller 45/75 |
+| 11061941 | Eyes | 2026-08-25 03:21 — 60/75, BSR 75/75, USD+seller 36/75 |
+| 11060661 | Moisturizers | 2026-08-25 03:26 — 60/40, BSR 40/40 |
+| 11062651 | Sunscreens | 2026-08-25 03:47 — 60/44, BSR 43/44 |
+| 11056291 | Body Washes | 2026-08-25 ~03:52 — 60/75, BSR 75/75, USD+seller 47/75 |
 
-## Recent completed work (2026-08-25)
-- bootstrap via `new_project.sh`; registered in A2 `Projects.md` (2.11)
-- curl_cffi chrome-transport client with US delivery-location pinning (ZIP 10001) — USD confirmed on live probe
-- bestseller list parser live-verified: 60/60 entries, price/rating 100%, zero warnings
-- product detail parser live-verified at scale: 50/50 details, BSR 50/50, manufacturer 50/50, ingredients 38/50; buy-box price+seller captured for US-shippable items (19/50), unshippable items recorded with explicit availability reason
-- category discovery: 67 beauty categories registered with clean ancestor paths
-- end-to-end `./repo run --node 11060451`: list → detail → SQLite/jsonl/csv → atomic run manifest
-- daily Excel export verified (`artifacts/exports/xlsx/amazon_bs_20260825.xlsx`)
-- local read API verified (`serve`: /health /categories /latest /history /stats)
-- scheduler runner verified (`scripts/run_job.py --no-detail`, lockfile + log)
-- parser regression tests: 5 passed
+Partial: `7792528011` (Face Serums) — registry-approved, bestseller list OK (60/60), detail aborted at 1/50 by block detection. Needs one full re-run after cooldown.
 
 ## Current blockers
-- schedule activation and Drive upload await owner approval (per global policy §5.3)
+1. **BLOCK EVENT**: captcha/block page on second detail fetch for node 7792528011 (run 20260825_0340_a8f5dc). Pipeline stopped immediately per policy (no retry storm). All live crawling paused; cooldown ≥1h before any probe.
+2. Schedule activation awaits owner approval (per global policy §5.3)
+3. Drive service-account registration awaits owner approval
+
+## Resume procedure (after cooldown)
+1. single light probe: `./repo crawl-list --node 7792528011` — if clean, continue; if blocked, extend cooldown
+2. complete the interrupted panel: `./repo run --node 7792528011`
+3. only then consider further category batches (registry-first lifecycle unchanged)
+
+## Recent completed work (2026-08-25 session 2)
+- crash recovery handoff: baseline reverified (tests 5 passed, preflight/compliance clean, live USD probe OK)
+- docs catch-up for commit 665f572 (universal list types, health_checks table, bounded variant expansion)
+- batch 1 dry-run → approve → full cycle: Face, Body, Eyes, Moisturizers
+- block-signal scan clean at checkpoint → batch 2: Sunscreens, Body Washes approved and collected; Serums list-only then block hit
+- stop-on-block behavior verified in practice: immediate halt, zero retries, explicit error in run manifest
+- xlsx regenerated over 8 nodes (`artifacts/exports/xlsx/amazon_bs_20260825.xlsx`)
 
 ## Capability and MCP status
 - required external capabilities: none missing; curl_cffi installed to user site (PEP 668 --user)
@@ -37,14 +48,15 @@ v0.1 single-panel implementation live-verified (Skin Care 11060451)
 - active MCP dependencies: none
 
 ## Progress snapshot
-- overall progress: 60%
-- current confidence: high for single-panel collection; medium for multi-category scale-up pacing
-- current stability: live-verified v0.1
+- overall progress: 70% (was 60%) — 7 of ~67 categories collecting, scheduler proven, export pipeline done
+- current confidence: high for single-cycle collection; low for sustained hourly pacing until block cause is observed over cooldown
+- current stability: live data accumulating; live crawling intentionally paused
 
 ## Next actions
-1. owner decision: activate hourly systemd timer / cron for `run_job.py`
-2. owner decision: create GCP service account, register GDRIVE_CREDS, wire Drive upload into run cycle
-3. staged activation of remaining categories (batch dry-run then registry-approve)
+1. after ≥1h cooldown: Serums re-probe + completing run (resume procedure above)
+2. owner decision: activate hourly systemd timer / cron for `scripts/run_job.py`
+3. owner decision: GCP service account + GDRIVE_CREDS registration, wire Drive upload into run cycle
+4. next category batch only after a full clean multi-hour window
 
 ## Reusable-pattern notes
 - anti-bot ladder and transient-only retry follow `WH-CRAWL-FIXFIN-001`

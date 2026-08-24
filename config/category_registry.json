@@ -13,27 +13,27 @@
       "node_id": "11060521",
       "name": "Body",
       "path": "Beauty & Personal Care > Skin Care > Body",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:30:30+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T02:42:02+0900",
       "last_crawled_at": null
     },
     {
       "node_id": "11061941",
       "name": "Eyes",
       "path": "Beauty & Personal Care > Skin Care > Eyes",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:30:30+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T02:42:06+0900",
       "last_crawled_at": null
     },
     {
       "node_id": "11060711",
       "name": "Face",
       "path": "Beauty & Personal Care > Skin Care > Face",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:30:30+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T02:41:56+0900",
       "last_crawled_at": null
     },
     {
@@ -103,9 +103,9 @@
       "node_id": "11060661",
       "name": "Moisturizers",
       "path": "Beauty & Personal Care > Skin Care > Body > Moisturizers",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:30:34+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T02:42:10+0900",
       "last_crawled_at": null
     },
     {
@@ -283,9 +283,9 @@
       "node_id": "11062651",
       "name": "Sunscreens",
       "path": "Beauty & Personal Care > Skin Care > Sunscreens & Tanning Products > Sunscreens",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:30:55+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T03:27:00+0900",
       "last_crawled_at": null
     },
     {
@@ -301,9 +301,9 @@
       "node_id": "11056291",
       "name": "Body Washes",
       "path": "Beauty & Personal Care > Skin Care > Body > Cleansers > Body Washes",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:31:07+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T03:31:46+0900",
       "last_crawled_at": null
     },
     {
@@ -544,9 +544,9 @@
       "node_id": "7792528011",
       "name": "Serums",
       "path": "Beauty & Personal Care > Skin Care > Face > Treatments & Masks > Serums",
-      "status": "available",
+      "status": "production_approved",
       "discovered_at": "2026-08-25T00:32:02+0900",
-      "approved_at": null,
+      "approved_at": "2026-08-25T03:40:21+0900",
       "last_crawled_at": null
     },
     {
