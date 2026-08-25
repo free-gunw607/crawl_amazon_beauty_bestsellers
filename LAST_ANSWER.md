@@ -41,3 +41,8 @@
 ## Phase status
 - current phase: v0.4 dual-lane operations (cloud LIVE, local armed)
 - next phase: SA credential wiring → multi-day accumulation → next registry batch
+
+## Session close (2026-08-26 02:05 KST)
+- formula-driven Sheets architecture live (INDEX + 자동 category 수식, 12탭 14,966행)
+- Wisdomhouse promotion complete (4 IDs, episode `EP-AMZBS-DUALOPS-20260826-01`)
+- **sole pending action**: `sudo service cron start` in liam1 WSL → local detail lane arms

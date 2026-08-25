@@ -1,8 +1,8 @@
 {
   "current_phase": "v0.4_dual_lane_operations",
-  "current_task": "Owner single action remains: sudo service cron start; then fully unattended dual-lane ops",
+  "current_task": "Session closed 2026-08-26 late night; sole remaining owner action: sudo service cron start in liam1 WSL",
   "last_successful_step": "Public repo live with Actions 6h cycles verified (3 green dispatches, ok:8/failed:0, commit-back landing); lane split validated: runner IPs list-OK /dp/-blocked, local owns details",
-  "recommended_next_step": "Register GCP_SA_JSON secret when owner delivers SA JSON; verify cron_local.log fires after daemon start; next registry batch after clean days",
+  "recommended_next_step": "After owner starts cron: verify .agent/logs/cron_local.log fires at next :17 KST window (02/08/14/20) incl. sheets local-tab refresh; then multi-day accumulation -> next registry batch",
   "approved_scope": "owner approved public repo + Actions migration + cron root + GCP account (2026-08-25)",
   "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; stop-on-block policy unchanged",
   "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence on 6h cycle; public dataset via commit-back; rich workbooks to Drive",
@@ -34,7 +34,7 @@
       "resolution": "lane split cloud-lists/local-details"
     }
   ],
-  "updated_at": "2026-08-25T23:59:00+0900",
+  "updated_at": "2026-08-26T02:05:00+0900",
   "drive": {
     "method": "LOCAL lane: gws CLI OAuth after each detail pass (chained in crontab)",
     "folder_id": "1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp",
