@@ -40,6 +40,18 @@ jobs:
           if [ "$WITH_DETAIL" = "false" ]; then ARGS+=(--no-detail); fi
           PYTHONPATH=src python3 scripts/run_job.py "${ARGS[@]}"
 
+      - name: Show inner run log
+        if: always()
+        run: tail -60 .agent/logs/run_job_*.log 2>/dev/null || true
+
+      - name: Upload run logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: run-logs-${{ github.run_id }}
+          path: .agent/logs/
+          if-no-files-found: ignore
+
       - name: Export daily workbook
         run: PYTHONPATH=src python3 -m crawl_amazon_beauty_bestsellers.cli export-xlsx
 

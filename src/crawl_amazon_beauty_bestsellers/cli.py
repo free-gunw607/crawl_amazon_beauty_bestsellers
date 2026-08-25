@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
                     failed += 1
                     results.append({"node_id": node_id, "error": str(exc)})
             _print({"runs": results, "ok": len(nodes) - failed, "failed": failed})
-            return 1 if failed and not results else 0
+            return 1 if failed else 0
         elif args.command == "discover-categories":
             found = pipeline.discover_categories(args.root, max_depth=args.max_depth, root_slug=args.root_dept)
             unique = {d["node_id"]: d for d in found}
