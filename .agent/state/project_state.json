@@ -1,6 +1,6 @@
 {
   "current_phase": "v0.4_dual_lane_operations",
-  "current_task": "Owner provides GCP SA JSON + starts cron daemon; then multi-day accumulation",
+  "current_task": "Owner single action remains: sudo service cron start; then fully unattended dual-lane ops",
   "last_successful_step": "Public repo live with Actions 6h cycles verified (3 green dispatches, ok:8/failed:0, commit-back landing); lane split validated: runner IPs list-OK /dp/-blocked, local owns details",
   "recommended_next_step": "Register GCP_SA_JSON secret when owner delivers SA JSON; verify cron_local.log fires after daemon start; next registry batch after clean days",
   "approved_scope": "owner approved public repo + Actions migration + cron root + GCP account (2026-08-25)",
@@ -34,5 +34,12 @@
       "resolution": "lane split cloud-lists/local-details"
     }
   ],
-  "updated_at": "2026-08-25T23:35:00+0900"
+  "updated_at": "2026-08-25T23:59:00+0900",
+  "drive": {
+    "method": "LOCAL lane: gws CLI OAuth after each detail pass (chained in crontab)",
+    "folder_id": "1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp",
+    "verified_upload_file_id": "11qQcoXJc5cisiTug7a_HIY3res7G3UUi",
+    "command": "./repo upload-drive",
+    "ci_note": "SA uploads to personal My Drive are quota-blocked by Google policy; CI Drive step dormant unless Workspace Shared Drive target configured"
+  }
 }
