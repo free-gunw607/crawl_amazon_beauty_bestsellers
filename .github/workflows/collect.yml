@@ -1,0 +1,70 @@
+name: collect
+
+on:
+  schedule:
+    # 4x daily full cycle (list + detail) — UTC; KST = UTC+9
+    - cron: "47 1,7,13,19 * * *"
+  workflow_dispatch:
+    inputs:
+      detail:
+        description: "include product-detail pass"
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install runtime deps
+        run: pip install curl_cffi google-api-python-client google-auth
+
+      - name: Run collection cycle
+        env:
+          WITH_DETAIL: ${{ inputs.detail }}
+        run: |
+          ARGS=()
+          if [ "$WITH_DETAIL" = "false" ]; then ARGS+=(--no-detail); fi
+          PYTHONPATH=src python3 scripts/run_job.py "${ARGS[@]}"
+
+      - name: Export daily workbook
+        run: PYTHONPATH=src python3 -m crawl_amazon_beauty_bestsellers.cli export-xlsx
+
+      - name: Commit data back
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add artifacts/snapshots artifacts/exports
+          if git diff --cached --quiet; then
+            echo "no data changes"
+          else
+            git commit -m "data: collection cycle $(date -u +%Y%m%dT%H%M%SZ)"
+            git push
+          fi
+
+      - name: Publish to Drive (optional, needs GCP_SA_JSON secret)
+        env:
+          GCP_SA_JSON: ${{ secrets.GCP_SA_JSON }}
+          AMZ_BS_DRIVE_FOLDER_ID: ${{ secrets.AMZ_BS_DRIVE_FOLDER_ID }}
+        run: |
+          if [ -z "$GCP_SA_JSON" ]; then
+            echo "GCP_SA_JSON not set; skipping Drive publish"
+            exit 0
+          fi
+          mkdir -p "$RUNNER_TEMP/sa"
+          printf '%s' "$GCP_SA_JSON" > "$RUNNER_TEMP/sa/sa.json"
+          export GDRIVE_CREDS="$RUNNER_TEMP/sa/sa.json"
+          PYTHONPATH=src python3 -m crawl_amazon_beauty_bestsellers.cli upload-drive || echo "drive upload failed (non-fatal)"
