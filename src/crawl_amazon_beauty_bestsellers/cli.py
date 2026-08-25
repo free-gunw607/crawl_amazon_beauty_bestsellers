@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from typing import Any
 
 from .config import load_settings
@@ -169,7 +170,10 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if ok else 1
         elif args.command == "export-xlsx":
             name_map = {str(e.get("node_id")): e.get("name") or "" for e in pipeline.registry.all_entries()}
-            path = export_day(settings, pipeline.store, args.date, name_map=name_map)
+            date = args.date
+            if not date and not pipeline.store.day_latest_rows(time.strftime("%Y-%m-%d")):
+                date = pipeline.store.latest_data_day()
+            path = export_day(settings, pipeline.store, date, name_map=name_map)
             print(str(path))
         elif args.command == "upload-drive":
             from pathlib import Path

@@ -58,16 +58,21 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None, na
             base = base.replace(ch, " ")
         return base[:31]
 
-    first = True
+    index_ws = wb.active
+    index_ws.title = "INDEX"
+    index_ws.append(["node_id", "category", "bestsellers_url", "listed_rows"])
+    for cell in index_ws[1]:
+        cell.font = header_font
+
+    def _q(title: str) -> str:
+        return "'" + title.replace("'", "''") + "'"
+
+    panel_titles: list[tuple[str, str]] = []
     per_node = store.day_latest_rows(date_str)
     for node_id, rows in sorted(per_node.items()):
         sheet_name = _sheet_title(node_id)
-        if first:
-            ws = wb.active
-            ws.title = sheet_name
-            first = False
-        else:
-            ws = wb.create_sheet(sheet_name)
+        panel_titles.append((sheet_name, str(node_id)))
+        ws = wb.create_sheet(sheet_name)
         bestsellers_url = f"https://www.amazon.com/Best-Sellers/zgbs/beauty/{node_id}"
         ws.append([f"Amazon Best Sellers — {sheet_name}", "", "", "", "", "", "", "", bestsellers_url])
         link_cell = ws.cell(row=1, column=9)
@@ -88,13 +93,29 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None, na
             ])
         _autosize(ws)
 
+    for title, node_id in panel_titles:
+        index_ws.append([
+            node_id, title,
+            f"https://www.amazon.com/Best-Sellers/zgbs/beauty/{node_id}",
+            f"=COUNT({_q(title)}!A:A)",
+        ])
+    _autosize(index_ws)
+
+    def _category_formula(asin_ref: str, row_num: int) -> str:
+        parts = ",".join(
+            f'IF(COUNTIF({_q(t)}!$B$1:$B$500,{asin_ref}),"{t}","")'
+            for t, _ in panel_titles
+        )
+        return f'=TEXTJOIN(" | ",TRUE,{parts})'
+
     details = store.detail_day_rows(date_str)
     if details:
+        asin_nodes = store.day_asin_categories(date_str)
         parsed_details = [(row, _parse_specs(row.get("specs") or "")) for row in details]
 
         ws = wb.create_sheet("details")
         keys = [
-            "asin", "brand", "manufacturer", "model_number", "seller_name",
+            "brand", "manufacturer", "model_number", "seller_name",
             "buy_box_price", "buy_box_currency", "list_price_amount",
             "bsr_main_rank", "bsr_main_category",
             "bsr_sub_1_rank", "bsr_sub_1_category", "bsr_sub_2_rank", "bsr_sub_2_category",
@@ -105,7 +126,7 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None, na
         for _, column in CURATED_SPEC_COLUMNS:
             if column not in header_cols:
                 header_cols.append(column)
-        ws.append(["fetched_at"] + keys + header_cols + ["specs_json"])
+        ws.append(["fetched_at", "asin", "category(자동)", "ranked_node_ids"] + keys + header_cols + ["specs_json"])
         for cell in ws[1]:
             cell.font = header_font
 
@@ -142,27 +163,40 @@ def export_day(settings: Settings, store: Store, date_str: str | None = None, na
                         break
                 curated_values.append(value)
             specs_pretty = json.dumps(specs, ensure_ascii=False)[:3000]
-            ws.append([row.get("fetched_at")] + [row.get(k) for k in keys] + curated_values + [specs_pretty])
+            r = ws.max_row + 1
+            category_formula = _category_formula(f"$B{r}", r)
+            node_ids = ", ".join(asin_nodes.get(str(row.get("asin")), []))
+            ws.append(
+                [row.get("fetched_at"), row.get("asin"), category_formula, node_ids]
+                + [row.get(k) for k in keys] + curated_values + [specs_pretty]
+            )
             ws.cell(row=ws.max_row, column=len(keys) + len(curated_values) + 2).alignment = wrap
         _autosize(ws)
 
         ws = wb.create_sheet("specs_long")
-        ws.append(["asin", "brand", "spec_key", "spec_value"])
+        ws.append(["asin", "category(자동)", "brand", "spec_key", "spec_value"])
         for cell in ws[1]:
             cell.font = header_font
         for row, specs in parsed_details:
             for key, value in sorted(specs.items()):
-                ws.append([row.get("asin"), row.get("brand"), key, str(value)[:500]])
+                r = ws.max_row + 1
+                ws.append([
+                    row.get("asin"), _category_formula(f"$A{r}", r),
+                    row.get("brand"), key, str(value)[:500],
+                ])
         _autosize(ws)
 
     trend = store.trend_rows(days=14)
     if trend:
         ws = wb.create_sheet("trend_14d")
-        ws.append(["day", "node_id", "asin", "best_rank", "snapshots", "max_ratings"])
+        ws.append(["day", "node_id", "category(자동)", "asin", "best_rank", "snapshots", "max_ratings"])
         for cell in ws[1]:
             cell.font = header_font
         for row in trend:
-            ws.append(list(row.values()))
+            r = ws.max_row + 1
+            values = list(row.values())
+            category_formula = f'=IFERROR(VLOOKUP($B{r},INDEX!$A:$B,2,FALSE),"")'
+            ws.append(values[:1] + [values[1], category_formula] + values[2:])
         _autosize(ws)
 
     exports_dir = settings.resolve(settings.storage.exports_dir)

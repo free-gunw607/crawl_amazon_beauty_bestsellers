@@ -261,6 +261,22 @@ class Store:
         )
         return [dict(r) for r in rows]
 
+    def latest_data_day(self) -> str | None:
+        row = self._query("SELECT MAX(substr(fetched_at,1,10)) AS d FROM list_entries")
+        return row[0]["d"] if row and row[0]["d"] else None
+
+    def day_asin_categories(self, date_str: str) -> dict[str, list[str]]:
+        """Map asin -> node_ids it ranked under on `date_str` (ordered by best rank)."""
+        rows = self._query(
+            "SELECT asin, node_id, MIN(rank) AS best_rank FROM list_entries "
+            "WHERE substr(fetched_at,1,10)=? GROUP BY asin, node_id ORDER BY asin, best_rank",
+            (date_str,),
+        )
+        mapping: dict[str, list[str]] = {}
+        for row in rows:
+            mapping.setdefault(row["asin"], []).append(str(row["node_id"]))
+        return mapping
+
     def detail_day_rows(self, date_str: str) -> list[dict[str, Any]]:
         rows = self._query(
             "SELECT * FROM product_details WHERE substr(fetched_at,1,10)=? ORDER BY asin",

@@ -71,9 +71,20 @@ def build_tab_payloads(
 ) -> dict[str, list[list[str]]]:
     date_str = date_str or time.strftime("%Y-%m-%d")
     tabs: dict[str, list[list[str]]] = {}
+    per_node = store.day_latest_rows(date_str)
+    panel_titles = [( _panel_title(nid, name_map), str(nid)) for nid in sorted(per_node)]
+
+    def _q(title: str) -> str:
+        return "'" + title.replace("'", "''") + "'"
+
+    def _category_formula(asin_ref: str) -> str:
+        parts = ",".join(
+            f'IF(COUNTIF({_q(t)}!$B$1:$B$500,{asin_ref}),"{t}","")'
+            for t, _nid in panel_titles
+        )
+        return f'=TEXTJOIN(" | ",TRUE,{parts})'
 
     if lanes in ("ci", "all"):
-        per_node = store.day_latest_rows(date_str)
         for node_id, rows in sorted(per_node.items()):
             title = _panel_title(node_id, name_map)
             grid: list[list[str]] = [[
@@ -90,12 +101,23 @@ def build_tab_payloads(
                 ])
             tabs[title] = grid
 
+        index_grid = [["node_id", "category", "bestsellers_url", "listed_rows"]]
+        for node_id, _rows in sorted(per_node.items()):
+            t = _panel_title(node_id, name_map)
+            index_grid.append([
+                str(node_id), t,
+                f"https://www.amazon.com/Best-Sellers/zgbs/beauty/{node_id}",
+                f"=COUNT('{t}'!A:A)",
+            ])
+        tabs["INDEX"] = index_grid
+
     if lanes in ("local", "all"):
         details = store.detail_day_rows(date_str)
         if details:
+            asin_nodes = store.day_asin_categories(date_str)
             parsed = [(row, _parse_specs(row.get("specs") or "")) for row in details]
             keys = [
-                "asin", "brand", "manufacturer", "model_number", "seller_name",
+                "brand", "manufacturer", "model_number", "seller_name",
                 "buy_box_price", "buy_box_currency", "list_price_amount",
                 "bsr_main_rank", "bsr_main_category",
                 "bsr_sub_1_rank", "bsr_sub_1_category", "bsr_sub_2_rank", "bsr_sub_2_category",
@@ -106,28 +128,37 @@ def build_tab_payloads(
             for column in CURATED_SPEC_COLUMNS:
                 if column not in header_cols:
                     header_cols.append(column)
-            grid = [["fetched_at"] + keys + header_cols + ["specs_json"]]
+            grid = [["fetched_at", "asin", "category(자동)", "ranked_node_ids"] + keys + header_cols + ["specs_json"]]
             for row, specs in parsed:
-                row = _flatten(row)
+                flat = _flatten(row)
+                r = len(grid) + 2
                 curated = [specs.get(column, "") for column in header_cols]
                 specs_pretty = json.dumps(specs, ensure_ascii=False)[:3000]
+                node_ids = ", ".join(asin_nodes.get(str(flat.get("asin")), []))
                 grid.append(
-                    [_norm(row.get("fetched_at"))] + [_norm(row.get(k)) for k in keys]
+                    [_norm(flat.get("fetched_at")), _norm(flat.get("asin")), _category_formula(f"$B{r}"), node_ids]
+                    + [_norm(flat.get(k)) for k in keys]
                     + [_norm(v) for v in curated] + [specs_pretty]
                 )
             tabs["details"] = grid
 
-            grid = [["asin", "brand", "spec_key", "spec_value"]]
+            grid = [["asin", "category(자동)", "brand", "spec_key", "spec_value"]]
             for row, specs in parsed:
                 for key, value in sorted(specs.items()):
-                    grid.append([_norm(row.get("asin")), _norm(row.get("brand")), key, str(value)[:500]])
+                    r = len(grid) + 2
+                    grid.append([
+                        _norm(row.get("asin")), _category_formula(f"$A{r}"),
+                        _norm(row.get("brand")), key, str(value)[:500],
+                    ])
             tabs["specs_long"] = grid
 
         trend = store.trend_rows(days=14)
         if trend:
-            grid = [["day", "node_id", "asin", "best_rank", "snapshots", "max_ratings"]]
+            grid = [["day", "node_id", "category(자동)", "asin", "best_rank", "snapshots", "max_ratings"]]
             for row in trend:
-                grid.append([_norm(v) for v in row.values()])
+                values = [ _norm(v) for v in row.values() ]
+                r = len(grid) + 2
+                grid.append(values[:2] + [f'=IFERROR(VLOOKUP($B{r},INDEX!$A:$B,2,FALSE),"")'] + values[2:])
             tabs["trend_14d"] = grid
 
     return tabs
@@ -247,7 +278,7 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
                     ["sheets", "spreadsheets", "values", "batchUpdate"],
                     {"spreadsheetId": spreadsheet_id},
                     {
-                        "valueInputOption": "RAW",
+                        "valueInputOption": "USER_ENTERED",
                         "data": [{"range": f"'{title}'!A{offset}", "values": chunk}],
                     },
                 )
@@ -277,6 +308,7 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
             f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate",
             json={"requests": changes}, headers={"Authorization": f"Bearer {token}"}, timeout=120,
         ).raise_for_status()
+    data_items: list[dict] = []
     for title, grid in tabs.items():
         requests.post(
             f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/'{title}'!A1:ZZ1000000:clear",
@@ -284,11 +316,27 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
         )
         offset = 1
         for chunk in _chunk_rows(grid):
+            data_items.append({"range": f"'{title}'!A{offset}", "values": chunk})
+            offset += len(chunk)
+    batch: list[dict] = []
+    batch_bytes = 0
+    for item in data_items:
+        size = len(json.dumps(item, ensure_ascii=False))
+        if batch and batch_bytes + size > 4_000_000:
             requests.post(
                 f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate",
-                params={"valueInputOption": "RAW"},
-                json={"valueInputOption": "RAW", "data": [{"range": f"'{title}'!A{offset}", "values": chunk}]},
+                params={"valueInputOption": "USER_ENTERED"},
+                json={"valueInputOption": "USER_ENTERED", "data": batch},
                 headers={"Authorization": f"Bearer {token}"}, timeout=300,
             ).raise_for_status()
-            offset += len(chunk)
+            batch, batch_bytes = [], 0
+        batch.append(item)
+        batch_bytes += size
+    if batch:
+        requests.post(
+            f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate",
+            params={"valueInputOption": "USER_ENTERED"},
+            json={"valueInputOption": "USER_ENTERED", "data": batch},
+            headers={"Authorization": f"Bearer {token}"}, timeout=300,
+        ).raise_for_status()
     return {"backend": "sa", "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}
