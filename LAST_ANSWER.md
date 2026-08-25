@@ -1,50 +1,53 @@
 # LAST ANSWER
 
 ## Current state
-- v0.2 multi-category collector: 7 production panels collected end-to-end (2026-08-25)
-- Panels: Skin Care 11060451, Face 11060711, Body 11060521, Eyes 11061941, Moisturizers 11060661, Sunscreens 11062651, Body Washes 11056291 — all list pages parse 60/60 with USD price + rating
-- Face Serums 7792528011: approved; list OK (60/60) but detail crawl was halted by a captcha/block page at item 2 (run `20260825_0340_a8f5dc`)
-- Live crawling is intentionally PAUSED since ~03:40 KST per stop-on-block policy
+- v0.3: 9 production panels registered and collected; same-day double-block recovery proven (2026-08-25)
+- Schedule: crontab entries REGISTERED (hourly lists + 6h detail pass, lockfile-safe); cron daemon start is one owner command (`sudo service cron start`) because WSL2 has no systemd and cron isn't running
+- Drive: `./repo upload-drive` wired end-to-end except credentials — owner must supply GCP service-account JSON + folder id
 
-## Block event
-- second detail fetch of run `20260825_0340_a8f5dc` returned a block page → pipeline stopped immediately, no retries
-- ~400 detail fetches had accumulated over the session before the signal; treat as volume-based rate pressure until proven otherwise
-- cooldown: no Amazon requests for ≥1 hour, then resume procedure in `STATUS.md`
+## What happened today (compressed)
+1. crash recovery → baseline reverified
+2. batch 1+2 expansion: 7 panels approved & collected cleanly
+3. hard block on Serums detail (03:40) → immediate stop per policy
+4. cooldown → probe clean → retry soft-blocked (50 empty parses at 10:19)
+5. junk rows purged; second cooldown → detached retry with --save-raw → 46/50 details, BSR 100% (11:33–12:10)
+6. schedule designed for politeness (hourly lists ≈30 req/h; details 6-hourly), registered in cron + systemd units kept as alternative
 
 ## Deliverable proof
-- artifact paths:
-  - `artifacts/db/bestsellers.sqlite` (1260 list rows / 488 detail rows across 8 nodes)
-  - `artifacts/snapshots/<node>/<ts>/list.{jsonl,csv}` and `artifacts/details/*.jsonl`
-  - `artifacts/exports/xlsx/amazon_bs_20260825.xlsx` (regenerated post-expansion)
-  - `.agent/runs/run_*.json` (atomic run manifests incl. the blocked one)
-- proof timestamp: 2026-08-25 04:00 KST
+- `artifacts/db/bestsellers.sqlite`: ~1500 list rows / ~560 detail rows across 9 nodes
+- `artifacts/exports/xlsx/amazon_bs_20260825.xlsx` (regenerate anytime: `./repo export-xlsx`)
+- `.agent/runs/run_*.json`: full manifest trail including both block events
 - tests: `python3 -m pytest tests/ -q` → 5 passed
 
 ## How to operate
-- one cycle: `./repo run --node <id>` or all approved nodes: `PYTHONPATH=src python3 scripts/run_job.py`
-- read API: `./repo serve` then GET `/latest/<node_id>`
-- daily workbook: `./repo export-xlsx`
-- panel health: `./repo health`
+- manual single panel: `./repo run --node <id>` / all-panel list pass: `PYTHONPATH=src python3 scripts/run_job.py --no-detail`
+- health/block telemetry: `./repo health` (alerts when any ratio < 0.5)
+- workbook: `./repo export-xlsx`; upload after creds: `./repo upload-drive`
+- schedule install (systemd envs): `scripts/install_schedule.sh install|status|uninstall`
 
-## Pending owner decisions (approval gates)
-1. when to resume after cooldown (or leave to next session following STATUS resume procedure)
-2. activate the hourly schedule (systemd user timer or cron running `scripts/run_job.py`)
-3. Google Drive service account creation + `GDRIVE_CREDS` registration to enable `drive_upload.py`
+## Pending owner actions (only these remain)
+1. `sudo service cron start` — activates the already-registered hourly/6h schedule
+2. GCP service account JSON → set `GDRIVE_CREDS`, `AMZ_BS_DRIVE_FOLDER_ID` (share folder with SA email) → test `./repo upload-drive`
+3. optional: `/etc/wsl.conf` boot command so cron survives WSL restarts
 
 ## Known data realities
-- buy-box price/seller exist only for US-shippable items (~40–85% by panel); unshippable items recorded with explicit availability reason; list-page reference price captured for all
-- detail counts vary (40–75) due to bounded variant expansion: ≤5 variants/parent, cap 25/panel
-- movers_and_shakers is client-rendered and gracefully skipped (documented in commit 665f572)
+- buy-box price/seller exist only for US-shippable items (~40–63% by panel); list reference price captured for all
+- detail counts vary 40–75 by panel (bounded variant expansion ≤5/parent, cap 25)
+- ASIN B01MDTVZTZ failed fetches in all three attempts today (transient errors, not captcha) — watch it, not urgent
 
 ## Resume pointer
-- restart work at the STATUS.md "Resume procedure": light list probe on 7792528011 → `./repo run --node 7792528011`
-- parser iteration workflow: `--save-raw` then inspect `artifacts/raw/`
+- if session dies: read STATUS.md "Schedule status" + "Next actions"; everything durable lives in git + `.agent/`
+- next natural milestone: first automated cron cycle log at `.agent/logs/cron_list.log`
+
+## Wisdomhouse candidates (recommended to owner, not promoted)
+1. soft-block telemetry via field-completeness ratios (extends `WH-CRAWL-FIXFIN-001`)
+2. setsid-detach + stale-manifest marking for long crawls driven by agent tooling
 
 ## Phase status
-- current phase: v0.2 paused-by-policy (7/7 clean panels + 1 partial)
-- next phase: cooldown recovery → hourly schedule activation (owner gate) → further batches
+- current phase: v0.3 scheduled-ops pending owner daemon start
+- next phase: multi-day automated accumulation → next registry batch
 
 ## Durable handoff path
-- repo root `LAST_ANSWER.md` is the current summary
-- `.agent/answers/` stores archived timestamped copies
-- `.agent/state/project_state.json` stores machine-readable current state
+- repo root `LAST_ANSWER.md` (this file) + `STATUS.md`
+- `.agent/answers/` archives timestamped copies
+- `.agent/state/project_state.json` machine-readable state incl. block_events array

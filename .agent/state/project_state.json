@@ -1,26 +1,32 @@
 {
-  "current_phase": "v0.2_recovery_and_activation",
-  "current_task": "Serums soft-block recovery retry after cooldown (~11:30 KST); then conditional hourly-timer activation; Drive prepared pending SA JSON",
-  "last_successful_step": "Owner approved schedule + Drive gates; upload-drive CLI added; systemd timer units + install script committed (2faebb2); serums hard-block recovered once (13 good details) before soft-block #2; 50 junk rows purged",
-  "recommended_next_step": "After 11:30: single detached './repo crawl-detail --node 7792528011' with --save-raw; CHECK quality bsr/seller >= 50%; if clean -> scripts/install_schedule.sh install; if not -> keep timer off and report",
-  "approved_scope": "owner approved BOTH gates 2026-08-25: hourly schedule activation + Drive activation (Drive still needs owner-supplied GCP service-account JSON)",
-  "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; live crawling paused by block policy during cooldowns",
+  "current_phase": "v0.3_scheduled_ops_pending_owner_daemon_start",
+  "current_task": "Awaiting two owner actions: cron daemon start + Drive SA credentials; then multi-day automated accumulation",
+  "last_successful_step": "Serums recovered from double block (retry run 20260825_1133_6ccf68: 46/50 details, BSR 100%); crontab schedule registered; upload-drive CLI wired; systemd units preserved",
+  "recommended_next_step": "After owner starts cron: verify first automated cycle in .agent/logs/cron_list.log; after creds: test ./repo upload-drive; next registry batch only after clean days",
+  "approved_scope": "owner approved BOTH gates 2026-08-25 (schedule + Drive); Drive execution still needs owner-supplied SA JSON",
+  "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; on any block signal: stop, purge junk rows if soft-block, cooldown >=55min before retry",
   "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence hourly; US marketplace pinned; Excel to Drive after approval",
+  "schedule": {
+    "crontab_registered": true,
+    "list_cadence": "hourly at :17 with --no-detail (~30 req/h bounded)",
+    "detail_cadence": "every 6h at :47 (01,07,13,19), full list+detail",
+    "daemon_running": false,
+    "owner_command": "sudo service cron start",
+    "systemd_alternative": "deploy/systemd units + scripts/install_schedule.sh"
+  },
   "block_events": [
     {
       "run_id": "20260825_0340_a8f5dc",
-      "node_id": "7792528011",
-      "detected_at": "2026-08-25T03:40:38+0900",
-      "signal": "hard captcha/block page on detail fetch",
-      "action": "stop, no retries"
+      "kind": "hard",
+      "signal": "captcha/block page on detail fetch #2",
+      "recovery": "cooldown -> probe clean"
     },
     {
       "run_id": "20260825_1019_a54758",
-      "node_id": "7792528011",
-      "detected_at": "2026-08-25T10:35:00+0900",
-      "signal": "soft block: 50/50 detail fetches parsed empty (no captcha raise); rows purged from DB",
-      "action": "cooldown re-entered until ~11:30 KST"
+      "kind": "soft",
+      "signal": "50/50 empty parses over HTTP 200; junk purged",
+      "recovery": "cooldown ~55min -> detached --save-raw retry clean (BSR 46/46)"
     }
   ],
-  "updated_at": "2026-08-25T10:45:00+0900"
+  "updated_at": "2026-08-25T13:05:00+0900"
 }

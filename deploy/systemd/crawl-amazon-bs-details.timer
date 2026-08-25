@@ -1,0 +1,10 @@
+[Unit]
+Description=Detail/vendor pass every 6h for crawl_amazon_beauty_bestsellers
+
+[Timer]
+OnCalendar=*-*-* 01/6:30:00
+RandomizedDelaySec=900
+Persistent=true
+
+[Install]
+WantedBy=timers.target
