@@ -1,0 +1,10 @@
+[Unit]
+Description=Hourly schedule for crawl_amazon_beauty_bestsellers (politeness-jittered)
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=600
+Persistent=true
+
+[Install]
+WantedBy=timers.target

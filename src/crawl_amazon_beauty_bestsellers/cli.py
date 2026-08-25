@@ -59,6 +59,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("export-xlsx", help="export day workbook from accumulated data")
     p.add_argument("--date", default=None)
 
+    p = sub.add_parser("upload-drive", help="upload a workbook (default: latest daily xlsx) to Google Drive")
+    p.add_argument("--file", default=None)
+
     p = sub.add_parser("stats", help="database stats")
 
     p = sub.add_parser("health", help="parser field-completeness trend")
@@ -160,6 +163,24 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "export-xlsx":
             path = export_day(settings, pipeline.store, args.date)
             print(str(path))
+        elif args.command == "upload-drive":
+            from pathlib import Path
+
+            from .drive_upload import DriveUploadError, upload_file
+
+            if args.file:
+                target = Path(args.file)
+            else:
+                exports = sorted(Path("artifacts/exports/xlsx").glob("amazon_bs_*.xlsx"))
+                if not exports:
+                    print("no xlsx export found; run export-xlsx first")
+                    return 2
+                target = exports[-1]
+            try:
+                _print({"uploaded": str(target), **upload_file(target)})
+            except DriveUploadError as exc:
+                print(str(exc))
+                return 3
         elif args.command == "stats":
             _print(pipeline.store.stats())
         elif args.command == "health":

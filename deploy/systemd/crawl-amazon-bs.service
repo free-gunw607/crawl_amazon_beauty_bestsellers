@@ -1,0 +1,8 @@
+[Unit]
+Description=crawl_amazon_beauty_bestsellers hourly collection cycle
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers
+ExecStart=/usr/bin/python3 %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_job.py
+TimeoutStartSec=5400
