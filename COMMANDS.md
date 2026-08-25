@@ -100,6 +100,10 @@ Upload the latest daily workbook to Google Drive. Uses workspace `gws` CLI
 OAuth by default (folder id built in); a service-account path via
 `GDRIVE_CREDS` env remains supported as an alternative.
 
+`publish-sheets [--tabs ci|local|all] [--date]`
+Sync data into the live Google Sheet (`crawl_amazon_beauty_bestsellers_live`).
+CI publishes panel list tabs; local cron publishes details/specs_long/trend.
+
 `serve [--port 8790]`
 Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`, `/stats`.
 

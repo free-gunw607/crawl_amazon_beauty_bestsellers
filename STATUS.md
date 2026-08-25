@@ -7,8 +7,14 @@
 ## Current objective
 Collect Amazon.com beauty bestseller lists + product/vendor intelligence on a 6h cycle; publish a public time-series dataset via commit-back and rich workbooks to Drive
 
+## Live Google Sheet
+https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X2HU/edit
+- CI lane writes panel list tabs (SA cell-writes are quota-free — verified from runner)
+- local lane owns details/specs_long/trend tabs (fires with cron daemon)
+- xlsx sheets renamed to category names; each panel sheet links to its Amazon Best Sellers page
+
 ## Current phase
-v0.4 CLOUD+SPLIT OPERATIONS LIVE — GitHub Actions collects public list snapshots every 6h; local home-IP line owns /dp/ detail passes (runner IPs are captcha-blocked there, by design handled)
+v0.5 SHEETS-LIVE DUAL-LANE OPERATIONS — GitHub Actions collects public list snapshots every 6h; local home-IP line owns /dp/ detail passes (runner IPs are captcha-blocked there, by design handled)
 
 ## Proven architecture (empirically validated 2026-08-25)
 | lane | runs | covers | status |
