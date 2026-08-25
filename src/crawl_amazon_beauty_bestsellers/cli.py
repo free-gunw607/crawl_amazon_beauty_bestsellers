@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from typing import Any
 
@@ -61,6 +62,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("upload-drive", help="upload a workbook (default: latest daily xlsx) to Google Drive")
     p.add_argument("--file", default=None)
+
+    p = sub.add_parser("publish-sheets", help="publish tabs to the live Google Sheet")
+    p.add_argument("--spreadsheet-id", default=None)
+    p.add_argument("--tabs", choices=["ci", "local", "all"], default="all")
+    p.add_argument("--date", default=None)
+    p.add_argument("--backend", choices=["gws", "sa"], default=None)
 
     p = sub.add_parser("stats", help="database stats")
 
@@ -161,7 +168,8 @@ def main(argv: list[str] | None = None) -> int:
             print("approved" if ok else "not found")
             return 0 if ok else 1
         elif args.command == "export-xlsx":
-            path = export_day(settings, pipeline.store, args.date)
+            name_map = {str(e.get("node_id")): e.get("name") or "" for e in pipeline.registry.all_entries()}
+            path = export_day(settings, pipeline.store, args.date, name_map=name_map)
             print(str(path))
         elif args.command == "upload-drive":
             from pathlib import Path
@@ -179,6 +187,21 @@ def main(argv: list[str] | None = None) -> int:
             try:
                 _print({"uploaded": str(target), **upload_file(target)})
             except DriveUploadError as exc:
+                print(str(exc))
+                return 3
+        elif args.command == "publish-sheets":
+            from .sheets_publish import DEFAULT_SPREADSHEET_ID, SheetsPublishError, build_tab_payloads, publish
+
+            spreadsheet_id = args.spreadsheet_id or os.environ.get("AMZ_BS_SHEETS_ID") or DEFAULT_SPREADSHEET_ID
+            name_map = {str(e.get("node_id")): e.get("name") or "" for e in pipeline.registry.all_entries()}
+            tabs = build_tab_payloads(pipeline.store, args.date, name_map, lanes=args.tabs)
+            if not tabs:
+                print("no data to publish for this date/lanes")
+                return 2
+            backend = args.backend or ("gws" if not os.environ.get("GDRIVE_CREDS") else "sa")
+            try:
+                _print({"spreadsheet": spreadsheet_id, **publish(spreadsheet_id, tabs, backend)})
+            except SheetsPublishError as exc:
                 print(str(exc))
                 return 3
         elif args.command == "stats":

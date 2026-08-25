@@ -44,25 +44,40 @@ def _parse_specs(raw: str) -> dict[str, str]:
         return {}
 
 
-def export_day(settings: Settings, store: Store, date_str: str | None = None) -> Path:
+def export_day(settings: Settings, store: Store, date_str: str | None = None, name_map: dict[str, str] | None = None) -> Path:
     date_str = date_str or time.strftime("%Y-%m-%d")
     wb = Workbook()
     header_font = Font(bold=True)
     wrap = Alignment(wrap_text=True, vertical="top")
+    link_font = Font(bold=True, color="0563C1", underline="single")
+    name_map = name_map or {}
+
+    def _sheet_title(node_id: str) -> str:
+        base = name_map.get(str(node_id)) or f"node_{node_id}"
+        for ch in '[]:*?/\\':
+            base = base.replace(ch, " ")
+        return base[:31]
 
     first = True
     per_node = store.day_latest_rows(date_str)
     for node_id, rows in sorted(per_node.items()):
-        sheet_name = f"node_{node_id}"[:31]
+        sheet_name = _sheet_title(node_id)
         if first:
             ws = wb.active
             ws.title = sheet_name
             first = False
         else:
             ws = wb.create_sheet(sheet_name)
+        bestsellers_url = f"https://www.amazon.com/Best-Sellers/zgbs/beauty/{node_id}"
+        ws.append([f"Amazon Best Sellers — {sheet_name}", "", "", "", "", "", "", "", bestsellers_url])
+        link_cell = ws.cell(row=1, column=9)
+        link_cell.value = "🔗 Best Sellers 페이지 열기"
+        link_cell.hyperlink = bestsellers_url
+        link_cell.font = link_font
+        ws.cell(row=1, column=1).font = header_font
         headers = ["rank", "asin", "title", "rating", "ratings_count", "price", "currency", "offers_text", "url"]
         ws.append(headers)
-        for cell in ws[1]:
+        for cell in ws[2]:
             cell.font = header_font
         for row in rows:
             ws.append([

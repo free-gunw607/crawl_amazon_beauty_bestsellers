@@ -73,18 +73,23 @@ jobs:
             git push
           fi
 
-      - name: Publish to Drive (local lane only — SA uploads lack My Drive quota)
+      - name: Publish list tabs to live Google Sheet (SA cell-writes are quota-free)
         env:
           GCP_SA_JSON: ${{ secrets.GCP_SA_JSON }}
+          GDRIVE_CREDS: ${{ secrets.GDRIVE_CREDS }}
+          AMZ_BS_SHEETS_ID: 1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X2HU
           AMZ_BS_DRIVE_FOLDER_ID: ${{ secrets.AMZ_BS_DRIVE_FOLDER_ID }}
         run: |
-          echo "Google policy: service accounts cannot upload into personal My Drive (no storage quota;"
-          echo "requires a Workspace Shared Drive). Rich workbook publishing happens on the LOCAL lane"
-          echo "via gws OAuth after each detail pass. This step stays dormant unless a Shared Drive"
-          echo "target is configured via secrets."
-          if [ -n "$GCP_SA_JSON" ] && [ -n "$AMZ_BS_DRIVE_FOLDER_ID" ]; then
-            mkdir -p "$RUNNER_TEMP/sa"
-            printf '%s' "$GCP_SA_JSON" > "$RUNNER_TEMP/sa/sa.json"
-            export GDRIVE_CREDS="$RUNNER_TEMP/sa/sa.json"
-            PYTHONPATH=src python3 -m crawl_amazon_beauty_bestsellers.cli upload-drive || echo "drive upload failed (non-fatal)"
+          if [ -z "$GDRIVE_CREDS" ]; then
+            echo "GDRIVE_CREDS not set; skipping Sheets publish"
+            exit 0
           fi
+          mkdir -p "$RUNNER_TEMP/sa"
+          printf '%s' "$GDRIVE_CREDS" > "$RUNNER_TEMP/sa/sa.json"
+          export GDRIVE_CREDS="$RUNNER_TEMP/sa/sa.json"
+          PYTHONPATH=src python3 -m crawl_amazon_beauty_bestsellers.cli publish-sheets --tabs ci \
+            || echo "sheets publish failed (non-fatal)"
+
+      - name: Drive file upload note
+        run: |
+          echo "Google policy: service accounts cannot upload files into personal My Drive (no storage quota)."
