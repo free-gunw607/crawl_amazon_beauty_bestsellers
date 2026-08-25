@@ -58,8 +58,9 @@ Skin Care 11060451 · Face 11060711 · Body 11060521 · Eyes 11061941 · Moistur
 2. owner: cron daemon start → verify `.agent/logs/cron_local.log` after next :17 KST window
 3. after several clean days: next registry batch (registry-first lifecycle)
 
-## Reusable-pattern notes (Wisdomhouse candidates)
-1. soft-block telemetry via field-completeness ratios (extends `WH-CRAWL-FIXFIN-001`)
-2. gws-OAuth-over-new-SA for per-repo Drive publishing
-3. privilege-free interim scheduler loop for WSL/no-systemd
-4. cloud-lists/local-details lane split for datacenter-IP-blocked scraping
+## Wisdomhouse — PROMOTED (owner-approved 2026-08-26)
+Episode `EP-AMZBS-DUALOPS-20260826-01`, canonical doc A2 `Wisdomhouse/by-repo/crawl_amazon_beauty_bestsellers.md`:
+- `WH-CRAWL-AMZBS-001` soft-block telemetry (purge+cooldown protocol)
+- `WH-CRAWL-AMZBS-002` cloud-lists/local-details lane split
+- `WH-RUNTIME-AMZBS-001` privilege-free scheduler loop, crontab takeover
+- `WH-DATA-AMZBS-001` SA file-upload quota vs Sheets cell-writes; formula-driven derived tabs

@@ -31,10 +31,8 @@
 - ASIN B01MDTVZTZ repeatedly transient-fails locally too — watch next local pass
 - SQLite no longer committed (local-only); public dataset = csv snapshots + xlsx
 
-## Wisdomhouse candidates (recommended)
-1. soft-block telemetry via field-completeness ratios
-2. gws-OAuth-over-new-SA Drive pattern
-3. privilege-free scheduler loop for WSL/no-systemd
+## Wisdomhouse — PROMOTED (owner-approved 2026-08-26)
+4 entries under episode `EP-AMZBS-DUALOPS-20260826-01`: soft-block telemetry (`WH-CRAWL-AMZBS-001`), cloud-lists/local-details lane split (`WH-CRAWL-AMZBS-002`), privilege-free scheduler (`WH-RUNTIME-AMZBS-001`), SA-quota boundary + formula-driven Sheets (`WH-DATA-AMZBS-001`). Canonical: A2 `Wisdomhouse/by-repo/crawl_amazon_beauty_bestsellers.md`
 4. **cloud-lists/local-details lane split** for datacenter-blocked scraping targets
 
 ## Resume pointer
