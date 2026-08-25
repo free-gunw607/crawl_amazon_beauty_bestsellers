@@ -40,3 +40,6 @@ test-results/
 .DS_Store
 
 artifacts/raw/
+# SQLite accumulation stays local-only from now on (history preserved);
+# public dataset = per-node list.csv snapshots + daily xlsx via commit-back
+artifacts/db/
