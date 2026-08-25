@@ -144,9 +144,35 @@ def _gws(args: list[str], params: dict, body: dict | None = None) -> dict:
     return json.loads(stdout[stdout.index("{"):]) if "{" in stdout else {}
 
 
-def _existing_titles_gws(spreadsheet_id: str) -> set[str]:
-    meta = _gws(["sheets", "spreadsheets", "get"], {"spreadsheetId": spreadsheet_id, "fields": "sheets.properties.title"})
-    return {s["properties"]["title"] for s in meta.get("sheets", [])}
+def _sheet_meta_gws(spreadsheet_id: str) -> dict[str, dict]:
+    meta = _gws(
+        ["sheets", "spreadsheets", "get"],
+        {"spreadsheetId": spreadsheet_id, "fields": "sheets.properties(sheetId,title,gridProperties)"},
+    )
+    out: dict[str, dict] = {}
+    for s in meta.get("sheets", []):
+        props = s["properties"]
+        grid = props.get("gridProperties", {})
+        out[props["title"]] = {"sheet_id": props["sheetId"], "rows": grid.get("rowCount", 1000), "cols": grid.get("columnCount", 26)}
+    return out
+
+
+def _grid_resize_requests(title: str, meta: dict | None, rows: int, cols: int) -> list[dict]:
+    need_rows, need_cols = max(rows + 50, 100), max(cols + 5, 26)
+    if meta is None:
+        return [{"addSheet": {"properties": {"title": title, "gridProperties": {"rowCount": need_rows, "columnCount": need_cols}}}}]
+    requests = []
+    if meta["rows"] < rows or meta["cols"] < cols:
+        requests.append({
+            "updateSheetProperties": {
+                "properties": {
+                    "sheetId": meta["sheet_id"],
+                    "gridProperties": {"rowCount": max(need_rows, meta["rows"]), "columnCount": max(need_cols, meta["cols"])},
+                },
+                "fields": "gridProperties",
+            }
+        })
+    return requests
 
 
 def _transport():
@@ -155,16 +181,21 @@ def _transport():
     return google.auth.transport.requests.Request()
 
 
-def _existing_titles_sa(spreadsheet_id: str, token: str) -> set[str]:
+def _sheet_meta_sa(spreadsheet_id: str, token: str) -> dict[str, dict]:
     import requests
 
     resp = requests.get(
         f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}",
-        params={"fields": "sheets.properties.title"},
+        params={"fields": "sheets.properties(sheetId,title,gridProperties)"},
         headers={"Authorization": f"Bearer {token}"}, timeout=60,
     )
     resp.raise_for_status()
-    return {s["properties"]["title"] for s in resp.json().get("sheets", [])}
+    out: dict[str, dict] = {}
+    for s in resp.json().get("sheets", []):
+        props = s["properties"]
+        grid = props.get("gridProperties", {})
+        out[props["title"]] = {"sheet_id": props["sheetId"], "rows": grid.get("rowCount", 1000), "cols": grid.get("columnCount", 26)}
+    return out
 
 
 def _chunk_rows(grid: list[list[str]], max_bytes: int = 100_000, max_rows: int = 2000) -> list[list[list[str]]]:
@@ -184,26 +215,43 @@ def _chunk_rows(grid: list[list[str]], max_bytes: int = 100_000, max_rows: int =
 
 
 def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str) -> dict:
+    stamp = time.strftime("%Y-%m-%d %H:%M %Z")
+    lane = "cloud/actions" if backend == "sa" else "local/home-ip"
+    stamped: dict[str, list[list[str]]] = {}
+    for title, grid in tabs.items():
+        header_row = [f"마지막 갱신: {stamp}", f"라인: {lane}", f"탭: {title}"]
+        rest = grid[1:] if grid and grid[0] and str(grid[0][0]).startswith("Amazon Best Sellers") else grid[1:]
+        lead = grid[0] if grid else []
+        if lead and str(lead[0]).startswith("Amazon Best Sellers"):
+            stamped[title] = [header_row, lead] + rest
+        else:
+            stamped[title] = [header_row] + grid
+    tabs = stamped
+
     if backend == "gws":
-        existing = _existing_titles_gws(spreadsheet_id)
-        missing = [{"addSheet": {"properties": {"title": t}}} for t in tabs if t not in existing]
-        if missing:
-            _gws(["sheets", "spreadsheets", "batchUpdate"], {"spreadsheetId": spreadsheet_id}, {"requests": missing})
+        meta = _sheet_meta_gws(spreadsheet_id)
+        changes: list[dict] = []
+        for title, grid in tabs.items():
+            changes += _grid_resize_requests(title, meta.get(title), rows=len(grid), cols=max(len(r) for r in grid))
+        if changes:
+            _gws(["sheets", "spreadsheets", "batchUpdate"], {"spreadsheetId": spreadsheet_id}, {"requests": changes})
         for title, grid in tabs.items():
             _gws(
                 ["sheets", "spreadsheets", "values", "clear"],
                 {"spreadsheetId": spreadsheet_id, "range": f"'{title}'"},
                 {},
             )
+            offset = 1
             for chunk in _chunk_rows(grid):
                 _gws(
                     ["sheets", "spreadsheets", "values", "batchUpdate"],
                     {"spreadsheetId": spreadsheet_id},
                     {
                         "valueInputOption": "RAW",
-                        "data": [{"range": f"'{title}'!A1", "values": chunk}],
+                        "data": [{"range": f"'{title}'!A{offset}", "values": chunk}],
                     },
                 )
+                offset += len(chunk)
         return {"backend": backend, "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}
 
     creds_env = os.environ.get("GDRIVE_CREDS", "")
@@ -220,22 +268,27 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
 
     import requests
 
-    existing = _existing_titles_sa(spreadsheet_id, token)
-    missing = [{"addSheet": {"properties": {"title": t}}} for t in tabs if t not in existing]
-    if missing:
+    meta = _sheet_meta_sa(spreadsheet_id, token)
+    changes: list[dict] = []
+    for title, grid in tabs.items():
+        changes += _grid_resize_requests(title, meta.get(title), rows=len(grid), cols=max(len(r) for r in grid))
+    if changes:
         requests.post(
             f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}:batchUpdate",
-            json={"requests": missing}, headers={"Authorization": f"Bearer {token}"}, timeout=120,
+            json={"requests": changes}, headers={"Authorization": f"Bearer {token}"}, timeout=120,
         ).raise_for_status()
     for title, grid in tabs.items():
         requests.post(
             f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values/'{title}'!A1:ZZ1000000:clear",
             headers={"Authorization": f"Bearer {token}"}, timeout=120,
         )
-        requests.post(
-            f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate",
-            params={"valueInputOption": "RAW"},
-            json={"valueInputOption": "RAW", "data": [{"range": f"'{title}'!A1", "values": grid}]},
-            headers={"Authorization": f"Bearer {token}"}, timeout=300,
-        ).raise_for_status()
+        offset = 1
+        for chunk in _chunk_rows(grid):
+            requests.post(
+                f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate",
+                params={"valueInputOption": "RAW"},
+                json={"valueInputOption": "RAW", "data": [{"range": f"'{title}'!A{offset}", "values": chunk}]},
+                headers={"Authorization": f"Bearer {token}"}, timeout=300,
+            ).raise_for_status()
+            offset += len(chunk)
     return {"backend": "sa", "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}

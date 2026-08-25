@@ -12,6 +12,8 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - CI lane writes panel list tabs (SA cell-writes are quota-free — verified from runner)
 - local lane owns details/specs_long/trend tabs (fires with cron daemon)
 - xlsx sheets renamed to category names; each panel sheet links to its Amazon Best Sellers page
+- every tab carries a freshness stamp row (마지막 갱신 시각 + 라인) so cloud/local drift is visible
+- publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
 v0.5 SHEETS-LIVE DUAL-LANE OPERATIONS — GitHub Actions collects public list snapshots every 6h; local home-IP line owns /dp/ detail passes (runner IPs are captcha-blocked there, by design handled)
