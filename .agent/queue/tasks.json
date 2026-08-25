@@ -1,34 +1,34 @@
 {
   "tasks": [
     {
-      "id": "verify-first-loop-cycle",
+      "id": "owner-gcp-sa-json",
       "priority": "high",
-      "status": "queued",
-      "summary": "Check .agent/logs/scheduler_loop.log after 20:17 for the first automated list cycle; confirm DB row growth and health ratios."
+ "status": "blocked-owner",
+      "summary": "Owner follows console steps in LAST_ANSWER.md; then I run gh secret set GCP_SA_JSON + AMZ_BS_DRIVE_FOLDER_ID and verify the CI Drive step uploads."
     },
     {
-      "id": "optional-owner-cron-takeover",
-      "priority": "low",
-      "status": "optional",
-      "summary": "Owner may run 'sudo service cron start' so registered crontab entries take over (reboot-durable). Interim loop can then be killed."
+      "id": "owner-cron-daemon-start",
+      "priority": "high",
+      "status": "blocked-owner",
+      "summary": "Owner runs 'sudo service cron start'; verify .agent/logs/cron_local.log after next :17 KST window (02/08/14/20)."
     },
     {
       "id": "watch-asin-b01mdtvztz",
       "priority": "low",
       "status": "queued",
-      "summary": "ASIN B01MDTVZTZ failed all fetch attempts today (transient errors, not captcha). Re-check on a future detail pass before assuming page-level issue."
+      "summary": "ASIN B01MDTVZTZ transient-fails repeatedly; re-check on a future local detail pass."
     },
     {
       "id": "expansion-next-batch",
       "priority": "low",
       "status": "deferred",
-      "summary": "Next category batch (registry-first) only after several clean automated days under the hourly/6h cadence."
+      "summary": "Next registry batch only after several clean dual-lane days."
     },
     {
       "id": "wisdomhouse-candidates",
       "priority": "low",
       "status": "queued",
-      "summary": "Three candidates recommended in LAST_ANSWER.md: soft-block telemetry, gws-OAuth-over-SA Drive pattern, privilege-free scheduler loop. Await owner approval to promote into A2 Wisdomhouse."
+      "summary": "4 candidates in LAST_ANSWER.md (soft-block telemetry, gws-OAuth Drive, privilege-free scheduler, cloud/local lane split). Await owner approval."
     }
   ]
 }

@@ -1,41 +1,38 @@
 {
-  "current_phase": "v0.3_automated_accumulation_live",
-  "current_task": "Multi-day clean automated runs; verify first loop-fired cycle at 20:17; next registry batch after several clean days",
-  "last_successful_step": "BOTH gates solved: Drive publishing verified via gws OAuth (./repo upload-drive -> file 11qQcoXJc5cisiTug7a_HIY3res7G3UUi); privilege-free scheduler_loop.py daemon active (pid in .agent/locks/scheduler_loop.lock)",
-  "recommended_next_step": "Check .agent/logs/scheduler_loop.log for the 20:17 automated list cycle; then let it accumulate. Optional owner: sudo service cron start for reboot-durable crontab takeover",
-  "approved_scope": "owner approved BOTH gates 2026-08-25 (schedule + Drive) - both now implemented and verified",
-  "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; on any block signal: stop, purge junk rows if soft-block, cooldown >=55min before retry",
-  "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence hourly; US marketplace pinned; Excel published to Google Drive",
-  "schedule": {
-    "interim_loop": {
-      "script": "scripts/scheduler_loop.py",
-      "status": "running-detached",
-      "cadence": "hourly list :17 + detail pass 01/07/13/19 :47"
+  "current_phase": "v0.4_dual_lane_operations",
+  "current_task": "Owner provides GCP SA JSON + starts cron daemon; then multi-day accumulation",
+  "last_successful_step": "Public repo live with Actions 6h cycles verified (3 green dispatches, ok:8/failed:0, commit-back landing); lane split validated: runner IPs list-OK /dp/-blocked, local owns details",
+  "recommended_next_step": "Register GCP_SA_JSON secret when owner delivers SA JSON; verify cron_local.log fires after daemon start; next registry batch after clean days",
+  "approved_scope": "owner approved public repo + Actions migration + cron root + GCP account (2026-08-25)",
+  "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; stop-on-block policy unchanged",
+  "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence on 6h cycle; public dataset via commit-back; rich workbooks to Drive",
+  "architecture": {
+    "cloud": {
+      "workflow": ".github/workflows/collect.yml",
+      "cadence": "6h at :47 UTC",
+      "covers": "list snapshots -> public commit-back + workbook"
     },
-    "crontab_registered": true,
-    "daemon_running": false,
-    "optional_owner_command": "sudo service cron start",
-    "systemd_alternative": "deploy/systemd units + scripts/install_schedule.sh"
-  },
-  "drive": {
-    "method": "gws CLI OAuth fallback (no service account needed)",
-    "folder_id": "1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp",
-    "verified_upload_file_id": "11qQcoXJc5cisiTug7a_HIY3res7G3UUi",
-    "command": "./repo upload-drive"
+    "local": {
+      "cadence": "6h at :17 KST crontab (daemon pending sudo)",
+      "covers": "/dp/ detail+vendor pass from residential IP"
+    }
   },
   "block_events": [
     {
       "run_id": "20260825_0340_a8f5dc",
       "kind": "hard",
-      "signal": "captcha/block page on detail fetch #2",
-      "recovery": "cooldown -> probe clean"
+      "recovery": "cooldown"
     },
     {
       "run_id": "20260825_1019_a54758",
       "kind": "soft",
-      "signal": "50/50 empty parses over HTTP 200; junk purged",
-      "recovery": "cooldown ~55min -> detached --save-raw retry clean (BSR 46/46)"
+      "recovery": "purge+cooldown+clean retry"
+    },
+    {
+      "run_id": "CI-runner-/dp/",
+      "kind": "structural",
+      "resolution": "lane split cloud-lists/local-details"
     }
   ],
-  "updated_at": "2026-08-25T20:00:00+0900"
+  "updated_at": "2026-08-25T23:35:00+0900"
 }
