@@ -95,11 +95,24 @@ Show the registry / promote a verified category to production.
 `export-xlsx [--date YYYY-MM-DD]`
 Build the daily Excel workbook (per-node sheets, details, 14-day trend).
 
+`upload-drive [--file PATH]`
+Upload the latest daily workbook to Google Drive. Requires `GDRIVE_CREDS`
+(service-account JSON path) and optionally `AMZ_BS_DRIVE_FOLDER_ID`.
+
 `serve [--port 8790]`
 Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`, `/stats`.
 
 `stats`
 Database accumulation summary.
+
+## Schedule Commands (owner approved 2026-08-25)
+```bash
+scripts/install_schedule.sh install     # enable hourly systemd user timer
+scripts/install_schedule.sh status      # show next firing times
+scripts/install_schedule.sh uninstall   # stop + remove the timer
+```
+Timer runs `scripts/run_job.py` hourly with 0-10min jitter; lockfile prevents
+overlap; staleness watchdog alerts if no completed run in >3.5h.
 
 ## Examples
 - `./repo bootstrap-session`
@@ -109,8 +122,16 @@ Database accumulation summary.
 - `./repo registry-approve --node 11060521`
 - `./repo export-xlsx`
 - `./repo serve --port 8790`
-- `PYTHONPATH=src python3 scripts/run_job.py`  # hourly scheduler entry
+- `PYTHONPATH=src python3 scripts/run_job.py`  # manual single cycle (timer does this hourly)
+- `./repo upload-drive`  # after GDRIVE_CREDS registration
 - add further workflow examples here as the repo matures
+
+## Drive Registration Steps (owner, one-time)
+1. GCP console: create service account, download JSON key
+2. store JSON outside the repo (e.g. A3 local-config), then export:
+   - `GDRIVE_CREDS=/path/to/sa.json`
+   - `AMZ_BS_DRIVE_FOLDER_ID=<drive folder id>` (share that folder with the SA email)
+3. verify: `./repo upload-drive` (uploads latest workbook)
 
 ## Notes
 - prefer use-case examples over raw subcommand lists
