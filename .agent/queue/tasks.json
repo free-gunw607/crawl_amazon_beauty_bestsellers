@@ -1,16 +1,16 @@
 {
   "tasks": [
     {
-      "id": "owner-start-cron-daemon",
+      "id": "verify-first-loop-cycle",
       "priority": "high",
-      "status": "blocked-owner",
-      "summary": "Owner runs: sudo service cron start. Crontab entries already registered (hourly lists xx:17, detail pass 01/07/13/19 at :47). Verify .agent/logs/cron_list.log after next hour boundary."
+      "status": "queued",
+      "summary": "Check .agent/logs/scheduler_loop.log after 20:17 for the first automated list cycle; confirm DB row growth and health ratios."
     },
     {
-      "id": "owner-drive-credentials",
-      "priority": "high",
-      "status": "blocked-owner",
-      "summary": "Owner creates GCP service account, shares Drive folder with SA email, sets GDRIVE_CREDS + AMZ_BS_DRIVE_FOLDER_ID, tests ./repo upload-drive."
+      "id": "optional-owner-cron-takeover",
+      "priority": "low",
+      "status": "optional",
+      "summary": "Owner may run 'sudo service cron start' so registered crontab entries take over (reboot-durable). Interim loop can then be killed."
     },
     {
       "id": "watch-asin-b01mdtvztz",
@@ -28,7 +28,7 @@
       "id": "wisdomhouse-candidates",
       "priority": "low",
       "status": "queued",
-      "summary": "Two candidates recommended in LAST_ANSWER.md (soft-block telemetry via field ratios; detached-crawl discipline). Await owner approval to promote into A2 Wisdomhouse."
+      "summary": "Three candidates recommended in LAST_ANSWER.md: soft-block telemetry, gws-OAuth-over-SA Drive pattern, privilege-free scheduler loop. Await owner approval to promote into A2 Wisdomhouse."
     }
   ]
 }

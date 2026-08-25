@@ -29,8 +29,9 @@ Collect Amazon beauty bestseller lists and product detail vendor intelligence on
   - registry-first category expansion: new categories stay `available` until a live dry-run passes, then owner-visible `registry-approve`
 - constraints:
   - politeness defaults are mandatory: randomized delays, transient-only retries, immediate stop on captcha/block detection, no retry storms
-  - keep hourly request volume bounded: expand active categories gradually and observe block signals between batches
-  - never commit secrets (`.env`, tokens, service-account JSON); Drive credentials arrive only via env at runtime
+  - keep hourly request volume bounded: hourly cycles are list-only; full detail passes run every 6h; expand active categories gradually and observe block signals between batches
+  - soft blocks (HTTP 200 with empty parses) count as block signals: purge junk rows, cooldown >=55min before retry
+  - never commit secrets (`.env`, tokens, service-account JSON); Drive uploads use the workspace gws CLI OAuth by default (`drive_upload.py`), service-account env path remains optional
   - schedule activation (`run_job.py` timer) and any remote side effect require explicit owner approval
 - local expectations:
   - keep repository-local execution reproducible

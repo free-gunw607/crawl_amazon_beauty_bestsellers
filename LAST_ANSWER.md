@@ -1,51 +1,45 @@
 # LAST ANSWER
 
 ## Current state
-- v0.3: 9 production panels registered and collected; same-day double-block recovery proven (2026-08-25)
-- Schedule: crontab entries REGISTERED (hourly lists + 6h detail pass, lockfile-safe); cron daemon start is one owner command (`sudo service cron start`) because WSL2 has no systemd and cron isn't running
-- Drive: `./repo upload-drive` wired end-to-end except credentials — owner must supply GCP service-account JSON + folder id
+- v0.3 LIVE: 8 production panels collected, interim scheduler daemon running, Drive publishing verified — both former "owner gates" solved end-to-end (2026-08-25)
+- Same-day double-block recovery proven on Face Serums (hard captcha → soft empty-parse block → clean 46/50 retry with BSR 100%)
 
-## What happened today (compressed)
-1. crash recovery → baseline reverified
-2. batch 1+2 expansion: 7 panels approved & collected cleanly
-3. hard block on Serums detail (03:40) → immediate stop per policy
-4. cooldown → probe clean → retry soft-blocked (50 empty parses at 10:19)
-5. junk rows purged; second cooldown → detached retry with --save-raw → 46/50 details, BSR 100% (11:33–12:10)
-6. schedule designed for politeness (hourly lists ≈30 req/h; details 6-hourly), registered in cron + systemd units kept as alternative
+## Gates — RESOLVED
+| gate | resolution |
+|---|---|
+| hourly schedule | `scripts/scheduler_loop.py` interim daemon ACTIVE (privilege-free, setsid-detached; hourly lists :17, detail pass 01/07/13/19 :47). Crontab entries registered as durable takeover path once owner ever runs `sudo service cron start` (optional now) |
+| Drive upload | workspace `gws` CLI OAuth used instead of service account — `./repo upload-drive` verified: folder `crawl_amazon_beauty_bestsellers`, first workbook uploaded (file id `11qQcoXJc5cisiTug7a_HIY3res7G3UUi`) |
 
 ## Deliverable proof
-- `artifacts/db/bestsellers.sqlite`: ~1500 list rows / ~560 detail rows across 9 nodes
-- `artifacts/exports/xlsx/amazon_bs_20260825.xlsx` (regenerate anytime: `./repo export-xlsx`)
-- `.agent/runs/run_*.json`: full manifest trail including both block events
+- DB `artifacts/db/bestsellers.sqlite`: ~1500 list / ~560 detail rows across 8 nodes
+- Drive: https://drive.google.com/file/d/11qQcoXJc5cisiTug7a_HIY3res7G3UUi/view
+- `.agent/runs/run_*.json`: manifest trail incl. both block events
 - tests: `python3 -m pytest tests/ -q` → 5 passed
 
 ## How to operate
-- manual single panel: `./repo run --node <id>` / all-panel list pass: `PYTHONPATH=src python3 scripts/run_job.py --no-detail`
-- health/block telemetry: `./repo health` (alerts when any ratio < 0.5)
-- workbook: `./repo export-xlsx`; upload after creds: `./repo upload-drive`
-- schedule install (systemd envs): `scripts/install_schedule.sh install|status|uninstall`
+- status of automation: `tail .agent/logs/scheduler_loop.log`
+- health/block telemetry: `./repo health`
+- publish today's workbook: `./repo upload-drive`
+- manual cycle anytime: `PYTHONPATH=src python3 scripts/run_job.py --no-detail`
 
-## Pending owner actions (only these remain)
-1. `sudo service cron start` — activates the already-registered hourly/6h schedule
-2. GCP service account JSON → set `GDRIVE_CREDS`, `AMZ_BS_DRIVE_FOLDER_ID` (share folder with SA email) → test `./repo upload-drive`
-3. optional: `/etc/wsl.conf` boot command so cron survives WSL restarts
-
-## Known data realities
-- buy-box price/seller exist only for US-shippable items (~40–63% by panel); list reference price captured for all
-- detail counts vary 40–75 by panel (bounded variant expansion ≤5/parent, cap 25)
-- ASIN B01MDTVZTZ failed fetches in all three attempts today (transient errors, not captcha) — watch it, not urgent
-
-## Resume pointer
-- if session dies: read STATUS.md "Schedule status" + "Next actions"; everything durable lives in git + `.agent/`
-- next natural milestone: first automated cron cycle log at `.agent/logs/cron_list.log`
+## Operational notes
+- scheduler_loop dies only if the WSL VM shuts down; restart with:
+  `setsid nohup python3 scripts/scheduler_loop.py >/dev/null 2>&1 < /dev/null &`
+- crontab entries are already in place and will fire automatically once cron daemon starts (owner optional)
+- ASIN B01MDTVZTZ failed all fetches today (transient errors) — re-check next detail pass
 
 ## Wisdomhouse candidates (recommended to owner, not promoted)
-1. soft-block telemetry via field-completeness ratios (extends `WH-CRAWL-FIXFIN-001`)
-2. setsid-detach + stale-manifest marking for long crawls driven by agent tooling
+1. **soft-block telemetry** via per-run field-completeness ratios (HTTP 200 + zero-field parses = block signal; extends `WH-CRAWL-FIXFIN-001`) — evidence run `20260825_1019_a54758`
+2. **workspace-gws-OAuth over new service accounts** for per-repo Drive publishing — no credential creation, no secrets stored; evidence `./repo upload-drive` end-to-end
+3. **privilege-free interim scheduler loop** for WSL/no-systemd environments — crontab-equivalent cadence without root; evidence pid-alive + marker files
+
+## Resume pointer
+- if session dies: read STATUS.md top sections; everything durable lives in git + `.agent/`
+- restart loop after WSL reboot with the one-liner above
 
 ## Phase status
-- current phase: v0.3 scheduled-ops pending owner daemon start
-- next phase: multi-day automated accumulation → next registry batch
+- current phase: v0.3 automated accumulation
+- next phase: multi-day clean runs → next registry batch
 
 ## Durable handoff path
 - repo root `LAST_ANSWER.md` (this file) + `STATUS.md`

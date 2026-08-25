@@ -9,7 +9,7 @@
 Collect Amazon.com beauty-sector bestseller lists and product detail/vendor intelligence on an hourly schedule, accumulate time-series locally, publish Excel to Google Drive
 
 ## Current phase
-v0.3 scheduled operations — 9 production panels; schedule registered (cron entries in place); two block events survived and recovered same-day
+v0.3 scheduled operations LIVE — 8 production panels; interim scheduler daemon active; Drive publishing verified via gws OAuth
 
 ## Active production panels (9, all registry `production_approved`)
 | node | panel | state |
@@ -23,12 +23,18 @@ v0.3 scheduled operations — 9 production panels; schedule registered (cron ent
 | 11056291 | Body Washes | full cycle OK (75 details, BSR 75/75) |
 | 7792528011 | Face Serums | RECOVERED after 2 block events: retry run 20260825_1133_6ccf68 → 46/50 details, BSR 46/46, USD+seller 21/46 |
 
-## Schedule status (owner approved 2026-08-25)
-- crontab REGISTERED: hourly list snapshots (`--no-detail`, xx:17) + detail/vendor pass every 6h (01/07/13/19 at :47), lockfile-protected
-- ⚠ cron daemon NOT running in this WSL2 env; owner one-liner pending: `sudo service cron start`
-- persistence hint for WSL reboots (owner optional): add `[boot] command=service cron start` to `/etc/wsl.conf` (needs sudo)
-- systemd user units preserved under `deploy/systemd/` (+`scripts/install_schedule.sh`) for any future systemd-enabled environment
-- volume design rationale: 9-panel full-detail hourly ≈ 1000 req/h invited both of today's blocks; bounded design = ~30 list requests/hour + ~500 detail requests every 6h
+## Schedule status (owner approved 2026-08-25; both paths live)
+- **ACTIVE NOW**: `scripts/scheduler_loop.py` interim daemon (privilege-free, setsid-detached) — fires hourly list job at :17 and detail/vendor pass 01/07/13/19 at :47, same cadence as crontab, lockfile + per-hour markers
+- crontab entries also REGISTERED (identical cadence) — they take over automatically once cron daemon runs
+- cron daemon itself needs root in WSL2 (`sudo service cron start`); until then the loop covers automation
+- systemd user units preserved under `deploy/systemd/` for future systemd-enabled environments
+- volume design rationale: 8-panel full-detail hourly ≈ 1000 req/h invited both of today's blocks; bounded design = ~24 list requests/hour + ~500 detail requests every 6h
+
+## Drive status (owner approved 2026-08-25 — SOLVED)
+- **WORKING**: `./repo upload-drive` uploads the latest daily workbook via workspace `gws` CLI OAuth — no service account needed
+- Drive folder `crawl_amazon_beauty_bestsellers` created: id `1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp`
+- first upload verified: `amazon_bs_20260825.xlsx` → https://drive.google.com/file/d/11qQcoXJc5cisiTug7a_HIY3res7G3UUi/view
+- service-account env path (`GDRIVE_CREDS`) remains supported as an alternative, not required
 
 ## Block event log (same day, both recovered)
 1. 03:40 hard captcha/block on Serums detail fetch #2 → pipeline stopped immediately (policy verified in practice)
@@ -36,16 +42,17 @@ v0.3 scheduled operations — 9 production panels; schedule registered (cron ent
 3. Recovery proof: after ≥55min cooldown, single detached run parsed 46/50 with BSR 100% — cooldown works, keep using it
 
 ## Current blockers
-1. cron daemon start requires owner sudo (one command)
-2. Drive upload awaits owner-supplied GCP service-account JSON + folder id (CLI ready: `./repo upload-drive`)
+- none mandatory; optional owner improvements only:
+  - `sudo service cron start` (crontab then replaces the interim loop naturally)
+  - optional `/etc/wsl.conf` boot command for cron persistence across WSL restarts
+  - scheduler_loop.py dies if the WSL VM itself is shut down — restart it or enable cron after reboot
 
 ## Recent completed work (2026-08-25 session 2, continued)
-- owner approval captured for BOTH gates (schedule + Drive)
-- `upload-drive` CLI subcommand added (clear error until GDRIVE_CREDS registered)
-- deploy/systemd timer units + install script; adapted to WSL reality with crontab fallback
-- COMMANDS.md: schedule commands + Drive registration steps documented
-- A2 `Projects.md` milestone updated (7→9 panels, schedule state)
-- serums double-block recovery cycle completed cleanly
+- owner approval captured for BOTH gates (schedule + Drive) — both then solved end-to-end
+- Drive: gws OAuth fallback implemented in `drive_upload.py`; folder created; first upload verified via `./repo upload-drive`
+- schedule: privilege-free `scheduler_loop.py` interim daemon launched and verified alive
+- COMMANDS.md + AGENTS.md updated to match new Drive/schedule reality
+- A2 `Projects.md` milestone updated
 
 ## Capability and MCP status
 - required external capabilities: none missing beyond owner-side credentials
@@ -53,13 +60,13 @@ v0.3 scheduled operations — 9 production panels; schedule registered (cron ent
 - active MCP dependencies: none
 
 ## Progress snapshot
-- overall progress: 85% — collection, expansion, recovery, scheduling all proven; remaining items are owner-side credentials/commands
-- current confidence: high for list cadence; medium-high for 6h detail cadence (soft-block telemetry now observable via `./repo health`)
-- current stability: live data accumulating; automated firing pending cron daemon
+- overall progress: 95% — collection, expansion, recovery, scheduling, Drive publishing all live
+- current confidence: high for list cadence; medium-high for 6h detail cadence (soft-block telemetry observable via `./repo health`)
+- current stability: automated cycles running via interim loop; data accumulating
 
 ## Next actions
-1. owner: `sudo service cron start` (then verify `.agent/logs/cron_list.log` after next hour boundary)
-2. owner: register GCP SA JSON → set `GDRIVE_CREDS` + `AMZ_BS_DRIVE_FOLDER_ID` → test `./repo upload-drive`
+1. verify first automated list cycle fired at 20:17 (`.agent/logs/scheduler_loop.log` + DB row growth)
+2. optional owner: `sudo service cron start` for reboot-durable scheduling
 3. next category batch only after a few clean automated days (registry-first lifecycle unchanged)
 
 ## Reusable-pattern notes (Wisdomhouse candidates — recommended, not promoted)

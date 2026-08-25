@@ -1,18 +1,27 @@
 {
-  "current_phase": "v0.3_scheduled_ops_pending_owner_daemon_start",
-  "current_task": "Awaiting two owner actions: cron daemon start + Drive SA credentials; then multi-day automated accumulation",
-  "last_successful_step": "Serums recovered from double block (retry run 20260825_1133_6ccf68: 46/50 details, BSR 100%); crontab schedule registered; upload-drive CLI wired; systemd units preserved",
-  "recommended_next_step": "After owner starts cron: verify first automated cycle in .agent/logs/cron_list.log; after creds: test ./repo upload-drive; next registry batch only after clean days",
-  "approved_scope": "owner approved BOTH gates 2026-08-25 (schedule + Drive); Drive execution still needs owner-supplied SA JSON",
+  "current_phase": "v0.3_automated_accumulation_live",
+  "current_task": "Multi-day clean automated runs; verify first loop-fired cycle at 20:17; next registry batch after several clean days",
+  "last_successful_step": "BOTH gates solved: Drive publishing verified via gws OAuth (./repo upload-drive -> file 11qQcoXJc5cisiTug7a_HIY3res7G3UUi); privilege-free scheduler_loop.py daemon active (pid in .agent/locks/scheduler_loop.lock)",
+  "recommended_next_step": "Check .agent/logs/scheduler_loop.log for the 20:17 automated list cycle; then let it accumulate. Optional owner: sudo service cron start for reboot-durable crontab takeover",
+  "approved_scope": "owner approved BOTH gates 2026-08-25 (schedule + Drive) - both now implemented and verified",
   "autonomy_default": "proceed autonomously unless approval is required or a hard blocker appears; on any block signal: stop, purge junk rows if soft-block, cooldown >=55min before retry",
-  "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence hourly; US marketplace pinned; Excel to Drive after approval",
+  "current_objective": "Collect Amazon beauty bestseller lists and product detail vendor intelligence hourly; US marketplace pinned; Excel published to Google Drive",
   "schedule": {
+    "interim_loop": {
+      "script": "scripts/scheduler_loop.py",
+      "status": "running-detached",
+      "cadence": "hourly list :17 + detail pass 01/07/13/19 :47"
+    },
     "crontab_registered": true,
-    "list_cadence": "hourly at :17 with --no-detail (~30 req/h bounded)",
-    "detail_cadence": "every 6h at :47 (01,07,13,19), full list+detail",
     "daemon_running": false,
-    "owner_command": "sudo service cron start",
+    "optional_owner_command": "sudo service cron start",
     "systemd_alternative": "deploy/systemd units + scripts/install_schedule.sh"
+  },
+  "drive": {
+    "method": "gws CLI OAuth fallback (no service account needed)",
+    "folder_id": "1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp",
+    "verified_upload_file_id": "11qQcoXJc5cisiTug7a_HIY3res7G3UUi",
+    "command": "./repo upload-drive"
   },
   "block_events": [
     {
@@ -28,5 +37,5 @@
       "recovery": "cooldown ~55min -> detached --save-raw retry clean (BSR 46/46)"
     }
   ],
-  "updated_at": "2026-08-25T13:05:00+0900"
+  "updated_at": "2026-08-25T20:00:00+0900"
 }

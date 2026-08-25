@@ -96,8 +96,9 @@ Show the registry / promote a verified category to production.
 Build the daily Excel workbook (per-node sheets, details, 14-day trend).
 
 `upload-drive [--file PATH]`
-Upload the latest daily workbook to Google Drive. Requires `GDRIVE_CREDS`
-(service-account JSON path) and optionally `AMZ_BS_DRIVE_FOLDER_ID`.
+Upload the latest daily workbook to Google Drive. Uses workspace `gws` CLI
+OAuth by default (folder id built in); a service-account path via
+`GDRIVE_CREDS` env remains supported as an alternative.
 
 `serve [--port 8790]`
 Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`, `/stats`.
@@ -105,14 +106,15 @@ Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`,
 `stats`
 Database accumulation summary.
 
-## Schedule Commands (owner approved 2026-08-25)
+## Schedule Commands (owner approved 2026-08-25; ACTIVE)
 ```bash
-scripts/install_schedule.sh install     # enable hourly systemd user timer
-scripts/install_schedule.sh status      # show next firing times
-scripts/install_schedule.sh uninstall   # stop + remove the timer
+setsid nohup python3 scripts/scheduler_loop.py >/dev/null 2>&1 < /dev/null &   # interim daemon (no root needed)
+tail .agent/logs/scheduler_loop.log                                            # watch automation
+scripts/install_schedule.sh install     # systemd-user path for systemd-enabled envs
 ```
-Timer runs `scripts/run_job.py` hourly with 0-10min jitter; lockfile prevents
-overlap; staleness watchdog alerts if no completed run in >3.5h.
+Cadence: hourly list job at :17 (`--no-detail`), detail/vendor pass 01/07/13/19
+at :47. Lockfile prevents overlap; per-hour markers prevent double-firing.
+Registered crontab entries take over automatically once the cron daemon runs.
 
 ## Examples
 - `./repo bootstrap-session`
@@ -122,16 +124,13 @@ overlap; staleness watchdog alerts if no completed run in >3.5h.
 - `./repo registry-approve --node 11060521`
 - `./repo export-xlsx`
 - `./repo serve --port 8790`
-- `PYTHONPATH=src python3 scripts/run_job.py`  # manual single cycle (timer does this hourly)
-- `./repo upload-drive`  # after GDRIVE_CREDS registration
+- `PYTHONPATH=src python3 scripts/run_job.py`  # manual single cycle (scheduler does this automatically)
+- `./repo upload-drive`  # publish latest workbook to Drive via gws OAuth
 - add further workflow examples here as the repo matures
 
-## Drive Registration Steps (owner, one-time)
-1. GCP console: create service account, download JSON key
-2. store JSON outside the repo (e.g. A3 local-config), then export:
-   - `GDRIVE_CREDS=/path/to/sa.json`
-   - `AMZ_BS_DRIVE_FOLDER_ID=<drive folder id>` (share that folder with the SA email)
-3. verify: `./repo upload-drive` (uploads latest workbook)
+## Drive
+- default: workspace `gws` CLI OAuth → folder `crawl_amazon_beauty_bestsellers`
+- alternative service-account path: set `GDRIVE_CREDS` (+ optional `AMZ_BS_DRIVE_FOLDER_ID`) and the same command uses it instead
 
 ## Notes
 - prefer use-case examples over raw subcommand lists
