@@ -1,8 +1,8 @@
 [Unit]
-Description=Hourly schedule for crawl_amazon_beauty_bestsellers (politeness-jittered)
+Description=2-hourly schedule for crawl_amazon_beauty_bestsellers (politeness-jittered)
 
 [Timer]
-OnCalendar=hourly
+OnCalendar=*-*-* 00/2:00:00
 RandomizedDelaySec=600
 Persistent=true
 

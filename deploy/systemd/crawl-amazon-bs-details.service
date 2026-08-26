@@ -5,4 +5,6 @@ Description=crawl_amazon_beauty_bestsellers detail/vendor pass (list+detail all 
 Type=oneshot
 WorkingDirectory=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers
 ExecStart=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_job.py
+Environment=PYTHONPATH=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/src
+ExecStartPost=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python -m crawl_amazon_beauty_bestsellers.cli publish-sheets --tabs local
 TimeoutStartSec=10800
