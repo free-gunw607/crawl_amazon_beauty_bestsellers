@@ -16,6 +16,15 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
+v0.7 FULL-RANK 1..100 + SHEET3 PRIMARY (2026-08-26)
+- **Rank gap FIXED for all regions/sheets**: zgbs pages embed the complete ranked list in `data-client-recs-list` JSON (p1=1..50, p2=51..100; verified US/UK/DE/FR/ES). `parse_list_page` now merges DOM rows (rich fields) with recs-list skeleton (`metadata_only` warning on unrendered rows) → nodes yield exactly 100 ranked items, zero gaps.
+- **detail_top raised 50→100** (settings.yml + default): midnight detail passes now enrich every ranked item.
+- **SHEET 3 = future primary**: `beauty_personal_care_top100_live` (id `1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`) — per-country ROOT Beauty & Personal Care list only: `[XX] Top 100` snapshots + append-only `root_rank_history` + `trend_14d` (prev/delta). Root stored in SQLite as synthetic keys (`ROOT`, `<mp>:ROOT`, status cataloged — excluded from 2h rotation, crawled once daily inside `root-cycle` at each region's local midnight via ExecStartPost on all 5 mr units + legacy ET unit).
+  - **CLOSURE DECISION (owner, 2026-08-26)**: once sheet3 burn-in looks good, sheets 1 & 2 will be CLOSED; sheet3 is the keeper. Sheets 1&2 keep updating automatically until owner gives the close order.
+- Legacy lane (sheet1): unchanged behavior + full-rank fix. MR lane (sheet2): unchanged + full-rank fix.
+- Politeness note 2026-08-26 evening: amazon.de served a soft block after a heavy manual day; stop-on-block honored (cooldown ≥55min), DE root snapshot will land via its 07:00 KST timer.
+
+## Prior phase notes
 v0.6 MULTIREGION DUAL-SHEET OPERATIONS (2026-08-26)
 - **Legacy sheet** (untouched): US-only lane as before — lists every 2h; detail pass moved from 4x daily to **ET-midnight once** (`crawl-amazon-bs-details.timer` OnCalendar `*-*-* 00:00:00 America/New_York`); publishes via token backend.
 - **NEW MR sheet** `crawl_amazon_beauty_bestsellers_multiregion_live` (id `1A9PVMIrsTAEXROBLS8RPmF3SrFQXsHPVCIiOLeV_cHk`): 5 marketplaces **US/UK/DE/FR/ES**, tabs `[XX] Category` + append-only **`rank_history`** (date|region|category|asin|rank|price_krw|...) + `trend_14d` with **prev_rank/delta** columns; per-region local-midnight units `amzbs-mr-{us,uk,de,fr,es}.timer` (KST: de/es/fr 07:00, uk 08:00, us 13:00; DST auto).
