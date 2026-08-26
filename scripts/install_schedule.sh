@@ -11,6 +11,16 @@ UNITS=(
   crawl-amazon-bs.timer
   crawl-amazon-bs-details.service
   crawl-amazon-bs-details.timer
+  amzbs-mr-us.service
+  amzbs-mr-us.timer
+  amzbs-mr-uk.service
+  amzbs-mr-uk.timer
+  amzbs-mr-de.service
+  amzbs-mr-de.timer
+  amzbs-mr-fr.service
+  amzbs-mr-fr.timer
+  amzbs-mr-es.service
+  amzbs-mr-es.timer
 )
 
 usage() {

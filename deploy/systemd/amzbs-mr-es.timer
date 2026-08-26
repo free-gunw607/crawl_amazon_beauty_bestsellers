@@ -1,0 +1,9 @@
+[Unit]
+Description=Daily local-midnight timer for MR lane: es
+
+[Timer]
+OnCalendar=*-*-* 00:00:00 Europe/Madrid
+Persistent=true
+
+[Install]
+WantedBy=timers.target
