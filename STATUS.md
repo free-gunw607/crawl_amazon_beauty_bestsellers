@@ -49,6 +49,7 @@ Skin Care 11060451 · Face 11060711 · Body 11060521 · Eyes 11061941 · Moistur
 1. GCP service account JSON (console steps provided) → I register `GCP_SA_JSON` secret → CI Drive publish activates
 2. optional: `sudo apt install -y jq unzip sqlite3` on liam3 (CLI conveniences; crawler itself unaffected — python sqlite3 module works)
 3. note: `gws` CLI absent on liam3 → local `upload-drive` unavailable there until gws is ported; CI/Drive path unaffected
+4. sheet local-tab refresh (details/specs_long/trend_14d) is now wired into `crawl-amazon-bs-details.service` as tolerant ExecStartPost (`publish-sheets --tabs local`) but stays skipped until auth lands on liam3 — fastest unblock: SA JSON → `GDRIVE_CREDS`; alternative: bring liam1 online and port gws OAuth store + liam1 SQLite (14d trend continuity pre-2026-08-26 lives only there)
 
 ## Progress snapshot
 - overall progress: 95% — both lanes built & proven; remaining = owner-side credentials/daemon start
