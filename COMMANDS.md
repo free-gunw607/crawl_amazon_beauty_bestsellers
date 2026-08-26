@@ -3,6 +3,7 @@
 ## Quick Start
 ```bash
 cd ~/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers
+scripts/bootstrap_venv.sh   # one-time per node: creates .venv with pinned deps (required before timers/local runs)
 ./repo entry
 ./repo doctor
 ./repo agent-status

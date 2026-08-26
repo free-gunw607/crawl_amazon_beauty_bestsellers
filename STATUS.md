@@ -16,7 +16,7 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
-v0.5 SHEETS-LIVE DUAL-LANE OPERATIONS — GitHub Actions collects public list snapshots every 6h; local home-IP line owns /dp/ detail passes (runner IPs are captcha-blocked there, by design handled)
+v0.5 SHEETS-LIVE DUAL-LANE OPERATIONS — GitHub Actions collects public list snapshots every 6h; local lane owns /dp/ detail passes. **Local lane owner = liam3 since 2026-08-26**: systemd-user timers (`crawl-amazon-bs.timer` hourly list +jitter, `-details.timer` 01/07/13/19:30 KST +jitter, linger on) running from `%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv`; verified live (manual fire rc=0). liam1 crontab plan superseded by this deployment.
 
 ## Proven architecture (empirically validated 2026-08-25)
 | lane | runs | covers | status |
@@ -47,7 +47,8 @@ Skin Care 11060451 · Face 11060711 · Body 11060521 · Eyes 11061941 · Moistur
 
 ## Pending owner actions
 1. GCP service account JSON (console steps provided) → I register `GCP_SA_JSON` secret → CI Drive publish activates
-2. `sudo service cron start` (+ optional `/etc/wsl.conf [boot]`) → local detail lane goes automatic
+2. optional: `sudo apt install -y jq unzip sqlite3` on liam3 (CLI conveniences; crawler itself unaffected — python sqlite3 module works)
+3. note: `gws` CLI absent on liam3 → local `upload-drive` unavailable there until gws is ported; CI/Drive path unaffected
 
 ## Progress snapshot
 - overall progress: 95% — both lanes built & proven; remaining = owner-side credentials/daemon start
