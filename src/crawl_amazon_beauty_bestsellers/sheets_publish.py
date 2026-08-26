@@ -285,6 +285,13 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
                 offset += len(chunk)
         return {"backend": backend, "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}
 
+    if backend == "token":
+        if not oauth_ready():
+            raise SheetsPublishError(
+                f"oauth files missing in {oauth_dir()} (need client_secret.json + refresh_token.json)"
+            )
+        return _publish_rest(spreadsheet_id, tabs, oauth_access_token(), "token")
+
     creds_env = os.environ.get("GDRIVE_CREDS", "")
     if not creds_env:
         raise SheetsPublishError("GDRIVE_CREDS not configured for SA backend")
@@ -295,8 +302,45 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
         info, scopes=["https://www.googleapis.com/auth/spreadsheets"]
     )
     creds.refresh(_transport())
-    token = creds.token
+    return _publish_rest(spreadsheet_id, tabs, creds.token, "sa")
 
+
+def oauth_dir() -> Path:
+    return Path(os.environ.get("GSHEET_SYNC_DIR", str(Path.home() / ".config" / "gsheet-sync")))
+
+
+def oauth_ready() -> bool:
+    d = oauth_dir()
+    return (d / "client_secret.json").is_file() and (d / "refresh_token.json").is_file()
+
+
+def oauth_access_token(dir_path: Path | None = None) -> str:
+    import requests
+
+    d = dir_path or oauth_dir()
+    client = json.loads((d / "client_secret.json").read_text(encoding="utf-8"))
+    tokens = json.loads((d / "refresh_token.json").read_text(encoding="utf-8"))
+    if "installed" in client:
+        client = client["installed"]
+    resp = requests.post(
+        "https://oauth2.googleapis.com/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": tokens["refresh_token"],
+            "client_id": client["client_id"],
+            "client_secret": client["client_secret"],
+        },
+        timeout=60,
+    )
+    if resp.status_code != 200:
+        raise SheetsPublishError(f"oauth refresh failed: {resp.status_code} {resp.text[:200]}")
+    access = resp.json().get("access_token")
+    if not access:
+        raise SheetsPublishError("oauth refresh returned no access_token")
+    return access
+
+
+def _publish_rest(spreadsheet_id: str, tabs: dict[str, list[list[str]]], token: str, backend: str) -> dict:
     import requests
 
     meta = _sheet_meta_sa(spreadsheet_id, token)
@@ -337,6 +381,6 @@ def publish(spreadsheet_id: str, tabs: dict[str, list[list[str]]], backend: str)
             f"https://sheets.googleapis.com/v4/spreadsheets/{spreadsheet_id}/values:batchUpdate",
             params={"valueInputOption": "USER_ENTERED"},
             json={"valueInputOption": "USER_ENTERED", "data": batch},
-            headers={"Authorization": f"Bearer {token}"}, timeout=300,
-        ).raise_for_status()
-    return {"backend": "sa", "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}
+        headers={"Authorization": f"Bearer {token}"}, timeout=300,
+    ).raise_for_status()
+    return {"backend": backend, "tabs": len(tabs), "rows": sum(len(g) for g in tabs.values())}

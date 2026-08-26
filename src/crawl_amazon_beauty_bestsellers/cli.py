@@ -68,7 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--spreadsheet-id", default=None)
     p.add_argument("--tabs", choices=["ci", "local", "all"], default="all")
     p.add_argument("--date", default=None)
-    p.add_argument("--backend", choices=["gws", "sa"], default=None)
+    p.add_argument("--backend", choices=["gws", "sa", "token"], default=None)
 
     p = sub.add_parser("stats", help="database stats")
 
@@ -194,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(str(exc))
                 return 3
         elif args.command == "publish-sheets":
-            from .sheets_publish import DEFAULT_SPREADSHEET_ID, SheetsPublishError, build_tab_payloads, publish
+            from .sheets_publish import DEFAULT_SPREADSHEET_ID, SheetsPublishError, build_tab_payloads, oauth_ready, publish
 
             spreadsheet_id = args.spreadsheet_id or os.environ.get("AMZ_BS_SHEETS_ID") or DEFAULT_SPREADSHEET_ID
             name_map = {str(e.get("node_id")): e.get("name") or "" for e in pipeline.registry.all_entries()}
@@ -202,7 +202,14 @@ def main(argv: list[str] | None = None) -> int:
             if not tabs:
                 print("no data to publish for this date/lanes")
                 return 2
-            backend = args.backend or ("gws" if not os.environ.get("GDRIVE_CREDS") else "sa")
+            if args.backend:
+                backend = args.backend
+            elif os.environ.get("GDRIVE_CREDS"):
+                backend = "sa"
+            elif oauth_ready():
+                backend = "token"
+            else:
+                backend = "gws"
             try:
                 _print({"spreadsheet": spreadsheet_id, **publish(spreadsheet_id, tabs, backend)})
             except SheetsPublishError as exc:
