@@ -225,10 +225,9 @@ def publish_region(settings: Settings, registry, store, region: str, backend_tok
     appended = len(history_new)
     if appended:
         known = set()
-        start = "'" + HISTORY_TAB + "'!A1"
-        existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/{start}", token,
+        existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A2:E", token,
                         params={"majorDimension": "ROWS"})
-        for row in existing.get("values", [])[1:]:
+        for row in existing.get("values", []):
             if len(row) >= 5:
                 known.add((row[0], row[3], row[4]))
         fresh = [r for r in history_new if (r[0], r[3], r[4]) not in known]
