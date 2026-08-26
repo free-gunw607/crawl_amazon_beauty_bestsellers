@@ -125,10 +125,6 @@ class Store:
                 self.conn.execute("ALTER TABLE product_details ADD COLUMN marketplace TEXT DEFAULT 'us'")
             except sqlite3.OperationalError:
                 pass
-            for table in ("list_entries", "categories", "health_checks"):
-                self.conn.execute(
-                    f"UPDATE {table} SET node_id='us:'||node_id WHERE instr(node_id,':')=0"
-                )
             self.conn.commit()
 
     def close(self):
@@ -266,6 +262,26 @@ class Store:
                GROUP BY day, node_id, asin
                ORDER BY day DESC, node_id, best_rank""",
             (f"-{days} days",),
+        )
+        return [dict(r) for r in rows]
+
+    def region_daily_best(self, region: str, days: int = 400) -> list[dict[str, Any]]:
+        """Per-node daily best rows for one marketplace region (raw timestamps included).
+
+        US is the legacy lane: its node keys carry no prefix. Other regions use "xx:" prefixed keys.
+        """
+        if region == "us":
+            where, params = "node_id NOT LIKE '%:%'", ()
+        else:
+            where, params = "node_id LIKE ?", (f"{region}:%",)
+        rows = self._query(
+            f"""SELECT node_id, asin, fetched_at, MIN(rank) AS best_rank,
+                      COUNT(*) AS snapshots, MAX(ratings_count) AS max_ratings
+               FROM list_entries
+               WHERE {where}
+               GROUP BY node_id, asin, substr(fetched_at, 1, 13)
+               ORDER BY node_id, asin, fetched_at""",
+            params,
         )
         return [dict(r) for r in rows]
 

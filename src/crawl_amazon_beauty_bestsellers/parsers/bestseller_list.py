@@ -11,7 +11,7 @@ STARS_PATTERN = re.compile(
     r"([\d]+[.,][\d])\s*(?:out of|sur|von|de|su|di|van)?\s*5\s*(?:stars?|étoiles?|Stern(?:en)?|estrellas?|sterren?|stjernor?)",
     re.I,
 )
-COUNT_PATTERN = re.compile(r"^([\d.,\s]+)$")
+COUNT_PATTERN = re.compile(r"^\s*([\d.,]*\d[\d.]*)\s*$")
 PRICE_PATTERN = re.compile(
     r"(?:US)?\$\s?([\d,]+\.\d{2})"
     r"|[€£]\s?([\d.,]+)"
@@ -91,12 +91,14 @@ def _parse_rating_and_count(item: Tag) -> tuple[float | None, int | None]:
         text = _text(anchor).replace("ratings", "").strip()
         match = COUNT_PATTERN.match(text)
         if match:
-            count = int(match.group(1).replace(",", ""))
+            count = int(re.sub(r"[^\d]", "", match.group(1)))
             break
     if count is None:
         for span in item.find_all(string=COUNT_PATTERN):
-            count = int(span.strip().replace(",", ""))
-            break
+            digits = re.sub(r"[^\d]", "", span.strip())
+            if digits:
+                count = int(digits)
+                break
     return rating, count
 
 

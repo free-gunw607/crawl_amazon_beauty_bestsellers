@@ -26,10 +26,23 @@ LIST_TYPE_PATHS = {
 }
 
 
-def build_list_url(base_url: str, root_slug: str, node_id: str, list_type: str = "bestsellers", page: int = 1) -> str:
+def build_list_url(
+    base_url: str,
+    root_slug: str,
+    node_id: str,
+    list_type: str = "bestsellers",
+    page: int = 1,
+    url_style: str = "legacy",
+) -> str:
     if list_type not in LIST_TYPE_PATHS:
         raise ValueError(f"unknown list_type: {list_type}")
-    url = f"{base_url}{LIST_TYPE_PATHS[list_type]}/{root_slug}/{node_id}"
+    if url_style == "gp":
+        if list_type != "bestsellers":
+            raise ValueError(f"url_style gp supports bestsellers only, got {list_type}")
+        prefix = "/gp/bestsellers"
+    else:
+        prefix = LIST_TYPE_PATHS[list_type]
+    url = f"{base_url}{prefix}/{root_slug}/{node_id}"
     if page > 1:
         url += f"?pg={page}"
     return url
@@ -106,7 +119,10 @@ class Pipeline:
         _, raw_node = self._split_key(node_id)
         all_entries: list[ListEntry] = []
         for page in range(1, pages + 1):
-            url = build_list_url(base_url, slug, raw_node, list_type, page)
+            url = build_list_url(
+                base_url, slug, raw_node, list_type, page,
+                url_style=profile.url_style if profile else "legacy",
+            )
             result = client.get(url)
             client.save_raw(result.text, f"list_{list_type}", f"{node_id}_p{page}")
             entries = parse_list_page(result.text, node_id, node_path, page, _now(), run_id)
@@ -263,7 +279,10 @@ class Pipeline:
             if node_id in seen or depth > max_depth:
                 continue
             seen.add(node_id)
-            url = build_list_url(base_url, slug, node_id)
+            url = build_list_url(
+                base_url, slug, node_id,
+                url_style=profile.url_style if profile else "legacy",
+            )
             result = client.get(url)
             links = extract_category_links(result.text)
             for link in links:

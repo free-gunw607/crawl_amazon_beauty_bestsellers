@@ -71,6 +71,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--date", default=None)
     p.add_argument("--backend", choices=["gws", "sa", "token"], default=None)
 
+    p = sub.add_parser("publish-mr", help="publish multi-region tabs to the dedicated MR spreadsheet")
+    p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es)")
+
     p = sub.add_parser("stats", help="database stats")
 
     p = sub.add_parser("health", help="parser field-completeness trend")
@@ -138,7 +141,7 @@ def main(argv: list[str] | None = None) -> int:
                 if args.marketplace:
                     mp = args.marketplace.lower()
                     if mp == "us":
-                        nodes = [n for n in nodes if not n.split(":")[0] or n.startswith("us:")]
+                        nodes = [n for n in nodes if ":" not in n]
                     else:
                         nodes = [n for n in nodes if n.startswith(f"{mp}:")]
                 if not nodes:
@@ -219,6 +222,14 @@ def main(argv: list[str] | None = None) -> int:
                 backend = "gws"
             try:
                 _print({"spreadsheet": spreadsheet_id, **publish(spreadsheet_id, tabs, backend)})
+            except SheetsPublishError as exc:
+                print(str(exc))
+                return 3
+        elif args.command == "publish-mr":
+            from .mr_publish import SheetsPublishError, publish_region
+
+            try:
+                _print(publish_region(settings, pipeline.registry, pipeline.store, args.region.lower()))
             except SheetsPublishError as exc:
                 print(str(exc))
                 return 3

@@ -26,6 +26,7 @@ class MarketplaceProfile:
     timezone: str
     currency_pref: str = "KRW"
     language: str = "en-US"
+    url_style: str = "gp"
 
     @staticmethod
     def from_dict(payload: dict[str, Any]) -> "MarketplaceProfile":
@@ -35,12 +36,13 @@ class MarketplaceProfile:
             timezone=str(payload["timezone"]),
             currency_pref=str(payload.get("currency_pref", "KRW")),
             language=str(payload.get("language", "en-US")),
+            url_style=str(payload.get("url_style", "gp")),
         )
 
 
 DEFAULT_MARKETPLACES = [
     {"code": "us", "base_url": "https://www.amazon.com", "timezone": "America/New_York", "currency_pref": "KRW"},
-    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "KRW"},
+    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "KRW", "url_style": "legacy"},
     {"code": "de", "base_url": "https://www.amazon.de", "timezone": "Europe/Berlin", "currency_pref": "KRW"},
     {"code": "fr", "base_url": "https://www.amazon.fr", "timezone": "Europe/Paris", "currency_pref": "KRW"},
     {"code": "es", "base_url": "https://www.amazon.es", "timezone": "Europe/Madrid", "currency_pref": "KRW"},
