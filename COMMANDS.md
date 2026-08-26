@@ -121,10 +121,22 @@ Cadence: hourly list job at :17 (`--no-detail`), detail/vendor pass 01/07/13/19
 at :47. Lockfile prevents overlap; per-hour markers prevent double-firing.
 Registered crontab entries take over automatically once the cron daemon runs.
 
+`publish-mr --region <mp>`
+Publish one marketplace region into the dedicated MR spreadsheet
+(`[XX] Category` snapshot tabs + append-only `rank_history` + `trend_14d`
+with prev_rank/delta). Spreadsheet id cached in `.agent/state/mr_sheet_id.json`.
+
+`scripts/mp_discover.py --marketplace <mp>`
+Discover beauty bestseller categories for a non-US marketplace and register
+them as `<mp>:<node>` available entries.
+
 ## Examples
 - `./repo bootstrap-session`
 - `./repo crawl-list --node 11060451`
 - `./repo run --node 11060451`
+- `./repo run --active --marketplace de`
+- `PYTHONPATH=src python3 scripts/mp_discover.py --marketplace es`
+- `./repo publish-mr --region de`
 - `./repo discover-categories --root 11060451 --max-depth 2`
 - `./repo registry-approve --node 11060521`
 - `./repo export-xlsx`

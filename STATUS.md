@@ -16,7 +16,12 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
-v0.5 SHEETS-LIVE DUAL-LANE OPERATIONS — GitHub Actions collects public list snapshots every 6h; local lane owner = **liam3** since 2026-08-26: systemd-user timers (`crawl-amazon-bs.timer` list every 2h :00+jitter≤10m, `-details.timer` 01/07/13/19:30 KST +jitter, linger on) running from `%h/.../crawl_amazon_beauty_bestsellers/.venv`; detail pass auto-publishes details/specs_long/trend_14d via new **token backend** (shared OAuth store `~/.config/gsheet-sync`; live write verified 2026-08-26 16:56 KST — 3 tabs, 8,280 rows). liam1 amazon crontab lines DISABLED same day (backup `liam1:~.../crawl_amazon_beauty_bestsellers/.agent/crontab_backup_20260826.txt`) after live overlap detected; liam1 SQLite history (8/25–26, 4,860 list + 844 details) merged into liam3 runtime DB. `gws` CLI confirmed absent on BOTH liam1 and liam3 → token backend is canonical local-lane auth.
+v0.6 MULTIREGION DUAL-SHEET OPERATIONS (2026-08-26)
+- **Legacy sheet** (untouched): US-only lane as before — lists every 2h; detail pass moved from 4x daily to **ET-midnight once** (`crawl-amazon-bs-details.timer` OnCalendar `*-*-* 00:00:00 America/New_York`); publishes via token backend.
+- **NEW MR sheet** `crawl_amazon_beauty_bestsellers_multiregion_live` (id `1A9PVMIrsTAEXROBLS8RPmF3SrFQXsHPVCIiOLeV_cHk`): 5 marketplaces **US/UK/DE/FR/ES**, tabs `[XX] Category` + append-only **`rank_history`** (date|region|category|asin|rank|price_krw|...) + `trend_14d` with **prev_rank/delta** columns; per-region local-midnight units `amzbs-mr-{us,uk,de,fr,es}.timer` (KST: de/es/fr 07:00, uk 08:00, us 13:00; DST auto).
+- Prices standardized **KRW** across all regions via `i18n-prefs=KRW` cookie (no delivery pinning needed for MR lane; legacy USD pinning unchanged).
+- Registry: 28 production_approved = 8 legacy US + 20 MR (5 themes x 4 new markets), all validated live (60/60 items, ~100% price/rating coverage). Composite keys `<mp>:<node>`; US keys stay unprefixed to protect legacy sheet.
+- EU URL scheme `/gp/bestsellers/beauty/<node>` vs UK/US zgbs-style — handled by profile `url_style`.
 
 ## Proven architecture (empirically validated 2026-08-25)
 | lane | runs | covers | status |
