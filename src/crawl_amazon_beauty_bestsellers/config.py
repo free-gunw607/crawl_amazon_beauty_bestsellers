@@ -20,6 +20,34 @@ class AmazonConfig:
 
 
 @dataclass
+class MarketplaceProfile:
+    code: str
+    base_url: str
+    timezone: str
+    currency_pref: str = "KRW"
+    language: str = "en-US"
+
+    @staticmethod
+    def from_dict(payload: dict[str, Any]) -> "MarketplaceProfile":
+        return MarketplaceProfile(
+            code=str(payload["code"]).lower(),
+            base_url=str(payload["base_url"]),
+            timezone=str(payload["timezone"]),
+            currency_pref=str(payload.get("currency_pref", "KRW")),
+            language=str(payload.get("language", "en-US")),
+        )
+
+
+DEFAULT_MARKETPLACES = [
+    {"code": "us", "base_url": "https://www.amazon.com", "timezone": "America/New_York", "currency_pref": "KRW"},
+    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "KRW"},
+    {"code": "de", "base_url": "https://www.amazon.de", "timezone": "Europe/Berlin", "currency_pref": "KRW"},
+    {"code": "fr", "base_url": "https://www.amazon.fr", "timezone": "Europe/Paris", "currency_pref": "KRW"},
+    {"code": "es", "base_url": "https://www.amazon.es", "timezone": "Europe/Madrid", "currency_pref": "KRW"},
+]
+
+
+@dataclass
 class PolitenessConfig:
     min_delay_seconds: float = 1.5
     max_delay_seconds: float = 4.0
@@ -64,6 +92,16 @@ class Settings:
     storage: StorageConfig = field(default_factory=StorageConfig)
     schedule: ScheduleConfig = field(default_factory=ScheduleConfig)
     drive: DriveConfig = field(default_factory=DriveConfig)
+    marketplaces: list[MarketplaceProfile] = field(default_factory=lambda: [
+        MarketplaceProfile.from_dict(m) for m in DEFAULT_MARKETPLACES
+    ])
+
+    def marketplace(self, code: str) -> MarketplaceProfile | None:
+        code = (code or "").lower()
+        for mp in self.marketplaces:
+            if mp.code == code:
+                return mp
+        return None
 
     def resolve(self, relative: str) -> Path:
         path = Path(relative)
@@ -92,6 +130,8 @@ def load_settings(repo_root: Path | None = None) -> Settings:
         for key, value in section_data.items():
             if hasattr(current, key):
                 setattr(current, key, value)
+    if isinstance(raw.get("marketplaces"), list) and raw["marketplaces"]:
+        settings.marketplaces = [MarketplaceProfile.from_dict(m) for m in raw["marketplaces"]]
     env_zip = os.environ.get("AMZ_BS_DELIVERY_ZIP")
     if env_zip:
         settings.amazon.delivery_zip = env_zip

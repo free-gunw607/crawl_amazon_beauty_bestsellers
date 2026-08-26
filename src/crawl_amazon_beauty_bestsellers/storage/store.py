@@ -121,6 +121,14 @@ class Store:
                 self.conn.execute("ALTER TABLE product_details ADD COLUMN ratings_histogram TEXT")
             except sqlite3.OperationalError:
                 pass
+            try:
+                self.conn.execute("ALTER TABLE product_details ADD COLUMN marketplace TEXT DEFAULT 'us'")
+            except sqlite3.OperationalError:
+                pass
+            for table in ("list_entries", "categories", "health_checks"):
+                self.conn.execute(
+                    f"UPDATE {table} SET node_id='us:'||node_id WHERE instr(node_id,':')=0"
+                )
             self.conn.commit()
 
     def close(self):
@@ -174,14 +182,14 @@ class Store:
     def insert_detail(self, d: ProductDetail):
         self._execute(
             """INSERT OR REPLACE INTO product_details
-            (asin, fetched_at, run_id, title, brand, manufacturer, model_number, seller_name,
+            (asin, fetched_at, run_id, marketplace, title, brand, manufacturer, model_number, seller_name,
              ships_from, buy_box_price, buy_box_currency, buy_box_raw, list_price_amount, list_price_raw,
              availability, date_first_available, bsr_main_rank, bsr_main_category, bsr_other, rating,
              ratings_count, ratings_histogram, overview, specs, features, ingredients, safety_info, directions,
              description_head, image_urls, variants, variants_count, price_source, parse_warnings)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
-                d.asin, d.fetched_at, d.run_id, d.title, d.brand, d.manufacturer, d.model_number,
+                d.asin, d.fetched_at, d.run_id, d.marketplace, d.title, d.brand, d.manufacturer, d.model_number,
                 d.seller_name, d.ships_from, d.buy_box_price, d.buy_box_currency, d.buy_box_raw,
                 d.list_price_amount, d.list_price_raw, d.availability, d.date_first_available,
                 d.bsr_main_rank, d.bsr_main_category, json.dumps(d.bsr_other), d.rating,

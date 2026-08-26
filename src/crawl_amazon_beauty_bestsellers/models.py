@@ -34,6 +34,7 @@ class ProductDetail:
     asin: str
     fetched_at: str
     run_id: str
+    marketplace: str = "us"
     title: str = ""
     brand: str = ""
     manufacturer: str = ""

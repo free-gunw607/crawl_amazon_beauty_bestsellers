@@ -9,7 +9,20 @@ from bs4 import BeautifulSoup, Tag
 from ..models import ProductDetail
 
 HISTOGRAM_PATTERN = re.compile(r"(\d+)\s+percent of reviews have\s+(\d)\s+star", re.I)
-BSR_PATTERN = re.compile(r"#(\d[\d,]*)\s+in\s+([^(#\n]+)")
+BSR_LABELS = (
+    "Best Sellers Rank",
+    "Bestseller-Rang",
+    "Verkaufsrang",
+    "Classement des meilleures ventes",
+    "Clasificación en los más vendidos",
+    "Sales ranking",
+)
+BSR_PATTERNS = (
+    re.compile(r"#\s?([\d.,]+)\s+in\s+([^(#\n]+)"),
+    re.compile(r"Nr\.\s*([\d.\s]+)\s+in\s+([^(#\n]+)"),
+    re.compile(r"(?:nº|no\.)\s*([\d.,]+)\s+en\s+([^(#\n]+)", re.I),
+    re.compile(r":\s*([\d\s.,]+)\s+en\s+([^(#\n]+)"),
+)
 HIRES_PATTERN = re.compile(r'"hiRes"\s*:\s*"(https://[^"]+)"')
 LARGE_IMG_PATTERN = re.compile(r'"large"\s*:\s*"(https://[^"]+)"')
 
@@ -103,21 +116,34 @@ def _collect_detail_bullets(soup: BeautifulSoup) -> dict[str, str]:
 def _parse_bsr(soup: BeautifulSoup) -> tuple[int | None, str, list[dict[str, Any]]]:
     text_block = ""
     for li in soup.select("#detailBullets_feature_div li"):
-        if "Best Sellers Rank" in li.get_text():
+        if any(label in li.get_text() for label in BSR_LABELS):
             text_block = _text(li)
             break
     if not text_block:
         for row in soup.select("tr"):
-            if "Best Sellers Rank" in _text(row):
+            if any(label in _text(row) for label in BSR_LABELS):
                 text_block = _text(row)
                 break
     if not text_block:
-        for el in soup.find_all(string=re.compile("Best Sellers Rank")):
-            parent = el.find_parent(["div", "section", "td", "li"])
-            if parent is not None:
-                text_block = _text(parent)
+        for label in BSR_LABELS:
+            found = False
+            for el in soup.find_all(string=re.compile(re.escape(label))):
+                parent = el.find_parent(["div", "section", "td", "li"])
+                if parent is not None:
+                    text_block = _text(parent)
+                    found = True
+                    break
+            if found:
                 break
-    matches = BSR_PATTERN.findall(text_block.replace(",", ""))
+    matches: list[tuple[str, str]] = []
+    for pattern in BSR_PATTERNS:
+        matches = [
+            (re.sub(r"[^\d]", "", rank), category)
+            for rank, category in pattern.findall(text_block)
+        ]
+        matches = [m for m in matches if m[0]]
+        if matches:
+            break
     if not matches:
         return None, "", []
     main_rank = int(matches[0][0])

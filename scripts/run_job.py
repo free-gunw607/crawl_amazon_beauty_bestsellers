@@ -99,6 +99,9 @@ def main() -> int:
     cmd = [sys.executable, "-m", "crawl_amazon_beauty_bestsellers.cli", "run", "--active"]
     if args.no_detail:
         cmd.append("--no-detail")
+    marketplace = os.environ.get("AMZBS_MARKETPLACE", "")
+    if marketplace:
+        cmd += ["--marketplace", marketplace]
 
     env = dict(os.environ)
     env["PYTHONPATH"] = str(REPO_ROOT / "src") + os.pathsep + env.get("PYTHONPATH", "")

@@ -45,6 +45,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--node", default=None)
     p.add_argument("--active", action="store_true")
     p.add_argument("--no-detail", action="store_true")
+    p.add_argument("--marketplace", default=None, help="filter active nodes by marketplace code (us/uk/de/fr/es)")
     p.add_argument("--list-type", default="bestsellers",
                    choices=["bestsellers", "new_releases", "movers_and_shakers", "most_wished_for"])
 
@@ -134,6 +135,12 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "run":
             if args.active:
                 nodes = [str(e["node_id"]) for e in pipeline.registry.active_nodes()]
+                if args.marketplace:
+                    mp = args.marketplace.lower()
+                    if mp == "us":
+                        nodes = [n for n in nodes if not n.split(":")[0] or n.startswith("us:")]
+                    else:
+                        nodes = [n for n in nodes if n.startswith(f"{mp}:")]
                 if not nodes:
                     print("no production_approved categories; approve with registry-approve first")
                     return 2

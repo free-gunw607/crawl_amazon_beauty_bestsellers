@@ -48,26 +48,37 @@ class FetchResult:
 
 
 class AmazonClient:
-    def __init__(self, settings: Settings, repo_root: Path | None = None):
+    def __init__(self, settings: Settings, repo_root: Path | None = None, marketplace=None):
         self.settings = settings
         self.repo_root = repo_root or Path(__file__).resolve().parents[2]
         self.transport = "curl_cffi" if HAS_CURL_CFFI else "requests"
         self.session = None
         self.us_location_pinned = False
         self.request_count = 0
+        self.marketplace = marketplace
         self._build_session()
+
+    def _cookie_domain(self) -> str:
+        if self.marketplace is not None:
+            from urllib.parse import urlparse
+
+            host = urlparse(self.marketplace.base_url).hostname or "www.amazon.com"
+            return "." + ".".join(host.split(".")[-2:])
+        return ".amazon.com"
 
     def _build_session(self):
         headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
+            "Accept-Language": self.marketplace.language if self.marketplace else "en-US,en;q=0.9",
             "Cache-Control": "no-cache",
             "Upgrade-Insecure-Requests": "1",
             "User-Agent": random.choice(USER_AGENTS),
         }
+        currency = self.marketplace.currency_pref if self.marketplace else self.settings.amazon.currency_pref
+        language = self.marketplace.language if self.marketplace else self.settings.amazon.language
         cookies = {
-            "lc-main": self.settings.amazon.language,
-            "i18n-prefs": self.settings.amazon.currency_pref,
+            "lc-main": language,
+            "i18n-prefs": currency,
         }
         if HAS_CURL_CFFI:
             self.session = curl_requests.Session(impersonate="chrome")
@@ -75,7 +86,7 @@ class AmazonClient:
             self.session = requests.Session()
         self.session.headers.update(headers)
         for name, value in cookies.items():
-            self.session.cookies.set(name, value, domain=".amazon.com")
+            self.session.cookies.set(name, value, domain=self._cookie_domain())
 
     def close(self):
         if self.session is not None:

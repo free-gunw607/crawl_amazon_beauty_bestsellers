@@ -51,21 +51,38 @@ class Pipeline:
         self.settings = settings or Settings()
         self.store = Store(self.settings)
         self.registry = Registry(self.settings.resolve("config/category_registry.json"))
-        self.client: AmazonClient | None = None
+        self.clients: dict[str, AmazonClient] = {}
 
-    def _client(self) -> AmazonClient:
-        if self.client is None:
-            self.client = AmazonClient(self.settings)
-        return self.client
+    def _client(self, marketplace=None) -> AmazonClient:
+        key = marketplace.code if marketplace is not None else "_legacy"
+        if key not in self.clients:
+            self.clients[key] = AmazonClient(self.settings, marketplace=marketplace)
+        return self.clients[key]
 
     def close(self):
-        if self.client is not None:
-            self.client.close()
+        for client in self.clients.values():
+            client.close()
         self.store.close()
+
+    @staticmethod
+    def _split_key(node_key: str) -> tuple[str | None, str]:
+        text = str(node_key)
+        if ":" in text:
+            mp, raw = text.split(":", 1)
+            return mp.lower(), raw
+        return None, text
+
+    def _marketplace_profile(self, node_key: str):
+        mp_code, _ = self._split_key(node_key)
+        if mp_code is None:
+            return None, None
+        profile = self.settings.marketplace(mp_code)
+        return (mp_code, profile) if profile else (mp_code, None)
 
     def _resolve_node(self, node_id: str, root_slug: str | None) -> tuple[str, str]:
         entry = self.registry._find(node_id)
         if entry is None:
+            _, raw = self._split_key(node_id)
             return (root_slug or "beauty"), ""
         path = str(entry.get("path", ""))
         slug = root_slug or entry.get("root_slug") or "beauty"
@@ -83,10 +100,13 @@ class Pipeline:
         run_id = run_id or time.strftime("%Y%m%d_%H%M") + "_" + uuid.uuid4().hex[:6]
         pages = pages or self.settings.crawler.list_pages
         slug, node_path = self._resolve_node(node_id, root_slug)
-        client = self._client()
+        mp_code, profile = self._marketplace_profile(node_id)
+        base_url = profile.base_url if profile else self.settings.amazon.base_url
+        client = self._client(profile)
+        _, raw_node = self._split_key(node_id)
         all_entries: list[ListEntry] = []
         for page in range(1, pages + 1):
-            url = build_list_url(self.settings.amazon.base_url, slug, node_id, list_type, page)
+            url = build_list_url(base_url, slug, raw_node, list_type, page)
             result = client.get(url)
             client.save_raw(result.text, f"list_{list_type}", f"{node_id}_p{page}")
             entries = parse_list_page(result.text, node_id, node_path, page, _now(), run_id)
@@ -104,9 +124,12 @@ class Pipeline:
         asins: list[str],
         run_id: str | None = None,
         expand_variants: bool = False,
+        marketplace: str | None = None,
     ) -> tuple[list[ProductDetail], list[dict[str, str]]]:
         run_id = run_id or time.strftime("%Y%m%d_%H%M") + "_" + uuid.uuid4().hex[:6]
-        client = self._client()
+        mp_code, profile = (self._marketplace_profile(marketplace) if marketplace else (None, None))
+        base_url = profile.base_url if profile else self.settings.amazon.base_url
+        client = self._client(profile)
         details: list[ProductDetail] = []
         failures: list[dict[str, str]] = []
 
@@ -114,11 +137,12 @@ class Pipeline:
             top = min(len(batch_asins), self.settings.crawler.detail_top)
             fetched = 0
             for index, asin in enumerate(batch_asins[:top], start=1):
-                url = f"{self.settings.amazon.base_url}/dp/{asin}"
+                url = f"{base_url}/dp/{asin}"
                 try:
                     result = client.get(url)
                     client.save_raw(result.text, "detail", asin)
                     detail = parse_product_detail(result.text, asin, _now(), run_id)
+                    detail.marketplace = mp_code or "us"
                     details.append(detail)
                     self.store.insert_detail(detail)
                     fetched += 1
@@ -188,7 +212,9 @@ class Pipeline:
             failures: list[dict[str, str]] = []
             if include_details and entries:
                 ordered = [e.asin for e in sorted(entries, key=lambda x: x.rank)]
-                details, failures = self.crawl_details(ordered, run_id=run_id, expand_variants=True)
+                details, failures = self.crawl_details(
+                    ordered, run_id=run_id, expand_variants=True, marketplace=str(node_id)
+                )
                 write_details_file(self.settings, details)
             summary["detail_count"] = len(details)
             summary["detail_failures"] = failures
@@ -225,8 +251,11 @@ class Pipeline:
 
     def discover_categories(self, root_node: str, max_depth: int = 2, root_slug: str | None = None) -> list[dict[str, str]]:
         slug, _ = self._resolve_node(root_node, root_slug)
-        client = self._client()
-        queue: list[tuple[str, int]] = [(root_node, 0)]
+        mp_code, profile = self._marketplace_profile(root_node)
+        base_url = profile.base_url if profile else self.settings.amazon.base_url
+        client = self._client(profile)
+        _, raw_root = self._split_key(root_node)
+        queue: list[tuple[str, int]] = [(raw_root, 0)]
         seen: set[str] = set()
         discovered: list[dict[str, str]] = []
         while queue:
@@ -234,13 +263,16 @@ class Pipeline:
             if node_id in seen or depth > max_depth:
                 continue
             seen.add(node_id)
-            url = build_list_url(self.settings.amazon.base_url, slug, node_id)
+            url = build_list_url(base_url, slug, node_id)
             result = client.get(url)
             links = extract_category_links(result.text)
             for link in links:
-                entry = self.registry.upsert_discovered(link.node_id, link.name, link.path, root_slug=slug)
-                self.store.upsert_category(link.node_id, link.path, link.name, entry["status"])
-                discovered.append({"node_id": link.node_id, "name": link.name, "path": link.path})
+                key = f"{mp_code}:{link.node_id}" if mp_code else link.node_id
+                entry = self.registry.upsert_discovered(key, link.name, link.path, root_slug=slug)
+                if mp_code:
+                    entry["marketplace"] = mp_code
+                self.store.upsert_category(key, link.path, link.name, entry["status"])
+                discovered.append({"node_id": key, "name": link.name, "path": link.path})
                 if link.node_id not in seen and depth < max_depth:
                     queue.append((link.node_id, depth + 1))
         self.registry.save()

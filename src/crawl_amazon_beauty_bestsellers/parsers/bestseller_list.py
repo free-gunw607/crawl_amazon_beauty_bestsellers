@@ -7,9 +7,18 @@ from bs4 import BeautifulSoup, Tag
 from ..models import ListEntry
 
 RANK_PATTERN = re.compile(r"#(\d+)")
-STARS_PATTERN = re.compile(r"([\d.]+) out of 5 stars", re.I)
-COUNT_PATTERN = re.compile(r"^([\d,]+)$")
-PRICE_PATTERN = re.compile(r"(?:US)?\$\s?([\d,]+\.\d{2})|[A-Z]{3}\s?([\d,]+(?:\.\d+)?)")
+STARS_PATTERN = re.compile(
+    r"([\d]+[.,][\d])\s*(?:out of|sur|von|de|su|di|van)?\s*5\s*(?:stars?|étoiles?|Stern(?:en)?|estrellas?|sterren?|stjernor?)",
+    re.I,
+)
+COUNT_PATTERN = re.compile(r"^([\d.,\s]+)$")
+PRICE_PATTERN = re.compile(
+    r"(?:US)?\$\s?([\d,]+\.\d{2})"
+    r"|[€£]\s?([\d.,]+)"
+    r"|([\d.,]+)\s?[€£]"
+    r"|[A-Z]{3}\s?([\d.,]+)"
+    r"|([\d.,\s]+)\s?KRW"
+)
 OFFERS_PATTERN = re.compile(r"\d+\s+offers?\s+from\s+.+", re.I)
 
 
@@ -119,19 +128,50 @@ def _currency_from_symbol(symbol: str) -> str:
     return {"$": "USD", "₩": "KRW", "¥": "JPY", "£": "GBP", "€": "EUR"}.get(symbol.strip(), symbol.strip() or "")
 
 
+def _european_number(num: str) -> float | None:
+    num = num.replace("\xa0", "").replace(" ", "").strip()
+    if not num:
+        return None
+    if "." in num and "," in num:
+        if num.rfind(",") > num.rfind("."):
+            num = num.replace(".", "").replace(",", ".")
+        else:
+            num = num.replace(",", "")
+    elif "," in num:
+        head, _, tail = num.rpartition(",")
+        num = f"{head.replace(',', '')}.{tail}" if len(tail) == 2 else num.replace(",", "")
+    elif "." in num:
+        tail = num.rpartition(".")[2]
+        if len(tail) != 3 or len(num) <= 4:
+            pass
+        else:
+            num = num.replace(".", "")
+    try:
+        return float(num)
+    except ValueError:
+        return None
+
+
 def _price_from_raw(raw: str) -> tuple[float | None, str | None]:
-    cleaned = raw.replace(",", "").strip()
-    dollar_match = re.search(r"\$([\d.]+)", cleaned)
+    cleaned = raw.replace("\xa0", " ").strip()
+    krw_match = re.search(r"(?:KRW|₩)\s?([\d\s.,]+)|([\d\s.,]+)\s?KRW", cleaned)
+    if krw_match:
+        digits = re.sub(r"[^\d]", "", krw_match.group(1) or krw_match.group(2))
+        try:
+            return float(digits), "KRW"
+        except ValueError:
+            return None, None
+    eur_match = re.search(r"€\s?([\d.,]+)|([\d.,]+)\s?€", cleaned)
+    if eur_match:
+        return _european_number(eur_match.group(1) or eur_match.group(2)), "EUR"
+    gbp_match = re.search(r"£\s?([\d.,]+)", cleaned)
+    if gbp_match:
+        value = _european_number(gbp_match.group(1))
+        return (value, "GBP") if value is not None else (None, None)
+    dollar_match = re.search(r"\$([\d.]+)", cleaned.replace(",", ""))
     if dollar_match:
         try:
             return float(dollar_match.group(1)), "USD"
-        except ValueError:
-            return None, None
-    krw_match = re.search(r"KRW\s?([\d.]+)|₩\s?([\d,]+)", raw)
-    if krw_match:
-        value_str = (krw_match.group(1) or krw_match.group(2)).replace(",", "")
-        try:
-            return float(value_str), "KRW"
         except ValueError:
             return None, None
     return None, None
