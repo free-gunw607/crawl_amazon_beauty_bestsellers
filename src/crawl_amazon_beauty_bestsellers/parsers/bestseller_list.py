@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html as html_module
+import json
 import re
 
 from bs4 import BeautifulSoup, Tag
@@ -179,6 +181,27 @@ def _price_from_raw(raw: str) -> tuple[float | None, str | None]:
     return None, None
 
 
+RECS_LIST_PATTERN = re.compile(r"""data-client-recs-list=(?:"([^"]*)"|'([^']*)')""")
+
+
+def parse_recs_list(html: str) -> list[tuple[str, int]]:
+    """Extract the full ranked ASIN list embedded in zgbs pages (covers ranks the DOM does not render)."""
+    match = RECS_LIST_PATTERN.search(html)
+    if not match:
+        return []
+    try:
+        data = json.loads(html_module.unescape(match.group(1) or match.group(2) or ""))
+    except (json.JSONDecodeError, ValueError):
+        return []
+    out: list[tuple[str, int]] = []
+    for entry in data:
+        asin = str(entry.get("id") or "").strip()
+        rank_raw = str((entry.get("metadataMap") or {}).get("render.zg.rank") or "").strip()
+        if asin and rank_raw.isdigit():
+            out.append((asin, int(rank_raw)))
+    return out
+
+
 def parse_list_page(
     html: str,
     node_id: str,
@@ -234,6 +257,29 @@ def parse_list_page(
             parse_warnings=warnings,
         )
         entries.setdefault(asin, entry)
+    for rec_asin, rec_rank in parse_recs_list(html):
+        if rec_asin in entries:
+            entries[rec_asin].rank = rec_rank
+            continue
+        entries[rec_asin] = ListEntry(
+            run_id=run_id,
+            fetched_at=fetched_at,
+            node_id=node_id,
+            node_path=node_path,
+            page=page,
+            rank=rec_rank,
+            asin=rec_asin,
+            title="",
+            url="",
+            image_url="",
+            rating=None,
+            ratings_count=None,
+            price_amount=None,
+            price_currency=None,
+            price_raw="",
+            offers_text="",
+            parse_warnings=["metadata_only"],
+        )
     return sorted(entries.values(), key=lambda e: e.rank)
 
 

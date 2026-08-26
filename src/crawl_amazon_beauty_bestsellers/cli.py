@@ -74,6 +74,15 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("publish-mr", help="publish multi-region tabs to the dedicated MR spreadsheet")
     p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es)")
 
+    p = sub.add_parser("crawl-root", help="crawl the marketplace root Beauty & Personal Care list (1..100)")
+    p.add_argument("--region", required=True)
+
+    p = sub.add_parser("publish-root", help="publish region root Top100 into sheet 3 (beauty_personal_care_top100_live)")
+    p.add_argument("--region", required=True)
+
+    p = sub.add_parser("root-cycle", help="crawl-root then publish-root for one region")
+    p.add_argument("--region", required=True)
+
     p = sub.add_parser("stats", help="database stats")
 
     p = sub.add_parser("health", help="parser field-completeness trend")
@@ -230,6 +239,27 @@ def main(argv: list[str] | None = None) -> int:
 
             try:
                 _print(publish_region(settings, pipeline.registry, pipeline.store, args.region.lower()))
+            except SheetsPublishError as exc:
+                print(str(exc))
+                return 3
+        elif args.command in ("crawl-root", "publish-root", "root-cycle"):
+            from .http_client import CaptchaBlocked
+            from .root_publish import SheetsPublishError, publish_root_region
+
+            region = args.region.lower()
+            key = "ROOT" if region == "us" else f"{region}:ROOT"
+            try:
+                if args.command in ("crawl-root", "root-cycle"):
+                    try:
+                        entries = pipeline.crawl_list(key)
+                        _print({"region": region.upper(), "crawled": len(entries),
+                                "ranks": [min(e.rank for e in entries), max(e.rank for e in entries)] if entries else []})
+                    except CaptchaBlocked as exc:
+                        _print({"region": region.upper(), "crawled": 0, "blocked": str(exc.url)})
+                        if args.command == "root-cycle":
+                            return 4
+                if args.command in ("publish-root", "root-cycle"):
+                    _print(publish_root_region(settings, pipeline.store, region))
             except SheetsPublishError as exc:
                 print(str(exc))
                 return 3

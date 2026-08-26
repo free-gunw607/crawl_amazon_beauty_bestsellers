@@ -987,6 +987,66 @@
       "approved_at": "2026-08-26T19:29:56+0900",
       "last_crawled_at": null,
       "marketplace": "uk"
+    },
+    {
+      "node_id": "ROOT",
+      "name": "Beauty & Personal Care",
+      "path": "beauty > Beauty & Personal Care",
+      "root_slug": "beauty",
+      "status": "cataloged",
+      "marketplace": null,
+      "discovered_at": "2026-08-26T22:19:52+0900",
+      "approved_at": null,
+      "last_crawled_at": null,
+      "root_list": true
+    },
+    {
+      "node_id": "uk:ROOT",
+      "name": "Beauty & Personal Care",
+      "path": "beauty > Beauty & Personal Care",
+      "root_slug": "beauty",
+      "status": "cataloged",
+      "marketplace": "uk",
+      "discovered_at": "2026-08-26T22:19:52+0900",
+      "approved_at": null,
+      "last_crawled_at": null,
+      "root_list": true
+    },
+    {
+      "node_id": "de:ROOT",
+      "name": "Beauty & Personal Care",
+      "path": "beauty > Beauty & Personal Care",
+      "root_slug": "beauty",
+      "status": "cataloged",
+      "marketplace": "de",
+      "discovered_at": "2026-08-26T22:19:52+0900",
+      "approved_at": null,
+      "last_crawled_at": null,
+      "root_list": true
+    },
+    {
+      "node_id": "fr:ROOT",
+      "name": "Beauty & Personal Care",
+      "path": "beauty > Beauty & Personal Care",
+      "root_slug": "beauty",
+      "status": "cataloged",
+      "marketplace": "fr",
+      "discovered_at": "2026-08-26T22:19:52+0900",
+      "approved_at": null,
+      "last_crawled_at": null,
+      "root_list": true
+    },
+    {
+      "node_id": "es:ROOT",
+      "name": "Beauty & Personal Care",
+      "path": "beauty > Beauty & Personal Care",
+      "root_slug": "beauty",
+      "status": "cataloged",
+      "marketplace": "es",
+      "discovered_at": "2026-08-26T22:19:52+0900",
+      "approved_at": null,
+      "last_crawled_at": null,
+      "root_list": true
     }
   ]
 }

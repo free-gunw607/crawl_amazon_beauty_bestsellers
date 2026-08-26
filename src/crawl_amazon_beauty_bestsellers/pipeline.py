@@ -36,6 +36,11 @@ def build_list_url(
 ) -> str:
     if list_type not in LIST_TYPE_PATHS:
         raise ValueError(f"unknown list_type: {list_type}")
+    if node_id == "ROOT":
+        url = f"{base_url}/gp/bestsellers/{root_slug}/"
+        if page > 1:
+            url += f"?pg={page}"
+        return url
     if url_style == "gp":
         if list_type != "bestsellers":
             raise ValueError(f"url_style gp supports bestsellers only, got {list_type}")

@@ -9,3 +9,4 @@ Environment=PYTHONPATH=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amaz
 ExecStart=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_job.py
 ExecStartPost=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python -m crawl_amazon_beauty_bestsellers.cli publish-mr --region uk
 TimeoutStartSec=10800
+ExecStartPost=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python -m crawl_amazon_beauty_bestsellers.cli root-cycle --region uk

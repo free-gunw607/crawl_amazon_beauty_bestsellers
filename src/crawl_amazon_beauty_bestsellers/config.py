@@ -61,7 +61,7 @@ class PolitenessConfig:
 @dataclass
 class CrawlerConfig:
     list_pages: int = 2
-    detail_top: int = 50
+    detail_top: int = 100
     save_raw_html: bool = False
 
 

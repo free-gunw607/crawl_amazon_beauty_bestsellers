@@ -14,7 +14,7 @@ politeness:
 
 crawler:
   list_pages: 2
-  detail_top: 50
+  detail_top: 100
   save_raw_html: false
 
 storage:
