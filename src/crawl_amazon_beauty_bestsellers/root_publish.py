@@ -70,10 +70,34 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
     profile = settings.marketplace(region)
     base_url = profile.base_url if profile else "https://www.amazon.com"
     snapshot = store.latest_snapshot(root_key(region))
+    
+    # Join with product_details to get enriched data
+    enriched = []
+    for row in snapshot:
+        asin = row.get("asin")
+        if asin:
+            detail = store._query(
+                "SELECT title, rating, ratings_count, buy_box_price, buy_box_currency "
+                "FROM product_details WHERE asin=? ORDER BY fetched_at DESC LIMIT 1",
+                (asin,)
+            )
+            if detail:
+                d = dict(detail[0])
+                # Use detail data if list entry has empty title
+                if not row.get("title") and d.get("title"):
+                    row = {**row, "title": d["title"]}
+                if not row.get("rating") and d.get("rating"):
+                    row = {**row, "rating": d["rating"]}
+                if not row.get("ratings_count") and d.get("ratings_count"):
+                    row = {**row, "ratings_count": d["ratings_count"]}
+                if not row.get("price_amount") and d.get("buy_box_price"):
+                    row = {**row, "price_amount": d["buy_box_price"], "price_currency": d.get("buy_box_currency")}
+        enriched.append(row)
+    
     grid = [["fetched", "", "", "", "", "", ""],
             [f"{base_url}/gp/bestsellers/beauty/", "", "", "", "", "", ""],
             ["rank", "asin", "title", "rating", "ratings_count", "price_krw", "url"]]
-    for row in sorted(snapshot, key=lambda r: r["rank"]):
+    for row in sorted(enriched, key=lambda r: r["rank"]):
         grid.append([
             str(row.get("rank") or ""), str(row.get("asin") or ""),
             str(row.get("title") or "")[:150],
