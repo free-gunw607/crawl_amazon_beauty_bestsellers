@@ -98,11 +98,15 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
             [f"{base_url}/gp/bestsellers/beauty/", "", "", "", "", "", ""],
             ["rank", "asin", "title", "rating", "ratings_count", "price_krw", "url"]]
     for row in sorted(enriched, key=lambda r: r["rank"]):
+        url = str(row.get("url") or "")
+        asin_val = str(row.get("asin") or "")
+        if not url and asin_val:
+            url = f"{base_url}/dp/{asin_val}"
         grid.append([
-            str(row.get("rank") or ""), str(row.get("asin") or ""),
+            str(row.get("rank") or ""), asin_val,
             str(row.get("title") or "")[:150],
             str(row.get("rating") or ""), str(row.get("ratings_count") or ""),
-            str(row.get("price_amount") or ""), str(row.get("url") or ""),
+            str(row.get("price_amount") or ""), url,
         ])
     return grid
 
