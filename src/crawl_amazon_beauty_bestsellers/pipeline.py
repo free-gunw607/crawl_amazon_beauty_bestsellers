@@ -75,6 +75,7 @@ class Pipeline:
         key = marketplace.code if marketplace is not None else "_legacy"
         if key not in self.clients:
             self.clients[key] = AmazonClient(self.settings, marketplace=marketplace)
+            self.clients[key].bootstrap_us_location()
         return self.clients[key]
 
     def close(self):

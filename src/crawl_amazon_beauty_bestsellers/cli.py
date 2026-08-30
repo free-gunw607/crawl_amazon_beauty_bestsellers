@@ -291,17 +291,31 @@ def main(argv: list[str] | None = None) -> int:
                             pipeline.crawl_details(asins, marketplace=region)
                         except CaptchaBlocked:
                             pass
-                # Phase 2: re-fetch no-price ASINs from LOCAL marketplace
+                # Phase 2: re-fetch no-price ASINs
+                # Step A: try US first (bootstrap works, USD prices)
                 noprice = pipeline.store.noprice_detail_asins(key)
                 noprice_asins = [r["asin"] for r in noprice]
-                if noprice_asins and region != "us":
-                    _print({"region": region.upper(), "noprice_local": len(noprice_asins)})
+                if noprice_asins:
+                    _print({"region": region.upper(), "noprice_us": len(noprice_asins)})
+                    for asin in noprice_asins:
+                        pipeline.store._query("DELETE FROM product_details WHERE asin=?", (asin,))
+                    us_details, us_failures = [], []
                     try:
-                        pipeline.crawl_details(noprice_asins, marketplace=region)
+                        us_details, us_failures = pipeline.crawl_details(noprice_asins, marketplace="us")
                     except CaptchaBlocked:
                         pass
-                elif noprice_asins and region == "us":
-                    _print({"region": "US", "noprice": len(noprice_asins)})
+                    # Collect ASINs that failed or got empty titles on US
+                    failed_asins = [f["asin"] for f in us_failures] if us_failures else []
+                    for d in us_details:
+                        if not d.title or not d.title.strip():
+                            failed_asins.append(d.asin)
+                    # Step B: for failures, try local marketplace
+                    if failed_asins and region != "us":
+                        _print({"region": region.upper(), "noprice_local": len(failed_asins)})
+                        try:
+                            pipeline.crawl_details(failed_asins, marketplace=region)
+                        except CaptchaBlocked:
+                            pass
                 if not asins and not noprice_asins:
                     _print({"region": region.upper(), "gaps": 0})
                 try:
