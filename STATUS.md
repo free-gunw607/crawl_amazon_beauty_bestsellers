@@ -16,21 +16,25 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
-v0.7 FULL-RANK 1..100 + SHEET3 PRIMARY (2026-08-26)
-- **Rank gap FIXED for all regions/sheets**: zgbs pages embed the complete ranked list in `data-client-recs-list` JSON (p1=1..50, p2=51..100; verified US/UK/DE/FR/ES). `parse_list_page` now merges DOM rows (rich fields) with recs-list skeleton (`metadata_only` warning on unrendered rows) → nodes yield exactly 100 ranked items, zero gaps.
-- **detail_top raised 50→100** (settings.yml + default): midnight detail passes now enrich every ranked item.
-- **SHEET 3 = future primary**: `beauty_personal_care_top100_live` (id `1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`) — per-country ROOT Beauty & Personal Care list only: `[XX] Top 100` snapshots + append-only `root_rank_history` + `trend_14d` (prev/delta). Root stored in SQLite as synthetic keys (`ROOT`, `<mp>:ROOT`, status cataloged — excluded from 2h rotation, crawled once daily inside `root-cycle` at each region's local midnight via ExecStartPost on all 5 mr units + legacy ET unit).
-  - **CLOSURE DECISION (owner, 2026-08-26)**: once sheet3 burn-in looks good, sheets 1 & 2 will be CLOSED; sheet3 is the keeper. Sheets 1&2 keep updating automatically until owner gives the close order.
-- Legacy lane (sheet1): unchanged behavior + full-rank fix. MR lane (sheet2): unchanged + full-rank fix.
-- Politeness note 2026-08-26 evening: amazon.de served a soft block after a heavy manual day; stop-on-block honored (cooldown ≥55min), DE root snapshot will land via its 07:00 KST timer.
+v0.9 USD PRICE SWITCH + BOOTSTRAP AUTO-PIN (2026-08-30)
+- **bootstrap_us_location()** now auto-called in `_client()` on every new AmazonClient — pins delivery to NY 10001 (New York) via `glow-address-change` form POST. This resolves the core issue where Amazon hid `buy_box_price` for items it deemed "not shippable to delivery location" (Korean IP geolocation).
+- **Currency switched KRW → USD** for all marketplaces. Sheet 3 column header: `price_usd`.
+- **noprice 2-step fallback**: for ASINs with detail records but no price, `fill-gaps` deletes stale records and re-fetches from US (amazon.com), then falls back to local marketplace for failures.
+- **Enrichment query** now prefers detail records WITH prices: `ORDER BY (buy_box_price IS NOT NULL OR list_price_amount IS NOT NULL) DESC, fetched_at DESC`.
+- **Sheet 3 final state**: Title 481/500 (96%), URL 500/500 (100%), **Price 421/500 (84%)**, Rating 481/500 (96%).
+- **Remaining 79 price-less ASINs**: Amazon's geo-based shipping restriction policy. Even with NY delivery pin, Amazon still hides prices for ~16% of products on its own platform when accessed from Korean IP. Requires proxy/VPN to each target region for 100% coverage.
+- **Remaining 19 title gaps**: list_entries crawled with empty titles (parser gap on certain page layouts); detail records also missing/empty → enrichment can't fill.
 
 ## Prior phase notes
-v0.6 MULTIREGION DUAL-SHEET OPERATIONS (2026-08-26)
-- **Legacy sheet** (untouched): US-only lane as before — lists every 2h; detail pass moved from 4x daily to **ET-midnight once** (`crawl-amazon-bs-details.timer` OnCalendar `*-*-* 00:00:00 America/New_York`); publishes via token backend.
-- **NEW MR sheet** `crawl_amazon_beauty_bestsellers_multiregion_live` (id `1A9PVMIrsTAEXROBLS8RPmF3SrFQXsHPVCIiOLeV_cHk`): 5 marketplaces **US/UK/DE/FR/ES**, tabs `[XX] Category` + append-only **`rank_history`** (date|region|category|asin|rank|price_krw|...) + `trend_14d` with **prev_rank/delta** columns; per-region local-midnight units `amzbs-mr-{us,uk,de,fr,es}.timer` (KST: de/es/fr 07:00, uk 08:00, us 13:00; DST auto).
-- Prices standardized **KRW** across all regions via `i18n-prefs=KRW` cookie (no delivery pinning needed for MR lane; legacy USD pinning unchanged).
-- Registry: 28 production_approved = 8 legacy US + 20 MR (5 themes x 4 new markets), all validated live (60/60 items, ~100% price/rating coverage). Composite keys `<mp>:<node>`; US keys stay unprefixed to protect legacy sheet.
-- EU URL scheme `/gp/bestsellers/beauty/<node>` vs UK/US zgbs-style — handled by profile `url_style`.
+v0.8 CAPTCHA RECOVERY + SHEET3 ENRICHMENT (2026-08-30)
+- `break` → `continue` on captcha detection; marketplace auto-detect; UA pool 3→10.
+- `root_panel_grid` DB-join enrichment: title/rating/ratings_count/price filled from `product_details` when list entry is sparse.
+- `list_price_amount` fallback when `buy_box_price` is null.
+- 5 regional midnight timers + legacy ET-midnight; list 2h timer.
+
+v0.7 FULL-RANK 1..100 + SHEET3 PRIMARY (2026-08-26)
+- Rank gap FIXED: zgbs pages embed complete ranked list in `data-client-recs-list` JSON. `parse_list_page` merges DOM rows with recs-list skeleton → 100 ranked items, zero gaps.
+- SHEET 3 = future primary: `beauty_personal_care_top100_live` (`1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`)
 
 ## Proven architecture (empirically validated 2026-08-25)
 | lane | runs | covers | status |

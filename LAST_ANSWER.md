@@ -1,48 +1,33 @@
 # LAST ANSWER
 
-## Current state
-- v0.4: **PUBLIC repo live** (https://github.com/free-gunw607/crawl_amazon_beauty_bestsellers) with GitHub Actions collecting all 8 panels every 6h and committing the public dataset back — 3 verified runs, `ok:8 failed:0`
-- Architecture empirically split: runner IPs pass list pages but are captcha-blocked on /dp/ → cloud owns lists, local home-IP line owns detail passes (crontab registered, fires when cron daemon starts)
-- Drive publishing wired both ways: CI via `GCP_SA_JSON` secret (auto-skip until provided), locally via gws OAuth (already proven)
+## Current state (2026-08-30)
+- v0.9: **Sheet 3 live** with 5-region Beauty & Personal Care Top 100
+- Sheet 3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
+- **bootstrap_us_location()** auto-pins delivery to NY 10001 on every new AmazonClient
+- **Prices in USD** (currency_pref switched from KRW)
+- **Final coverage**: Title 96%, URL 100%, **Price 84%**, Rating 96%
 
-## Deliverable proof
-- public dataset commits: `a11e335`, `3703b33` (17 files: per-node list.csv/jsonl) + workbook export each run
-- run trail: workflow runs 32856162687 / 32857639481 / 32859096238 (success)
-- local DB: ~1,500 list / ~560 detail rows; tests 5 passed; health alerts NONE
+## Session summary (2026-08-30)
+1. **R1-R4**: Full rank extraction (parse_recs_list), captcha recovery (break→continue), URL bug fix, list_price fallback, fill-gaps CLI
+2. **R5**: USD price switch (KRW→USD), noprice detail_asins query, enrichment prefers records with prices
+3. **R6**: bootstrap_us_location() auto-call in _client(), noprice 2-step fallback (US first → local), root_panel_grid enrichment priority fix
+
+## Key discovery
+The root cause of ~80 price-less ASINs was NOT "products unavailable on Amazon" — it was Amazon hiding `buy_box_price` because the session had no pinned delivery location, causing Amazon to geolocate the IP to Korea and hide prices for items it deemed "not shippable to Korea." The `bootstrap_us_location()` method existed but was never called automatically. Adding one line to `_client()` fixed US from 92→100/100.
+
+## Remaining gaps (79 noprice)
+Amazon's geo-detection still hides prices for ~16% of products even with NY delivery pin (Korean IP). Requires proxy/VPN to each target region for 100% coverage.
+
+## Git commits
+- `ede0103` R6: bootstrap auto-call + noprice fallback
+- `b473def` R5: USD switch + enrichment priority
+- prior: R1-R4 (rank extraction, captcha, URLs, fill-gaps)
 
 ## How to operate
-- watch automation: https://github.com/free-gunw607/crawl_amazon_beauty_bestsellers/actions
-- manual cloud cycle: `gh workflow run collect.yml -f detail=false`
-- local manual cycle: `PYTHONPATH=src python3 scripts/run_job.py`
-- publish rich workbook from local DB: `./repo export-xlsx && ./repo upload-drive`
-- block telemetry: `./repo health`
-
-## Pending owner actions (2)
-1. **GCP console steps** (Drive CI publishing):
-   a. console.cloud.google.com → project create/select
-   b. APIs & Services → Library → enable **Google Drive API**
-   c. IAM → Service Accounts → create (`amazon-bs-publisher`) → Keys → Add key → JSON → download
-   d. Drive folder `crawl_amazon_beauty_bestsellers` → Share → SA email as Editor
-   e. tell me the JSON path → I run `gh secret set GCP_SA_JSON` (+ folder id secret) → CI step goes live
-2. **cron daemon**: run `sudo service cron start` once → local 6h detail lane goes automatic (crontab already registered at :17 KST). Optional persistence: `/etc/wsl.conf` `[boot] command=service cron start`
-
-## Known realities
-- runner detail fetches always captcha on first /dp/ hit — by design we stop there (stop-on-block policy); don't "fix" this from CI, it's an IP-reputation wall
-- ASIN B01MDTVZTZ repeatedly transient-fails locally too — watch next local pass
-- SQLite no longer committed (local-only); public dataset = csv snapshots + xlsx
-
-## Wisdomhouse — PROMOTED (owner-approved 2026-08-26)
-4 entries under episode `EP-AMZBS-DUALOPS-20260826-01`: soft-block telemetry (`WH-CRAWL-AMZBS-001`), cloud-lists/local-details lane split (`WH-CRAWL-AMZBS-002`), privilege-free scheduler (`WH-RUNTIME-AMZBS-001`), SA-quota boundary + formula-driven Sheets (`WH-DATA-AMZBS-001`). Canonical: A2 `Wisdomhouse/by-repo/crawl_amazon_beauty_bestsellers.md`
-4. **cloud-lists/local-details lane split** for datacenter-blocked scraping targets
+- fill-gaps: `PYTHONPATH=src python -m crawl_amazon_beauty_bestsellers.cli fill-gaps --region all`
+- publish: `PYTHONPATH=src python -m crawl_amazon_beauty_bestsellers.cli publish-root --region <mp>`
+- run full stack: `./repo root-cycle --region <mp>` (list + publish + detail + sheet update)
+- tests: `PYTHONPATH=src python -m pytest tests/ -q` (19/19 passing)
 
 ## Resume pointer
-- everything durable in git + `.agent/`; restart-from-nothing = clone repo + read STATUS.md top table
-
-## Phase status
-- current phase: v0.4 dual-lane operations (cloud LIVE, local armed)
-- next phase: SA credential wiring → multi-day accumulation → next registry batch
-
-## Session close (2026-08-26 02:05 KST)
-- formula-driven Sheets architecture live (INDEX + 자동 category 수식, 12탭 14,966행)
-- Wisdomhouse promotion complete (4 IDs, episode `EP-AMZBS-DUALOPS-20260826-01`)
-- **sole pending action**: `sudo service cron start` in liam1 WSL → local detail lane arms
+- everything durable in git + `.agent/`; restart-from-nothing = clone repo + read STATUS.md
