@@ -83,6 +83,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("root-cycle", help="crawl-root then publish-root for one region")
     p.add_argument("--region", required=True)
 
+    p = sub.add_parser("fill-gaps", help="retry detail fetch for ASINs with missing data")
+    p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es) or 'all'")
+
     p = sub.add_parser("stats", help="database stats")
 
     p = sub.add_parser("health", help="parser field-completeness trend")
@@ -263,6 +266,28 @@ def main(argv: list[str] | None = None) -> int:
             except SheetsPublishError as exc:
                 print(str(exc))
                 return 3
+        elif args.command == "fill-gaps":
+            from .http_client import CaptchaBlocked
+            from .root_publish import publish_root_region
+
+            regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
+            for region in regions:
+                key = "ROOT" if region == "us" else f"{region}:ROOT"
+                missing = pipeline.store.missing_detail_asins(key)
+                asins = [r["asin"] for r in missing]
+                if not asins:
+                    _print({"region": region.upper(), "gaps": 0})
+                    continue
+                _print({"region": region.upper(), "gaps": len(asins), "asins": asins[:10]})
+                try:
+                    details, failures = pipeline.crawl_details(asins, marketplace=region)
+                    _print({"filled": len(details), "failed": len(failures)})
+                except CaptchaBlocked:
+                    _print({"region": region.upper(), "blocked": True})
+                try:
+                    publish_root_region(settings, pipeline.store, region)
+                except Exception:
+                    pass
         elif args.command == "stats":
             _print(pipeline.store.stats())
         elif args.command == "health":
