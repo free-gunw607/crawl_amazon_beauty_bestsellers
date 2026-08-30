@@ -93,6 +93,9 @@ class Pipeline:
     def _marketplace_profile(self, node_key: str):
         mp_code, _ = self._split_key(node_key)
         if mp_code is None:
+            profile = self.settings.marketplace(node_key.lower())
+            if profile:
+                return (node_key.lower(), profile)
             return None, None
         profile = self.settings.marketplace(mp_code)
         return (mp_code, profile) if profile else (mp_code, None)
@@ -234,7 +237,7 @@ class Pipeline:
             if include_details and entries:
                 ordered = [e.asin for e in sorted(entries, key=lambda x: x.rank)]
                 details, failures = self.crawl_details(
-                    ordered, run_id=run_id, expand_variants=True, marketplace=str(node_id)
+                    ordered, run_id=run_id, expand_variants=True, marketplace="us"
                 )
                 write_details_file(self.settings, details)
             summary["detail_count"] = len(details)

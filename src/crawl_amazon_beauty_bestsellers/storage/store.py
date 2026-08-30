@@ -261,6 +261,25 @@ class Store:
         )
         return [dict(r) for r in rows]
 
+    def noprice_detail_asins(self, node_id: str) -> list[dict[str, Any]]:
+        """ASINs in latest snapshot with detail but no price (buy_box + list_price both null)."""
+        rows = self._query(
+            "SELECT l.asin, l.rank, l.title "
+            "FROM list_entries l "
+            "JOIN product_details d ON l.asin = d.asin "
+            "WHERE l.node_id = ? "
+            "AND l.run_id = ("
+            "  SELECT run_id FROM list_entries WHERE node_id = ? "
+            "  ORDER BY fetched_at DESC LIMIT 1"
+            ") "
+            "AND d.title IS NOT NULL AND d.title != '' "
+            "AND d.buy_box_price IS NULL AND d.list_price_amount IS NULL "
+            "GROUP BY l.asin "
+            "ORDER BY l.rank",
+            (node_id, node_id),
+        )
+        return [dict(r) for r in rows]
+
     def history_for_asin(self, asin: str) -> list[dict[str, Any]]:
         rows = self._query(
             "SELECT fetched_at, node_id, rank, price_amount, price_currency, rating, ratings_count "

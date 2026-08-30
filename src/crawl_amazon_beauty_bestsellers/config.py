@@ -41,11 +41,11 @@ class MarketplaceProfile:
 
 
 DEFAULT_MARKETPLACES = [
-    {"code": "us", "base_url": "https://www.amazon.com", "timezone": "America/New_York", "currency_pref": "KRW"},
-    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "KRW", "url_style": "legacy"},
-    {"code": "de", "base_url": "https://www.amazon.de", "timezone": "Europe/Berlin", "currency_pref": "KRW"},
-    {"code": "fr", "base_url": "https://www.amazon.fr", "timezone": "Europe/Paris", "currency_pref": "KRW"},
-    {"code": "es", "base_url": "https://www.amazon.es", "timezone": "Europe/Madrid", "currency_pref": "KRW"},
+    {"code": "us", "base_url": "https://www.amazon.com", "timezone": "America/New_York", "currency_pref": "USD"},
+    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "USD", "url_style": "legacy"},
+    {"code": "de", "base_url": "https://www.amazon.de", "timezone": "Europe/Berlin", "currency_pref": "USD"},
+    {"code": "fr", "base_url": "https://www.amazon.fr", "timezone": "Europe/Paris", "currency_pref": "USD"},
+    {"code": "es", "base_url": "https://www.amazon.es", "timezone": "Europe/Madrid", "currency_pref": "USD"},
 ]
 
 

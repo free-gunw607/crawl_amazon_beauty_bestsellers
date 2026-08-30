@@ -273,17 +273,37 @@ def main(argv: list[str] | None = None) -> int:
             regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
             for region in regions:
                 key = "ROOT" if region == "us" else f"{region}:ROOT"
+                # Phase 1: fill ASINs with no detail record at all
                 missing = pipeline.store.missing_detail_asins(key)
                 asins = [r["asin"] for r in missing]
-                if not asins:
+                if asins:
+                    _print({"region": region.upper(), "missing": len(asins)})
+                    if region == "us":
+                        # US: try amazon.com first
+                        us_details, us_failures = [], []
+                        try:
+                            us_details, us_failures = pipeline.crawl_details(asins, marketplace="us")
+                        except CaptchaBlocked:
+                            pass
+                    else:
+                        # Non-US: use local marketplace directly (amazon.com captcha-blocks these)
+                        try:
+                            pipeline.crawl_details(asins, marketplace=region)
+                        except CaptchaBlocked:
+                            pass
+                # Phase 2: re-fetch no-price ASINs from LOCAL marketplace
+                noprice = pipeline.store.noprice_detail_asins(key)
+                noprice_asins = [r["asin"] for r in noprice]
+                if noprice_asins and region != "us":
+                    _print({"region": region.upper(), "noprice_local": len(noprice_asins)})
+                    try:
+                        pipeline.crawl_details(noprice_asins, marketplace=region)
+                    except CaptchaBlocked:
+                        pass
+                elif noprice_asins and region == "us":
+                    _print({"region": "US", "noprice": len(noprice_asins)})
+                if not asins and not noprice_asins:
                     _print({"region": region.upper(), "gaps": 0})
-                    continue
-                _print({"region": region.upper(), "gaps": len(asins), "asins": asins[:10]})
-                try:
-                    details, failures = pipeline.crawl_details(asins, marketplace=region)
-                    _print({"filled": len(details), "failed": len(failures)})
-                except CaptchaBlocked:
-                    _print({"region": region.upper(), "blocked": True})
                 try:
                     publish_root_region(settings, pipeline.store, region)
                 except Exception:

@@ -78,7 +78,8 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
         if asin:
             detail = store._query(
                 "SELECT title, rating, ratings_count, buy_box_price, buy_box_currency, list_price_amount "
-                "FROM product_details WHERE asin=? ORDER BY fetched_at DESC LIMIT 1",
+                "FROM product_details WHERE asin=? "
+                "ORDER BY (buy_box_price IS NOT NULL OR list_price_amount IS NOT NULL) DESC, fetched_at DESC LIMIT 1",
                 (asin,)
             )
             if detail:
@@ -98,7 +99,7 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
     
     grid = [["fetched", "", "", "", "", "", ""],
             [f"{base_url}/gp/bestsellers/beauty/", "", "", "", "", "", ""],
-            ["rank", "asin", "title", "rating", "ratings_count", "price_krw", "url"]]
+            ["rank", "asin", "title", "rating", "ratings_count", "price_usd", "url"]]
     for row in sorted(enriched, key=lambda r: r["rank"]):
         url = str(row.get("url") or "")
         asin_val = str(row.get("asin") or "")
