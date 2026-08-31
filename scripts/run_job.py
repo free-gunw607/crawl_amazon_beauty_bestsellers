@@ -37,25 +37,100 @@ def _send_telegram(message: str) -> None:
 
 
 def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: Path) -> str:
-    """Build a concise Telegram briefing message."""
-    icon = "OK" if status == "completed" else "FAILED"
+    """Build a concise Telegram briefing from CLI JSON output."""
+    icon = "✅" if status == "completed" else "❌"
     minutes = elapsed / 60
 
-    # Extract region stats from stdout
-    region_lines = []
-    for line in stdout.splitlines():
-        line = line.strip()
-        if line.startswith("[") and ("title=" in line or "price=" in line):
-            region_lines.append(line)
+    # Parse JSON output from CLI
+    runs = []
+    ok_count = 0
+    fail_count = 0
+    json_start = stdout.rfind("\n{")
+    if json_start >= 0:
+        try:
+            data = json.loads(stdout[json_start:])
+            runs = data.get("runs", [])
+            ok_count = data.get("ok", 0)
+            fail_count = data.get("failed", 0)
+        except (json.JSONDecodeError, KeyError):
+            pass
 
-    stats = "\n".join(region_lines[-10:]) if region_lines else "(no region stats)"
+    # Region mapping: node_id prefix → region
+    def _region(node_id: str) -> str:
+        if node_id.startswith("uk:"):
+            return "🇬🇧 UK"
+        if node_id.startswith("de:"):
+            return "🇩🇪 DE"
+        if node_id.startswith("fr:"):
+            return "🇫🇷 FR"
+        if node_id.startswith("es:"):
+            return "🇪🇸 ES"
+        return "🇺🇸 US"
 
-    return (
-        f"<b>Beauty Bestseller {icon}</b>\n"
-        f"Time: {minutes:.1f}min | RC: {rc}\n"
-        f"Log: {log_path.name}\n\n"
-        f"<code>{stats}</code>"
-    )
+    # Aggregate by region
+    region_order = ["🇺🇸 US", "🇩🇪 DE", "🇬🇧 UK", "🇫🇷 FR", "🇪🇸 ES"]
+    region_stats: dict[str, dict] = {}
+    for r in region_order:
+        region_stats[r] = {"nodes": 0, "items": 0, "price": 0, "rating": 0, "fail": 0}
+
+    total_items = 0
+    total_price = 0
+    total_rating = 0
+    total_detail = 0
+
+    for run in runs:
+        node_id = run.get("node_id", "")
+        reg = _region(node_id)
+        region_stats[reg]["nodes"] += 1
+
+        if "error" in run:
+            region_stats[reg]["fail"] += 1
+            continue
+
+        lc = run.get("list_count", 0)
+        snap = run.get("snapshot", {})
+        wp = snap.get("with_price", 0)
+        wr = snap.get("with_rating", 0)
+        dc = run.get("detail_count", 0)
+
+        region_stats[reg]["items"] += lc
+        region_stats[reg]["price"] += wp
+        region_stats[reg]["rating"] += wr
+        total_items += lc
+        total_price += wp
+        total_rating += wr
+        total_detail += dc
+
+    # Build message
+    from datetime import datetime, timezone, timedelta
+
+    kst = timezone(timedelta(hours=9))
+    now = datetime.now(kst).strftime("%Y-%m-%d %H:%M KST")
+
+    lines = [
+        f"{icon} Beauty Bestseller Daily Report",
+        f"━━━━━━━━━━━━━━━━━━━━━━",
+        f"{now} | {minutes:.0f}min | RC: {rc}",
+        "",
+    ]
+
+    for reg in region_order:
+        s = region_stats[reg]
+        if s["nodes"] == 0:
+            continue
+        pct = f"{s['price']*100//s['items']}" if s["items"] > 0 else "-"
+        line = f"{reg}  {s['nodes']}nodes {s['items']}items price {s['price']}/{s['items']} ({pct}%)"
+        if s["fail"] > 0:
+            line += f" ⚠️{s['fail']}fail"
+        lines.append(line)
+
+    lines.append("")
+    total_pct = f"{total_price*100//total_items}" if total_items > 0 else "-"
+    lines.append(f"Total: {ok_count}ok {fail_count}fail | {total_items}items | price {total_pct}%")
+    lines.append(f"Detail: {total_detail} fetched")
+    lines.append(f"📝 {log_path.name}")
+
+    return "\n".join(lines)
 
 
 def _check_staleness() -> str | None:
