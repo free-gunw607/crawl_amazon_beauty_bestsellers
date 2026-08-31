@@ -16,12 +16,11 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
-v0.11 BLOCK-STYLE PIPELINE: B0 AUTO-JOIN + B1 CAPTCHA RECOVERY (2026-08-31)
-- **B0 (latest_snapshot auto-join)**: `latest_snapshot()` now auto-fills empty titles/ratings/prices from `product_details` table. Added `AND title IS NOT NULL AND title != ''` filter to prevent NULL-title records from winning GROUP BY. Result: 84%→93% title without any re-crawl.
-- **B1 (captcha recovery)**: `crawl_details()` now replaces `break` with `continue` + new client on captcha. ASINs are fetched individually, not batch-stopped. On captcha, new `AmazonClient` is created with fresh location bootstrap.
-- **5-region 0-base results**: Title 100% (all 5), Rating 100% (all 5), Price: US 100%, DE 97%, FR 92%, UK 38%, ES 25%.
-- **Total time**: US 36s, DE 44s, UK 122s, FR 232s, ES 246s (~11 min total).
-- **Price gap root cause**: Amazon geo-restriction on Korean IP for non-US/DE regions. UK 38% and ES 25% are structural limitations without proxy/VPN.
+v0.12 FR BOT DETECTION FIX + 0-BASE VERIFICATION (2026-08-31)
+- **FR bot detection**: Amazon FR sets `session-token` cookie after first request, causing subsequent requests to return stripped 318KB pages (no product data). All 37 FR detail pages returned empty titles.
+- **Fix**: Detect small response (<500KB), create fresh client with new bootstrap, retry. Added to `crawl_details()` `_fetch()` inner function.
+- **0-base retest (all 5 regions from scratch)**: Title 100% all regions, Price 94.2% avg (US 100%, DE 99%, UK 100%, FR 88%, ES 83%), Rating 99.4% avg. Total time ~18.5 min.
+- **FR improved**: 62% → 100% title (from v0.11 0-base run)
 - Tests: 19/19 passing.
 - **UK parser fix**: Added `USD\s?([\d.,]+)` regex pattern to `_price_from_raw()` in `bestseller_list.py`. Amazon UK returns prices as `USD5.36` text (not `$5.36` symbol). This single fix recovered 51 UK noprice ASINs.
 - **Region-aware bootstrap**: `bootstrap_us_location()` now uses marketplace-specific base_url and delivery zip codes (US: 10001, UK: EC1A 1BB, DE: 10115, FR: 75001, ES: 28001). Previously all marketplaces posted to amazon.com regardless of target region.

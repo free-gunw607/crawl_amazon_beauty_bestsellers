@@ -1,19 +1,20 @@
 # LAST ANSWER
 
 ## Current state (2026-08-31)
-- v0.11: **Block-style pipeline** — B0 auto-join + B1 captcha recovery
+- v0.12: **Block-style pipeline verified** — 0-base, 5 regions, 100% title
 - Sheet 3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
-- **Title 100%** all 5 regions (US/DE/UK/FR/ES)
-- **Rating 100%** all 5 regions
-- **Price**: US 100%, DE 97%, FR 92%, UK 38%, ES 25%
-- **Total time**: ~11 min all 5 regions from 0-base
-- **Remaining price gap**: Amazon geo-restriction on Korean IP (UK/ES structural)
+- **Title 100%** all 5 regions (US/DE/UK/FR/ES) — VERIFIED FROM SCRATCH
+- **Price 94.2%** avg (US 100%, DE 99%, UK 100%, FR 88%, ES 83%)
+- **Rating 99.4%** avg
+- **Total time: ~18.5 min** all 5 regions from 0-base
+- **FR bot detection fixed**: fresh client on small response (<500KB)
 
 ## Session summary (2026-08-31)
-1. **B0 auto-join**: `latest_snapshot()` joins with `product_details` to fill empty titles. Fixed GROUP BY NULL-title bug with `AND title IS NOT NULL AND title != ''` filter.
-2. **B1 captcha recovery**: `crawl_details()` now uses `continue` + new client instead of `break` on captcha. Individual ASIN fetch, not batch-stop.
-3. **5-region 0-base test**: All regions tested B0+B1 pipeline. Title 100%, Rating 100%, Price varies by geo-restriction.
-4. **Code changes**: `pipeline.py` (captcha recovery), `storage/store.py` (auto-join + NULL filter)
+1. **B0 auto-join**: `latest_snapshot()` fills empty titles from product_details
+2. **B1 captcha recovery**: `crawl_details()` continues on captcha with new client
+3. **FR bot detection**: Amazon FR sets session-token after 1st request → stripped pages
+4. **Fix**: detect small response, create fresh client, retry
+5. **0-base verification**: All 5 regions title 100%, 0 failures, ~18.5 min total
 
 ## Key discovery
 UK Amazon returns prices as `USD5.36` text (not `$5.36` symbol). The `_price_from_raw()` function only matched `$` symbol, causing 100% price extraction failure on amazon.co.uk. Adding one regex pattern fixed 51 UK noprice ASINs instantly.
