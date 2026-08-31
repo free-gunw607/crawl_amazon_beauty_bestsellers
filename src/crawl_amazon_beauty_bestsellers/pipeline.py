@@ -166,6 +166,14 @@ class Pipeline:
                 url = f"{base_url}/dp/{asin}"
                 try:
                     result = client.get(url)
+                    if len(result.text) < 500_000:
+                        client.close()
+                        client = AmazonClient(self.settings, marketplace=profile)
+                        try:
+                            client.bootstrap_us_location()
+                        except Exception:
+                            pass
+                        result = client.get(url)
                     client.save_raw(result.text, "detail", asin)
                     detail = parse_product_detail(result.text, asin, _now(), run_id)
                     detail.marketplace = mp_code or "us"
