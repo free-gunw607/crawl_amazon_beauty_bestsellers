@@ -223,7 +223,33 @@ class Store:
             "SELECT * FROM list_entries WHERE node_id=? AND run_id=? ORDER BY rank",
             (str(node_id), rows[0]["run_id"]),
         )
-        return [dict(r) for r in cursor_rows]
+        results = [dict(r) for r in cursor_rows]
+        empty_asins = [r["asin"] for r in results if r.get("asin") and not r.get("title")]
+        if not empty_asins:
+            return results
+        placeholders = ",".join("?" * len(empty_asins))
+        detail_rows = self._query(
+            f"SELECT asin, title, rating, ratings_count, buy_box_price, buy_box_currency, list_price_amount "
+            f"FROM product_details WHERE asin IN ({placeholders}) "
+            f"AND title IS NOT NULL AND title != '' "
+            f"GROUP BY asin",
+            empty_asins,
+        )
+        detail_map = {r["asin"]: dict(r) for r in detail_rows}
+        for r in results:
+            if not r.get("title") and r["asin"] in detail_map:
+                d = detail_map[r["asin"]]
+                if d.get("title"):
+                    r["title"] = d["title"]
+                if not r.get("rating") and d.get("rating"):
+                    r["rating"] = d["rating"]
+                if not r.get("ratings_count") and d.get("ratings_count"):
+                    r["ratings_count"] = d["ratings_count"]
+                if not r.get("price_amount") and d.get("buy_box_price"):
+                    r["price_amount"] = d["buy_box_price"]
+                elif not r.get("price_amount") and d.get("list_price_amount"):
+                    r["price_amount"] = d["list_price_amount"]
+        return results
 
     def missing_detail_asins(self, node_id: str) -> list[dict[str, Any]]:
         """ASINs in latest snapshot with no product_details row at all."""
@@ -242,6 +268,19 @@ class Store:
             (node_id, node_id),
         )
         return [dict(r) for r in rows]
+
+    def cross_node_titles(self, asins: list[str]) -> dict[str, str]:
+        """Look up titles for ASINs from ANY list_entries in the DB."""
+        if not asins:
+            return {}
+        placeholders = ",".join("?" * len(asins))
+        rows = self._query(
+            f"SELECT asin, title FROM list_entries "
+            f"WHERE asin IN ({placeholders}) AND title IS NOT NULL AND title != '' "
+            f"GROUP BY asin ORDER BY fetched_at DESC",
+            asins,
+        )
+        return {r["asin"]: r["title"] for r in rows}
 
     def stale_detail_asins(self, node_id: str) -> list[dict[str, Any]]:
         """ASINs in latest snapshot whose latest detail has empty title."""

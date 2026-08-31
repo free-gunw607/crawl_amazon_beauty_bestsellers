@@ -159,6 +159,7 @@ class Pipeline:
         failures: list[dict[str, str]] = []
 
         def _fetch(batch_asins: list[str], label_prefix: str) -> int:
+            nonlocal client
             top = min(len(batch_asins), self.settings.crawler.detail_top)
             fetched = 0
             for index, asin in enumerate(batch_asins[:top], start=1):
@@ -173,7 +174,13 @@ class Pipeline:
                     fetched += 1
                 except CaptchaBlocked as exc:
                     failures.append({"asin": asin, "error": str(exc)})
-                    break
+                    client.close()
+                    client = AmazonClient(self.settings, marketplace=profile)
+                    try:
+                        client.bootstrap_us_location()
+                    except Exception:
+                        pass
+                    continue
                 except Exception as exc:
                     failures.append({"asin": asin, "error": str(exc)})
                 print(f"  {label_prefix} {index}/{top}: {asin}")

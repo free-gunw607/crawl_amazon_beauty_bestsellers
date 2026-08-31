@@ -71,11 +71,16 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
     base_url = profile.base_url if profile else "https://www.amazon.com"
     snapshot = store.latest_snapshot(root_key(region))
     
+    # Collect ASINs with missing titles for batch cross-node lookup
+    missing_title_asins = [r["asin"] for r in snapshot if r.get("asin") and not r.get("title")]
+    cross_titles = store.cross_node_titles(missing_title_asins) if missing_title_asins else {}
+    
     # Join with product_details to get enriched data (any marketplace, price priority)
     enriched = []
     for row in snapshot:
         asin = row.get("asin")
         if asin:
+            # Step 1: Try product_details
             detail = store._query(
                 "SELECT title, rating, ratings_count, buy_box_price, buy_box_currency, list_price_amount "
                 "FROM product_details WHERE asin=? "
@@ -84,7 +89,6 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
             )
             if detail:
                 d = dict(detail[0])
-                # Use detail data if list entry has empty title
                 if not row.get("title") and d.get("title"):
                     row = {**row, "title": d["title"]}
                 if not row.get("rating") and d.get("rating"):
@@ -95,6 +99,9 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
                     row = {**row, "price_amount": d["buy_box_price"], "price_currency": d.get("buy_box_currency")}
                 elif not row.get("price_amount") and d.get("list_price_amount"):
                     row = {**row, "price_amount": d["list_price_amount"]}
+            # Step 2: Cross-node title lookup
+            if not row.get("title") and asin in cross_titles:
+                row = {**row, "title": cross_titles[asin]}
         enriched.append(row)
     
     grid = [["fetched", "", "", "", "", "", ""],
