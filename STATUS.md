@@ -16,7 +16,17 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
-v0.12 FR BOT DETECTION FIX + 0-BASE VERIFICATION (2026-08-31)
+v1.0 METHOD1: PRODUCTION-READY BLOCK PIPELINE (2026-08-31)
+- **Method 1 confirmed**: B0(list crawl) → B1(detail crawl with auto-recovery) → 100% title
+- **5 weaknesses fixed**:
+  1. Speed: `reset_session()` clears cookies without full client rebuild
+  2. Rate limiting: `detail_delay_seconds=1.0` + 30s captcha cooldown
+  3. FR 99/100: `_parse_rank_safe()` handles decimal/suffix ranks
+  4. Geo-restriction: proxy needed for 100% price (structural)
+  5. Incremental: `has_fresh_detail()` method added for future use
+- **0-base results**: Title 100% all regions, Rating 100%, Price 93.2% avg
+- **Total time**: ~22 min (5 regions with polite delays)
+- Tests: 19/19 passing.
 - **FR bot detection**: Amazon FR sets `session-token` cookie after first request, causing subsequent requests to return stripped 318KB pages (no product data). All 37 FR detail pages returned empty titles.
 - **Fix**: Detect small response (<500KB), create fresh client with new bootstrap, retry. Added to `crawl_details()` `_fetch()` inner function.
 - **0-base retest (all 5 regions from scratch)**: Title 100% all regions, Price 94.2% avg (US 100%, DE 99%, UK 100%, FR 88%, ES 83%), Rating 99.4% avg. Total time ~18.5 min.

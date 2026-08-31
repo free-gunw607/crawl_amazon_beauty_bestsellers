@@ -1,20 +1,25 @@
 # LAST ANSWER
 
 ## Current state (2026-08-31)
-- v0.12: **Block-style pipeline verified** — 0-base, 5 regions, 100% title
+- v1.0: **Method 1 confirmed** — production-ready block pipeline
 - Sheet 3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
-- **Title 100%** all 5 regions (US/DE/UK/FR/ES) — VERIFIED FROM SCRATCH
-- **Price 94.2%** avg (US 100%, DE 99%, UK 100%, FR 88%, ES 83%)
-- **Rating 99.4%** avg
-- **Total time: ~18.5 min** all 5 regions from 0-base
-- **FR bot detection fixed**: fresh client on small response (<500KB)
+- **Title 100%** all 5 regions — VERIFIED FROM SCRATCH
+- **Rating 100%** all 5 regions
+- **Price 93.2%** avg (US 100%, DE 97%, UK 99%, FR 89%, ES 80%)
+- **Total time: ~22 min** all 5 regions from 0-base with polite delays
+
+## Method 1 Architecture
+- **B0**: List crawl (2 pages) → 30 with title + 20 without
+- **B1**: Detail crawl for empty-title ASINs → auto-recovery on bot detection
+- **Recovery**: reset_session() on small response, 30s cooldown on captcha
+- **Politeness**: 1.5-4s between requests + 1s detail delay
 
 ## Session summary (2026-08-31)
-1. **B0 auto-join**: `latest_snapshot()` fills empty titles from product_details
-2. **B1 captcha recovery**: `crawl_details()` continues on captcha with new client
-3. **FR bot detection**: Amazon FR sets session-token after 1st request → stripped pages
-4. **Fix**: detect small response, create fresh client, retry
-5. **0-base verification**: All 5 regions title 100%, 0 failures, ~18.5 min total
+1. **reset_session()**: Clears cookies without full client rebuild (FR bot fix)
+2. **detail_delay_seconds**: Configurable delay between detail requests
+3. **_parse_rank_safe()**: Handles decimal/suffix ranks (FR 99→100)
+4. **has_fresh_detail()**: Incremental update support
+5. **0-base verification**: All 5 regions 100% title from scratch
 
 ## Key discovery
 UK Amazon returns prices as `USD5.36` text (not `$5.36` symbol). The `_price_from_raw()` function only matched `$` symbol, causing 100% price extraction failure on amazon.co.uk. Adding one regex pattern fixed 51 UK noprice ASINs instantly.
