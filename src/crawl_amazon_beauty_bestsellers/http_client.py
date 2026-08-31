@@ -33,6 +33,14 @@ CAPTCHA_MARKERS = (
 
 CSRF_PATTERN = re.compile(r'"anti-csrftoken-a2z"\s*:\s*"([^"]+)"')
 
+DELIVERY_ZIPS = {
+    "us": "10001",
+    "uk": "EC1A 1BB",
+    "de": "10115",
+    "fr": "75001",
+    "es": "28001",
+}
+
 
 class CaptchaBlocked(RuntimeError):
     def __init__(self, url: str):
@@ -149,19 +157,23 @@ class AmazonClient:
         return FetchResult(text=response.text, status_code=response.status_code, url=url)
 
     def bootstrap_us_location(self) -> dict[str, object]:
+        mp_code = self.marketplace.code if self.marketplace else "us"
+        base_url = self.marketplace.base_url if self.marketplace else self.settings.amazon.base_url
+        delivery_zip = DELIVERY_ZIPS.get(mp_code, self.settings.amazon.delivery_zip)
         info: dict[str, object] = {
             "transport": self.transport,
-            "delivery_zip": self.settings.amazon.delivery_zip,
+            "marketplace": mp_code,
+            "delivery_zip": delivery_zip,
             "pinned": False,
             "method": "",
         }
-        home = self.get(self.settings.amazon.base_url + "/", allow_redirects=True)
+        home = self.get(base_url + "/", allow_redirects=True)
         match = CSRF_PATTERN.search(home.text)
         csrf_token = match.group(1) if match else ""
-        change_url = self.settings.amazon.base_url + "/portal-migration/hz/glow/address-change?actionSource=glow"
+        change_url = base_url + "/portal-migration/hz/glow/address-change?actionSource=glow"
         form = {
             "locationType": "LOCATION_INPUT",
-            "zipCode": self.settings.amazon.delivery_zip,
+            "zipCode": delivery_zip,
             "deviceType": "web",
             "pageType": "Gateway",
             "storeContext": "generic",

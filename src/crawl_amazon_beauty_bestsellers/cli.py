@@ -304,10 +304,12 @@ def main(argv: list[str] | None = None) -> int:
                         us_details, us_failures = pipeline.crawl_details(noprice_asins, marketplace="us")
                     except CaptchaBlocked:
                         pass
-                    # Collect ASINs that failed or got empty titles on US
+                    # Collect ASINs that failed, got empty titles, or have no price on US
                     failed_asins = [f["asin"] for f in us_failures] if us_failures else []
                     for d in us_details:
                         if not d.title or not d.title.strip():
+                            failed_asins.append(d.asin)
+                        elif not d.buy_box_price and not d.list_price_amount:
                             failed_asins.append(d.asin)
                     # Step B: for failures, try local marketplace
                     if failed_asins and region != "us":

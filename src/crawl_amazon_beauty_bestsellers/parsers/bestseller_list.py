@@ -172,6 +172,12 @@ def _price_from_raw(raw: str) -> tuple[float | None, str | None]:
     if gbp_match:
         value = _european_number(gbp_match.group(1))
         return (value, "GBP") if value is not None else (None, None)
+    usd_text_match = re.search(r"USD\s?([\d.,]+)", cleaned)
+    if usd_text_match:
+        try:
+            return float(usd_text_match.group(1).replace(",", "")), "USD"
+        except ValueError:
+            return None, None
     dollar_match = re.search(r"\$([\d.]+)", cleaned.replace(",", ""))
     if dollar_match:
         try:

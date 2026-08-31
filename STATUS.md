@@ -16,6 +16,15 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 - publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
 
 ## Current phase
+v0.10 UK PARSER FIX + REGION-AWARE BOOTSTRAP (2026-08-31)
+- **UK parser fix**: Added `USD\s?([\d.,]+)` regex pattern to `_price_from_raw()` in `bestseller_list.py`. Amazon UK returns prices as `USD5.36` text (not `$5.36` symbol). This single fix recovered 51 UK noprice ASINs.
+- **Region-aware bootstrap**: `bootstrap_us_location()` now uses marketplace-specific base_url and delivery zip codes (US: 10001, UK: EC1A 1BB, DE: 10115, FR: 75001, ES: 28001). Previously all marketplaces posted to amazon.com regardless of target region.
+- **fill-gaps local fallback**: Modified CLI to try local marketplace when US fetch returns no price (not just when US fetch fails). Previously only empty-title failures triggered local fallback.
+- **Sheet 3 state**: US 100%, UK 94% price, DE 85% price, FR 81% price, ES 56% price.
+- **Remaining noprice (22)**: Amazon geo-restriction on Korean IP. Without proxy/VPN to each region, ~4% of products remain price-hidden.
+- Tests: 19/19 passing.
+
+## Prior phase notes
 v0.9 USD PRICE SWITCH + BOOTSTRAP AUTO-PIN (2026-08-30)
 - **bootstrap_us_location()** now auto-called in `_client()` on every new AmazonClient — pins delivery to NY 10001 (New York) via `glow-address-change` form POST. This resolves the core issue where Amazon hid `buy_box_price` for items it deemed "not shippable to delivery location" (Korean IP geolocation).
 - **Currency switched KRW → USD** for all marketplaces. Sheet 3 column header: `price_usd`.

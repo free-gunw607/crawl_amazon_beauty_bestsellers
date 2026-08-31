@@ -71,7 +71,7 @@ def root_panel_grid(store, settings: Settings, region: str) -> list[list[str]]:
     base_url = profile.base_url if profile else "https://www.amazon.com"
     snapshot = store.latest_snapshot(root_key(region))
     
-    # Join with product_details to get enriched data
+    # Join with product_details to get enriched data (any marketplace, price priority)
     enriched = []
     for row in snapshot:
         asin = row.get("asin")

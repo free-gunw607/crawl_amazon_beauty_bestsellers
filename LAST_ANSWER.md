@@ -1,22 +1,24 @@
 # LAST ANSWER
 
-## Current state (2026-08-30)
-- v0.9: **Sheet 3 live** with 5-region Beauty & Personal Care Top 100
+## Current state (2026-08-31)
+- v0.10: **Sheet 3 live** with 5-region Beauty & Personal Care Top 100
 - Sheet 3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
-- **bootstrap_us_location()** auto-pins delivery to NY 10001 on every new AmazonClient
-- **Prices in USD** (currency_pref switched from KRW)
-- **Final coverage**: Title 96%, URL 100%, **Price 84%**, Rating 96%
+- **UK parser fix**: `USD\s?(\d.+)` regex recovers 51 UK noprice ASINs
+- **Region-aware bootstrap**: marketplace-specific base_url + delivery zip
+- **Final coverage**: US 100%, UK 94% price, DE 85% price, FR 81% price, ES 56% price
+- **Remaining noprice (22)**: Amazon geo-restriction on Korean IP
 
-## Session summary (2026-08-30)
-1. **R1-R4**: Full rank extraction (parse_recs_list), captcha recovery (break→continue), URL bug fix, list_price fallback, fill-gaps CLI
-2. **R5**: USD price switch (KRW→USD), noprice detail_asins query, enrichment prefers records with prices
-3. **R6**: bootstrap_us_location() auto-call in _client(), noprice 2-step fallback (US first → local), root_panel_grid enrichment priority fix
+## Session summary (2026-08-31)
+1. **R7-1**: UK parser fix — `_price_from_raw()` now handles `USD5.36` text format (not just `$5.36` symbol)
+2. **R7-2**: Region-aware bootstrap — `bootstrap_us_location()` uses marketplace-specific base_url and delivery zip (US:10001, UK:EC1A 1BB, DE:10115, FR:75001, ES:28001)
+3. **R7-3**: fill-gaps local fallback — CLI now tries local marketplace when US fetch returns no price (not just empty title)
+4. **All fill-gaps + publish** for 5 regions
 
 ## Key discovery
-The root cause of ~80 price-less ASINs was NOT "products unavailable on Amazon" — it was Amazon hiding `buy_box_price` because the session had no pinned delivery location, causing Amazon to geolocate the IP to Korea and hide prices for items it deemed "not shippable to Korea." The `bootstrap_us_location()` method existed but was never called automatically. Adding one line to `_client()` fixed US from 92→100/100.
+UK Amazon returns prices as `USD5.36` text (not `$5.36` symbol). The `_price_from_raw()` function only matched `$` symbol, causing 100% price extraction failure on amazon.co.uk. Adding one regex pattern fixed 51 UK noprice ASINs instantly.
 
-## Remaining gaps (79 noprice)
-Amazon's geo-detection still hides prices for ~16% of products even with NY delivery pin (Korean IP). Requires proxy/VPN to each target region for 100% coverage.
+## Remaining gaps (22 noprice)
+Amazon geo-restriction on Korean IP hides prices for ~4% of products. Without proxy/VPN to each target region, cannot reach 100%.
 
 ## Git commits
 - `ede0103` R6: bootstrap auto-call + noprice fallback
