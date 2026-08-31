@@ -18,26 +18,16 @@ https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X
 ## Current phase
 v1.0 METHOD1: PRODUCTION-READY BLOCK PIPELINE (2026-08-31)
 - **Method 1 confirmed**: B0(list crawl) → B1(detail crawl with auto-recovery) → 100% title
-- **5 weaknesses fixed**:
-  1. Speed: `reset_session()` clears cookies without full client rebuild
-  2. Rate limiting: `detail_delay_seconds=1.0` + 30s captcha cooldown
-  3. FR 99/100: `_parse_rank_safe()` handles decimal/suffix ranks
-  4. Geo-restriction: proxy needed for 100% price (structural)
-  5. Incremental: `has_fresh_detail()` method added for future use
+- **5 weaknesses fixed**: reset_session, detail_delay, _parse_rank_safe, has_fresh_detail
 - **0-base results**: Title 100% all regions, Rating 100%, Price 93.2% avg
 - **Total time**: ~22 min (5 regions with polite delays)
-- Tests: 19/19 passing.
-- **FR bot detection**: Amazon FR sets `session-token` cookie after first request, causing subsequent requests to return stripped 318KB pages (no product data). All 37 FR detail pages returned empty titles.
-- **Fix**: Detect small response (<500KB), create fresh client with new bootstrap, retry. Added to `crawl_details()` `_fetch()` inner function.
-- **0-base retest (all 5 regions from scratch)**: Title 100% all regions, Price 94.2% avg (US 100%, DE 99%, UK 100%, FR 88%, ES 83%), Rating 99.4% avg. Total time ~18.5 min.
-- **FR improved**: 62% → 100% title (from v0.11 0-base run)
-- Tests: 19/19 passing.
-- **UK parser fix**: Added `USD\s?([\d.,]+)` regex pattern to `_price_from_raw()` in `bestseller_list.py`. Amazon UK returns prices as `USD5.36` text (not `$5.36` symbol). This single fix recovered 51 UK noprice ASINs.
-- **Region-aware bootstrap**: `bootstrap_us_location()` now uses marketplace-specific base_url and delivery zip codes (US: 10001, UK: EC1A 1BB, DE: 10115, FR: 75001, ES: 28001). Previously all marketplaces posted to amazon.com regardless of target region.
-- **fill-gaps local fallback**: Modified CLI to try local marketplace when US fetch returns no price (not just when US fetch fails). Previously only empty-title failures triggered local fallback.
-- **Sheet 3 state**: US 100%, UK 94% price, DE 85% price, FR 81% price, ES 56% price.
-- **Remaining noprice (22)**: Amazon geo-restriction on Korean IP. Without proxy/VPN to each region, ~4% of products remain price-hidden.
-- Tests: 19/19 passing.
+
+## Scheduler (v1.0 simplified)
+- **1 timer**: `amzbs-beauty.timer` — daily 5AM KST (UTC 20:00)
+- **What it does**: `run_job.py` (list + detail all 5 regions) → `publish-sheets --tabs local`
+- **Covers**: US, DE, UK, FR, ES Beauty & Personal Care Top 100
+- **Old timers removed**: 7 timers (2h list, 5x MR detail+publish) replaced by 1
+- **Install**: `scripts/install_schedule.sh install`
 
 ## Prior phase notes
 v0.9 USD PRICE SWITCH + BOOTSTRAP AUTO-PIN (2026-08-30)

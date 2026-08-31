@@ -1,9 +1,0 @@
-[Unit]
-Description=Daily local-midnight publish timer for MR lane: us
-
-[Timer]
-OnCalendar=*-*-* 00:00:00 America/New_York
-Persistent=true
-
-[Install]
-WantedBy=timers.target
