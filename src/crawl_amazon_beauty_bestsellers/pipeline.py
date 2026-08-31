@@ -157,6 +157,7 @@ class Pipeline:
         client = self._client(profile)
         details: list[ProductDetail] = []
         failures: list[dict[str, str]] = []
+        detail_delay = self.settings.politeness.detail_delay_seconds
 
         def _fetch(batch_asins: list[str], label_prefix: str) -> int:
             nonlocal client
@@ -167,12 +168,7 @@ class Pipeline:
                 try:
                     result = client.get(url)
                     if len(result.text) < 500_000:
-                        client.close()
-                        client = AmazonClient(self.settings, marketplace=profile)
-                        try:
-                            client.bootstrap_us_location()
-                        except Exception:
-                            pass
+                        client.reset_session()
                         result = client.get(url)
                     client.save_raw(result.text, "detail", asin)
                     detail = parse_product_detail(result.text, asin, _now(), run_id)
@@ -182,15 +178,13 @@ class Pipeline:
                     fetched += 1
                 except CaptchaBlocked as exc:
                     failures.append({"asin": asin, "error": str(exc)})
-                    client.close()
-                    client = AmazonClient(self.settings, marketplace=profile)
-                    try:
-                        client.bootstrap_us_location()
-                    except Exception:
-                        pass
+                    time.sleep(30)
+                    client.reset_session()
                     continue
                 except Exception as exc:
                     failures.append({"asin": asin, "error": str(exc)})
+                if detail_delay > 0:
+                    time.sleep(detail_delay)
                 print(f"  {label_prefix} {index}/{top}: {asin}")
             return fetched
 

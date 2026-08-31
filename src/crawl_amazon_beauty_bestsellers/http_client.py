@@ -104,6 +104,16 @@ class AmazonClient:
                 pass
             self.session = None
 
+    def reset_session(self):
+        """Clear all accumulated cookies and rebuild session (avoids bot detection)."""
+        if self.session is not None:
+            try:
+                self.session.close()
+            except Exception:
+                pass
+        self.us_location_pinned = False
+        self._build_session()
+
     def _polite_delay(self):
         delay = random.uniform(
             self.settings.politeness.min_delay_seconds,

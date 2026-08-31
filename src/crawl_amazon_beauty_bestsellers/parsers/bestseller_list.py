@@ -190,6 +190,23 @@ def _price_from_raw(raw: str) -> tuple[float | None, str | None]:
 RECS_LIST_PATTERN = re.compile(r"""data-client-recs-list=(?:"([^"]*)"|'([^']*)')""")
 
 
+def _parse_rank_safe(raw: str) -> int | None:
+    """Parse rank from string, handling decimals ('5.0'), suffixes ('5th'), and plain ints."""
+    raw = raw.strip()
+    if not raw:
+        return None
+    if raw.isdigit():
+        return int(raw)
+    try:
+        return int(float(raw))
+    except ValueError:
+        pass
+    m = re.match(r"(\d+)", raw)
+    if m:
+        return int(m.group(1))
+    return None
+
+
 def parse_recs_list(html: str) -> list[tuple[str, int]]:
     """Extract the full ranked ASIN list embedded in zgbs pages (covers ranks the DOM does not render)."""
     match = RECS_LIST_PATTERN.search(html)
@@ -203,8 +220,9 @@ def parse_recs_list(html: str) -> list[tuple[str, int]]:
     for entry in data:
         asin = str(entry.get("id") or "").strip()
         rank_raw = str((entry.get("metadataMap") or {}).get("render.zg.rank") or "").strip()
-        if asin and rank_raw.isdigit():
-            out.append((asin, int(rank_raw)))
+        rank = _parse_rank_safe(rank_raw)
+        if asin and rank is not None:
+            out.append((asin, rank))
     return out
 
 

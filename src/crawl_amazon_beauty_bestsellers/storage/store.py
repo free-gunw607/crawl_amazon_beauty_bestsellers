@@ -269,6 +269,14 @@ class Store:
         )
         return [dict(r) for r in rows]
 
+    def has_fresh_detail(self, asin: str, since: str) -> bool:
+        """Check if an ASIN has a product_details row newer than *since* ISO timestamp."""
+        rows = self._query(
+            "SELECT 1 FROM product_details WHERE asin=? AND fetched_at>=? LIMIT 1",
+            (asin, since),
+        )
+        return len(rows) > 0
+
     def cross_node_titles(self, asins: list[str]) -> dict[str, str]:
         """Look up titles for ASINs from ANY list_entries in the DB."""
         if not asins:

@@ -56,6 +56,7 @@ class PolitenessConfig:
     max_attempts: int = 3
     request_timeout_seconds: int = 30
     category_gap_seconds: float = 8.0
+    detail_delay_seconds: float = 1.0
 
 
 @dataclass
