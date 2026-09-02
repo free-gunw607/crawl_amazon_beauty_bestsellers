@@ -37,7 +37,7 @@ def _send_telegram(message: str) -> None:
 
 
 def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: Path) -> str:
-    """Build a concise Telegram briefing from CLI JSON output."""
+    """Build a detailed but easy-to-read Telegram briefing."""
     icon = "✅" if status == "completed" else "❌"
     minutes = elapsed / 60
 
@@ -55,7 +55,7 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
         except (json.JSONDecodeError, KeyError):
             pass
 
-    # Region mapping: node_id prefix → region
+    # Region mapping
     def _region(node_id: str) -> str:
         if node_id.startswith("uk:"):
             return "🇬🇧 UK"
@@ -71,9 +71,14 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
     region_order = ["🇺🇸 US", "🇩🇪 DE", "🇬🇧 UK", "🇫🇷 FR", "🇪🇸 ES"]
     region_stats: dict[str, dict] = {}
     for r in region_order:
-        region_stats[r] = {"nodes": 0, "items": 0, "price": 0, "rating": 0, "fail": 0}
+        region_stats[r] = {
+            "nodes": 0, "items": 0,
+            "title": 0, "price": 0, "rating": 0,
+            "fail": 0, "errors": [],
+        }
 
     total_items = 0
+    total_title = 0
     total_price = 0
     total_rating = 0
     total_detail = 0
@@ -85,6 +90,7 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
 
         if "error" in run:
             region_stats[reg]["fail"] += 1
+            region_stats[reg]["errors"].append(run["error"][:60])
             continue
 
         lc = run.get("list_count", 0)
@@ -94,9 +100,11 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
         dc = run.get("detail_count", 0)
 
         region_stats[reg]["items"] += lc
+        region_stats[reg]["title"] += lc  # list_count = items with title
         region_stats[reg]["price"] += wp
         region_stats[reg]["rating"] += wr
         total_items += lc
+        total_title += lc
         total_price += wp
         total_rating += wr
         total_detail += dc
@@ -105,12 +113,15 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
     from datetime import datetime, timezone, timedelta
 
     kst = timezone(timedelta(hours=9))
-    now = datetime.now(kst).strftime("%Y-%m-%d %H:%M KST")
+    now = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
+
+    def _pct(part: int, whole: int) -> str:
+        return f"{part*100//whole}" if whole > 0 else "-"
 
     lines = [
-        f"{icon} Beauty Bestseller Daily Report",
+        f"{icon} Beauty Bestseller 실시간 리포트",
         f"━━━━━━━━━━━━━━━━━━━━━━",
-        f"{now} | {minutes:.0f}min | RC: {rc}",
+        f"  {now} KST | {minutes:.0f}분 소요",
         "",
     ]
 
@@ -118,17 +129,35 @@ def _build_report(status: str, rc: int, elapsed: float, stdout: str, log_path: P
         s = region_stats[reg]
         if s["nodes"] == 0:
             continue
-        pct = f"{s['price']*100//s['items']}" if s["items"] > 0 else "-"
-        line = f"{reg}  {s['nodes']}nodes {s['items']}items price {s['price']}/{s['items']} ({pct}%)"
+        t_pct = _pct(s["title"], s["items"])
+        p_pct = _pct(s["price"], s["items"])
+        r_pct = _pct(s["rating"], s["items"])
+        lines.append(f"{reg}  ({s['nodes']}개 카테고리)")
+        lines.append(f"  items: {s['items']}개")
+        lines.append(f"  title: {s['title']}/{s['items']} ({t_pct}%)")
+        lines.append(f"  price: {s['price']}/{s['items']} ({p_pct}%)")
+        lines.append(f"  rating: {s['rating']}/{s['items']} ({r_pct}%)")
+        lines.append(f"  detail: {total_detail}건 수집")
         if s["fail"] > 0:
-            line += f" ⚠️{s['fail']}fail"
-        lines.append(line)
+            lines.append(f"  ⚠️ 상세크롤 실패: {s['fail']}건")
+        lines.append("")
 
+    # Summary
+    t_pct = _pct(total_title, total_items)
+    p_pct = _pct(total_price, total_items)
+    r_pct = _pct(total_rating, total_items)
+    total_fail = sum(s["fail"] for s in region_stats.values())
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    lines.append(f"총합: {ok_count}개 성공, {fail_count}개 실패")
+    lines.append(f"  items: {total_items}개")
+    lines.append(f"  title: {total_title}/{total_items} ({t_pct}%)")
+    lines.append(f"  price: {total_price}/{total_items} ({p_pct}%)")
+    lines.append(f"  rating: {total_rating}/{total_items} ({r_pct}%)")
+    lines.append(f"  detail: {total_detail}건 수집")
+    if total_fail > 0:
+        lines.append(f"  detail 실패: {total_fail}건 (captcha/차단)")
     lines.append("")
-    total_pct = f"{total_price*100//total_items}" if total_items > 0 else "-"
-    lines.append(f"Total: {ok_count}ok {fail_count}fail | {total_items}items | price {total_pct}%")
-    lines.append(f"Detail: {total_detail} fetched")
-    lines.append(f"📝 {log_path.name}")
+    lines.append(f"📝 Log: {log_path.name}")
 
     return "\n".join(lines)
 
