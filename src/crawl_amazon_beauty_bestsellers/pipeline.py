@@ -205,6 +205,52 @@ class Pipeline:
                 _fetch(queued, "variant")
         return details, failures
 
+    def fill_titles_only(self, region: str) -> dict[str, Any]:
+        """Fetch title-only for ASINs with empty titles in the latest ROOT snapshot."""
+        from bs4 import BeautifulSoup
+
+        key = "ROOT" if region == "us" else f"{region}:ROOT"
+        snapshot = self.store.latest_snapshot(key)
+        missing = [r for r in snapshot if r.get("asin") and not r.get("title")]
+        if not missing:
+            return {"region": region.upper(), "filled": 0, "total_missing": 0}
+
+        mp_code, profile = self._marketplace_profile(key)
+        base_url = profile.base_url if profile else self.settings.amazon.base_url
+        client = self._client(profile)
+        detail_delay = self.settings.politeness.detail_delay_seconds
+        filled = 0
+        failed = 0
+
+        for idx, row in enumerate(missing, start=1):
+            asin = row["asin"]
+            url = f"{base_url}/dp/{asin}"
+            try:
+                result = client.get(url)
+                if len(result.text) < 500_000:
+                    client.reset_session()
+                    result = client.get(url)
+                soup = BeautifulSoup(result.text, "html.parser")
+                title_el = soup.select_one("#productTitle")
+                title = (title_el.get_text(strip=True) if title_el else "").strip()
+                if title:
+                    self.store.update_title(asin, key, title)
+                    filled += 1
+                else:
+                    failed += 1
+            except CaptchaBlocked:
+                failed += 1
+                time.sleep(30)
+                client.reset_session()
+                continue
+            except Exception:
+                failed += 1
+            if detail_delay > 0:
+                time.sleep(detail_delay)
+            print(f"  title {idx}/{len(missing)}: {asin} -> {'OK' if title else 'FAIL'}")
+
+        return {"region": region.upper(), "filled": filled, "total_missing": len(missing), "failed": failed}
+
     def run_node(
         self,
         node_id: str,

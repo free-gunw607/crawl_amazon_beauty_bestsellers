@@ -14,7 +14,7 @@ from .storage.xlsx_export import export_day
 
 
 def _print(data: Any):
-    print(json.dumps(data, ensure_ascii=False, indent=2, default=str))
+    print(json.dumps(data, ensure_ascii=False, default=str))
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -84,6 +84,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--region", required=True)
 
     p = sub.add_parser("fill-gaps", help="retry detail fetch for ASINs with missing data")
+    p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es) or 'all'")
+
+    p = sub.add_parser("fill-titles", help="fetch titles only for ASINs with empty titles in ROOT snapshots")
     p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es) or 'all'")
 
     p = sub.add_parser("stats", help="database stats")
@@ -324,6 +327,11 @@ def main(argv: list[str] | None = None) -> int:
                     publish_root_region(settings, pipeline.store, region)
                 except Exception:
                     pass
+        elif args.command == "fill-titles":
+            regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
+            for region in regions:
+                result = pipeline.fill_titles_only(region)
+                _print(result)
         elif args.command == "stats":
             _print(pipeline.store.stats())
         elif args.command == "health":

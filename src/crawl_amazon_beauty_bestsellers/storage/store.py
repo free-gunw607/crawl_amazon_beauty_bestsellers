@@ -212,6 +212,22 @@ class Store:
                 commit=True,
             )
 
+    def update_title(self, asin: str, node_id: str, title: str) -> bool:
+        """Update title for a specific ASIN in the latest snapshot's list_entries. Returns True if updated."""
+        rows = self._query(
+            "SELECT run_id FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
+            (node_id,),
+        )
+        if not rows:
+            return False
+        run_id = rows[0]["run_id"]
+        self._execute(
+            "UPDATE list_entries SET title=? WHERE asin=? AND node_id=? AND run_id=?",
+            (title, asin, node_id, run_id),
+            commit=True,
+        )
+        return True
+
     def latest_snapshot(self, node_id: str) -> list[dict[str, Any]]:
         rows = self._query(
             "SELECT run_id FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
