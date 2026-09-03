@@ -5,97 +5,60 @@
 - workspace path: `~/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers`
 
 ## Current objective
-Collect Amazon.com beauty bestseller lists + product/vendor intelligence on a 6h cycle; publish a public time-series dataset via commit-back and rich workbooks to Drive
+Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES) with 100% title coverage, publish to Google Sheet 3 only. Run daily at 5AM KST via systemd timer. Telegram briefing after each run.
 
-## Live Google Sheet
-https://docs.google.com/spreadsheets/d/1UlvJ5T-oA3qr7TkG8KIG_Jw1R6xUiEa5dszrjN6X2HU/edit
-- CI lane writes panel list tabs (SA cell-writes are quota-free — verified from runner)
-- local lane owns details/specs_long/trend tabs (fires with cron daemon)
-- xlsx sheets renamed to category names; each panel sheet links to its Amazon Best Sellers page
-- every tab carries a freshness stamp row (마지막 갱신 시각 + 라인) so cloud/local drift is visible
-- publisher writes chunked with row-offset ranges + auto grid resize (full specs_long lands intact)
+## Live Google Sheet (Sheet 3 — PRIMARY)
+https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
+- Tab: `beauty_personal_care_top100_live`
+- **Sheet 1 ABANDONED** — all effort focused on Sheet 3
 
 ## Current phase
-v1.0 METHOD1: PRODUCTION-READY BLOCK PIPELINE (2026-08-31)
-- **Method 1 confirmed**: B0(list crawl) → B1(detail crawl with auto-recovery) → 100% title
-- **5 weaknesses fixed**: reset_session, detail_delay, _parse_rank_safe, has_fresh_detail
-- **0-base results**: Title 100% all regions, Rating 100%, Price 93.2% avg
-- **Total time**: ~22 min (5 regions with polite delays)
+v1.1 ROOT-CYCLE PIPELINE (2026-09-03)
+- **Pipeline**: `run_job.py` runs root-cycle (5 regions) + fill-titles per region
+- **Title 100%** all 5 regions (US/DE/UK/FR/ES) — achieved via fill-titles feature
+- **Total time**: ~7 min full pipeline
+- **systemd timer**: daily 5AM KST (UTC 20:00), single service unit
+- **Telegram report**: detailed Korean briefing with per-region breakdown
 
-## Scheduler (v1.0 simplified)
+## Pipeline workflow
+1. `root-cycle --region <mp|all>` — fetch TOP 100 from root bestseller page
+2. `fill-titles --region <mp>` — lightweight title-only fetch for ASINs with empty titles
+3. Publish to Sheet 3 via `publish-root --region <mp>`
+4. Telegram report sent automatically
+
+## Scheduler
 - **1 timer**: `amzbs-beauty.timer` — daily 5AM KST (UTC 20:00)
-- **What it does**: `run_job.py` (list + detail all 5 regions) → `publish-sheets --tabs local`
-- **Covers**: US, DE, UK, FR, ES Beauty & Personal Care Top 100
-- **Old timers removed**: 7 timers (2h list, 5x MR detail+publish) replaced by 1
-- **Install**: `scripts/install_schedule.sh install`
+- **1 service**: `amzbs-beauty.service` — runs `run_job.py` then sends Telegram report
+- **Install**: `systemctl --user daemon-reload && systemctl --user enable --now amzbs-beauty.timer`
+- **Check**: `systemctl --user status amzbs-beauty.timer`
 
-## Prior phase notes
-v0.9 USD PRICE SWITCH + BOOTSTRAP AUTO-PIN (2026-08-30)
-- **bootstrap_us_location()** now auto-called in `_client()` on every new AmazonClient — pins delivery to NY 10001 (New York) via `glow-address-change` form POST. This resolves the core issue where Amazon hid `buy_box_price` for items it deemed "not shippable to delivery location" (Korean IP geolocation).
-- **Currency switched KRW → USD** for all marketplaces. Sheet 3 column header: `price_usd`.
-- **noprice 2-step fallback**: for ASINs with detail records but no price, `fill-gaps` deletes stale records and re-fetches from US (amazon.com), then falls back to local marketplace for failures.
-- **Enrichment query** now prefers detail records WITH prices: `ORDER BY (buy_box_price IS NOT NULL OR list_price_amount IS NOT NULL) DESC, fetched_at DESC`.
-- **Sheet 3 final state**: Title 481/500 (96%), URL 500/500 (100%), **Price 421/500 (84%)**, Rating 481/500 (96%).
-- **Remaining 79 price-less ASINs**: Amazon's geo-based shipping restriction policy. Even with NY delivery pin, Amazon still hides prices for ~16% of products on its own platform when accessed from Korean IP. Requires proxy/VPN to each target region for 100% coverage.
-- **Remaining 19 title gaps**: list_entries crawled with empty titles (parser gap on certain page layouts); detail records also missing/empty → enrichment can't fill.
+## Data quality
+| Region | Title | Rating | Price | Status |
+|--------|-------|--------|-------|--------|
+| US | 100% | 100% | ~93% | ✅ |
+| DE | 100% | 100% | ~97% | ✅ |
+| UK | 100% | 100% | ~99% | ✅ |
+| FR | 100% | 100% | ~89% | ✅ |
+| ES | 100% | 100% | ~80% | ✅ |
 
-## Prior phase notes
-v0.8 CAPTCHA RECOVERY + SHEET3 ENRICHMENT (2026-08-30)
-- `break` → `continue` on captcha detection; marketplace auto-detect; UA pool 3→10.
-- `root_panel_grid` DB-join enrichment: title/rating/ratings_count/price filled from `product_details` when list entry is sparse.
-- `list_price_amount` fallback when `buy_box_price` is null.
-- 5 regional midnight timers + legacy ET-midnight; list 2h timer.
+- **Price gaps**: geo-restriction on Korean IP (requires proxy/VPN for 100%)
+- **All prices USD** (currency_pref switched KRW→USD)
 
-v0.7 FULL-RANK 1..100 + SHEET3 PRIMARY (2026-08-26)
-- Rank gap FIXED: zgbs pages embed complete ranked list in `data-client-recs-list` JSON. `parse_list_page` merges DOM rows with recs-list skeleton → 100 ranked items, zero gaps.
-- SHEET 3 = future primary: `beauty_personal_care_top100_live` (`1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`)
+## Key files
+- `scripts/run_job.py` — main orchestrator (root-cycle5 regions + fill-titles)
+- `src/crawl_amazon_beauty_bestsellers/cli.py` — CLI commands (root-cycle, fill-titles, publish-root)
+- `src/crawl_amazon_beauty_bestsellers/pipeline.py` — pipeline logic including `fill_titles_only()`
+- `src/crawl_amazon_beauty_bestsellers/storage/store.py` — SQLite storage with `update_title()`
+- `src/crawl_amazon_beauty_bestsellers/root_publish.py` — Sheet3 publisher
+- `~/.config/systemd/user/amzbs-beauty.service` — systemd service
+- `~/.config/systemd/user/amzbs-beauty.timer` — systemd timer
 
-## Proven architecture (empirically validated 2026-08-25)
-| lane | runs | covers | status |
-|---|---|---|---|
-| GitHub Actions (`collect.yml`) | 6h at :47 UTC + manual | list snapshots all 8 panels → commit-back (public dataset) + workbook export | LIVE, verified 3 dispatches (ok:8/failed:0) |
-| Local crontab (home IP) | 6h at :17 KST (02/08/14/20) | detail/vendor pass (/dp/ works only from residential IP) | registered; fires once cron daemon starts (owner sudo) |
-| Manual | anytime | `./repo run --node <id>` etc. | proven |
+## Git history
+- `26c10d3` Sheet3 전용 파이프라인: root-cycle + fill-titles, 텔레그램 리포트 JSON 파싱 버그 수정
+- `f818a4f` improve Telegram briefing: detailed Korean report with per-region breakdown
+- `dda5d09` fix Telegram briefing: parse JSON output, region-aggregated report
 
-Key empirical finding: Azure runner IPs get served zgbs list pages fine but are captcha-blocked on /dp/ detail pages on first hit; pipeline's stop-on-block policy degrades gracefully to list-only per node.
-
-## Production panels (8, registry `production_approved`)
-Skin Care 11060451 · Face 11060711 · Body 11060521 · Eyes 11061941 · Moisturizers 11060661 · Sunscreens 11062651 · Body Washes 11056291 · Face Serums 7792528011 (recovered after double block) — plus 59 categories registered `available`
-
-## Drive publishing
-- CI: `GCP_SA_JSON` secret path wired in workflow (auto-skips until secret registered)
-- Local: `./repo upload-drive` via gws OAuth — verified end-to-end (file `11qQcoXJc5cisiTug7a_HIY3res7G3UUi`)
-- folder `crawl_amazon_beauty_bestsellers`: `1xns4GiMLt1ZPa8me9At4IpgWDyB-SOgp`
-
-## Data policy (public repo)
-- git history includes collected data through 2026-08-25 (owner-approved public dataset)
-- from now: SQLite is local-only (`.gitignore`); commit-back = per-node `list.csv/jsonl` snapshots + daily xlsx via `github-actions[bot]`
-- CI DB accumulation persists across runs via `actions/cache`
-
-## Block event log (2026-08-25, all recovered/handled)
-1. local hard block on Serums detail → cooldown recovery ✓
-2. local soft block (50 empty parses) → junk purge + cooldown + clean retry ✓
-3. runner /dp/ captcha → structural answer: split lanes (cloud lists / local details) ✓
-
-## Pending owner actions
-1. GCP service account JSON (console steps provided) → I register `GCP_SA_JSON` secret → CI Drive publish activates
-2. optional: `sudo apt install -y jq unzip sqlite3` on liam3 (CLI conveniences; crawler itself unaffected — python sqlite3 module works)
-3. note: `gws` CLI absent on liam3 → local `upload-drive` unavailable there until gws is ported; CI/Drive path unaffected
-4. RESOLVED 2026-08-26: local-tab refresh live via token backend (no SA JSON needed for Sheets lane; SA JSON still wanted for CI Drive workbook upload)
-5. optional: port `gws` from liam2 (Hanseong, sole node holding it) if other gws-dependent workflows are ever needed on liam3
-
-## Progress snapshot
-- overall progress: 95% — both lanes built & proven; remaining = owner-side credentials/daemon start
-- confidence: high for cloud lists; high for local details (proven); watch item = runner IP reputation over time
-
-## Next actions
-1. owner: SA JSON → secret registration → verify CI Drive step turns green-with-upload
-2. owner: cron daemon start → verify `.agent/logs/cron_local.log` after next :17 KST window
-3. after several clean days: next registry batch (registry-first lifecycle)
-
-## Wisdomhouse — PROMOTED (owner-approved 2026-08-26)
-Episode `EP-AMZBS-DUALOPS-20260826-01`, canonical doc A2 `Wisdomhouse/by-repo/crawl_amazon_beauty_bestsellers.md`:
-- `WH-CRAWL-AMZBS-001` soft-block telemetry (purge+cooldown protocol)
-- `WH-CRAWL-AMZBS-002` cloud-lists/local-details lane split
-- `WH-RUNTIME-AMZBS-001` privilege-free scheduler loop, crontab takeover
-- `WH-DATA-AMZBS-001` SA file-upload quota vs Sheets cell-writes; formula-driven derived tabs
+## Pending items
+1. Verify tomorrow's 5AM KST timer run
+2. Optional: `fill-titles --region all` timeout issue (individual regions work fine)
+3. Optional: clean up `category_registry.json` (23 non-ROOT nodes no longer used)
