@@ -56,7 +56,7 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
     total_fail = 0
 
     lines = [
-        f"{icon} Beauty Bestseller Sheet3 리포트",
+        f"{icon} Amazon Beauty Bestseller 리포트",
         f"━━━━━━━━━━━━━━━━━━━━━━",
         f"  {now} KST | {minutes:.0f}분 소요",
         "",
@@ -79,26 +79,27 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
         total_fail += fail
 
         lines.append(f"{region}")
-        lines.append(f"  리스트: {crawled}건 수집 → Sheet3 반영")
+        lines.append(f"  수집: {crawled}건 | Sheet3 반영: {published}건")
         if titles_filled > 0:
-            lines.append(f"  제목보강: {titles_filled}건 완료")
+            lines.append(f"  제목보강: {titles_filled}건 (빈 제목 → 상세페이지에서 수집)")
         if fill_missing > 0:
-            lines.append(f"  상세보강: {fill_missing}건 (누락→수집)")
+            lines.append(f"  상세보강: {fill_missing}건 (누락 → 상세수집)")
         if fill_noprice > 0:
-            lines.append(f"  가격보강: {fill_noprice}건 (무가격→수집)")
+            lines.append(f"  가격보강: {fill_noprice}건 (무가격 → 상세수집)")
         if fail > 0:
             lines.append(f"  ⚠️ 실패: {fail}건")
         lines.append("")
 
     lines.append("━━━━━━━━━━━━━━━━━━━━━━")
-    lines.append(f"총합: {total_crawled}건 수집, {total_published}건 Sheet3 반영")
+    lines.append(f"총합: {total_crawled}건 수집 → {total_published}건 Sheet3 반영")
     if total_titles_filled > 0:
-        lines.append(f"  제목보강: {total_titles_filled}건 완료")
+        lines.append(f"  + 제목보강 {total_titles_filled}건")
     if total_fill_missing > 0 or total_fill_noprice > 0:
-        lines.append(f"  상세보강: {total_fill_missing + total_fill_noprice}건")
+        lines.append(f"  + 상세보강 {total_fill_missing + total_fill_noprice}건")
     if total_fail > 0:
-        lines.append(f"  실패: {total_fail}건")
+        lines.append(f"  ⚠️ 실패 {total_fail}건")
     lines.append("")
+    lines.append(f"📊 Sheet3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit")
     lines.append(f"📝 Log: {log_path.name}")
 
     return "\n".join(lines)
