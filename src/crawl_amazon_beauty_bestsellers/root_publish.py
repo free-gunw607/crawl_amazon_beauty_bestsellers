@@ -226,4 +226,5 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
             _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A1:append",
                  tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
                  body={"values": chunk})
-    return {"backend": "token", "sheet": sheet_id, "region": region.upper(), "history_appended": appended}
+    main_count = len(root_panel_grid(store, settings, region)) - 3  # subtract header rows
+    return {"backend": "token", "sheet": sheet_id, "region": region.upper(), "history_appended": appended, "published": main_count}

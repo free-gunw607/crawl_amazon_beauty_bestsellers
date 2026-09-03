@@ -42,11 +42,17 @@ def _send_telegram(message: str) -> None:
 def _build_report(status: str, results: list[dict], elapsed: float, log_path: Path) -> str:
     """Build a Telegram briefing for root-cycle runs."""
     icon = "✅" if status == "completed" else "❌"
-    minutes = elapsed / 60
+    sec = int(elapsed)
+    minutes = sec // 60
+    secs = sec % 60
 
     from datetime import datetime, timezone, timedelta
     kst = timezone(timedelta(hours=9))
-    now = datetime.now(kst).strftime("%Y-%m-%d %H:%M")
+    utc = timezone.utc
+    now_kst = datetime.now(kst)
+    now_utc = datetime.now(utc)
+    # Amazon US server time (EDT = UTC-4, EST = UTC-5)
+    now_edt = now_utc - timedelta(hours=4)
 
     total_crawled = 0
     total_published = 0
@@ -55,10 +61,45 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
     total_fill_noprice = 0
     total_fail = 0
 
+    # DB stats
+    import sqlite3
+    db_path = REPO_ROOT / "artifacts" / "db" / "bestsellers.sqlite"
+    db_stats: dict[str, dict] = {}
+    if db_path.exists():
+        try:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            for r in results:
+                region = r["region"]
+                key = "ROOT" if region == "us" else f"{region}:ROOT"
+                latest = conn.execute(
+                    "SELECT fetched_at FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
+                    (key,)
+                ).fetchone()
+                if latest:
+                    row = conn.execute(
+                        "SELECT COUNT(DISTINCT asin) as cnt, "
+                        "SUM(CASE WHEN title != '' AND title IS NOT NULL THEN 1 ELSE 0 END) as titled, "
+                        "SUM(CASE WHEN rating IS NOT NULL THEN 1 ELSE 0 END) as rated, "
+                        "SUM(CASE WHEN price_amount IS NOT NULL THEN 1 ELSE 0 END) as priced "
+                        "FROM list_entries WHERE node_id=? AND fetched_at=?",
+                        (key, latest["fetched_at"])
+                    ).fetchone()
+                    db_stats[region] = {
+                        "cnt": row["cnt"] or 0,
+                        "titled": row["titled"] or 0,
+                        "rated": row["rated"] or 0,
+                        "priced": row["priced"] or 0,
+                    }
+            conn.close()
+        except Exception:
+            pass
+
     lines = [
         f"{icon} Amazon Beauty Bestseller 리포트",
-        f"━━━━━━━━━━━━━━━━━━━━━━",
-        f"  {now} KST | {minutes:.0f}분 소요",
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
+        f"  {now_kst.strftime('%Y-%m-%d %H:%M')} KST | {minutes}분{secs}초 소요",
+        f"  Amazon 서버: {now_edt.strftime('%Y-%m-%d %H:%M')} EDT (미국동부)",
         "",
     ]
 
@@ -78,20 +119,41 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
         total_fill_noprice += fill_noprice
         total_fail += fail
 
+        # DB stats for this region
+        stats = db_stats.get(r["region"], {})
+        cnt = stats.get("cnt", crawled)
+        titled = stats.get("titled", 0)
+        rated = stats.get("rated", 0)
+        priced = stats.get("priced", 0)
+
+        title_pct = f"{titled*100//cnt}%" if cnt else "-"
+        rate_pct = f"{rated*100//cnt}%" if cnt else "-"
+        price_pct = f"{priced*100//cnt}%" if cnt else "-"
+
         lines.append(f"{region}")
         lines.append(f"  수집: {crawled}건 | Sheet3 반영: {published}건")
+        lines.append(f"  제목: {title_pct} ({titled}/{cnt}) | 평점: {rate_pct} | 가격: {price_pct}")
         if titles_filled > 0:
-            lines.append(f"  제목보강: {titles_filled}건 (빈 제목 → 상세페이지에서 수집)")
+            lines.append(f"  제목보강: {titles_filled}건")
         if fill_missing > 0:
-            lines.append(f"  상세보강: {fill_missing}건 (누락 → 상세수집)")
+            lines.append(f"  상세보강: {fill_missing}건")
         if fill_noprice > 0:
-            lines.append(f"  가격보강: {fill_noprice}건 (무가격 → 상세수집)")
+            lines.append(f"  가격보강: {fill_noprice}건")
         if fail > 0:
             lines.append(f"  ⚠️ 실패: {fail}건")
         lines.append("")
 
-    lines.append("━━━━━━━━━━━━━━━━━━━━━━")
+    # Total DB stats
+    total_cnt = sum(s.get("cnt", 0) for s in db_stats.values())
+    total_titled = sum(s.get("titled", 0) for s in db_stats.values())
+    total_rated = sum(s.get("rated", 0) for s in db_stats.values())
+    total_priced = sum(s.get("priced", 0) for s in db_stats.values())
+
+    lines.append("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     lines.append(f"총합: {total_crawled}건 수집 → {total_published}건 Sheet3 반영")
+    if total_cnt:
+        t_pct = f"{total_titled*100//total_cnt}%" if total_cnt else "-"
+        lines.append(f"  제목: {total_titled}/{total_cnt} ({t_pct}) | 평점: {total_rated} | 가격: {total_priced}")
     if total_titles_filled > 0:
         lines.append(f"  + 제목보강 {total_titles_filled}건")
     if total_fill_missing > 0 or total_fill_noprice > 0:
@@ -99,8 +161,11 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
     if total_fail > 0:
         lines.append(f"  ⚠️ 실패 {total_fail}건")
     lines.append("")
+    lines.append("⏰ 타이머: 다음 실행 내일 05:00 KST")
     lines.append(f"📊 Sheet3: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit")
     lines.append(f"📝 Log: {log_path.name}")
+    lines.append("")
+    lines.append("* 제목보강 = ROOT 페이지에서 제목을 못 받은ASIN들의 개별 상품 페이지(/dp/ASIN)에서 제목을 가져오는 과정")
 
     return "\n".join(lines)
 
@@ -237,7 +302,9 @@ def main() -> int:
                     continue
                 if "crawled" in obj:
                     result["crawled"] = obj["crawled"]
-                if "history_appended" in obj:
+                if "published" in obj:
+                    result["published"] = obj["published"]
+                elif "history_appended" in obj:
                     result["published"] = obj["history_appended"]
             except (json.JSONDecodeError, KeyError):
                 pass
