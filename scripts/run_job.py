@@ -61,7 +61,7 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
     total_fill_noprice = 0
     total_fail = 0
 
-    # DB stats
+    # DB stats (with product_details enrichment, matching Sheet3 behavior)
     import sqlite3
     db_path = REPO_ROOT / "artifacts" / "db" / "bestsellers.sqlite"
     db_stats: dict[str, dict] = {}
@@ -77,12 +77,18 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
                     (key,)
                 ).fetchone()
                 if latest:
+                    # list_entries 기준 + product_details에서 보강된 제목/평점/가격 포함
                     row = conn.execute(
-                        "SELECT COUNT(DISTINCT asin) as cnt, "
-                        "SUM(CASE WHEN title != '' AND title IS NOT NULL THEN 1 ELSE 0 END) as titled, "
-                        "SUM(CASE WHEN rating IS NOT NULL THEN 1 ELSE 0 END) as rated, "
-                        "SUM(CASE WHEN price_amount IS NOT NULL THEN 1 ELSE 0 END) as priced "
-                        "FROM list_entries WHERE node_id=? AND fetched_at=?",
+                        "SELECT COUNT(DISTINCT le.asin) as cnt, "
+                        "SUM(CASE WHEN le.title != '' AND le.title IS NOT NULL "
+                        "  THEN 1 WHEN pd.title != '' AND pd.title IS NOT NULL THEN 1 ELSE 0 END) as titled, "
+                        "SUM(CASE WHEN le.rating IS NOT NULL THEN 1 WHEN pd.rating IS NOT NULL THEN 1 ELSE 0 END) as rated, "
+                        "SUM(CASE WHEN le.price_amount IS NOT NULL THEN 1 "
+                        "  WHEN pd.buy_box_price IS NOT NULL THEN 1 WHEN pd.list_price_amount IS NOT NULL THEN 1 "
+                        "  ELSE 0 END) as priced "
+                        "FROM list_entries le "
+                        "LEFT JOIN product_details pd ON le.asin = pd.asin "
+                        "WHERE le.node_id=? AND le.fetched_at=?",
                         (key, latest["fetched_at"])
                     ).fetchone()
                     db_stats[region] = {
