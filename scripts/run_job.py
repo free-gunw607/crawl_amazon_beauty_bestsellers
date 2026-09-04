@@ -73,11 +73,11 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
                 region = r["region"]
                 key = "ROOT" if region == "us" else f"{region}:ROOT"
                 latest = conn.execute(
-                    "SELECT fetched_at FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
+                    "SELECT run_id FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
                     (key,)
                 ).fetchone()
                 if latest:
-                    # list_entries 기준 + product_details에서 보강된 제목/평점/가격 포함
+                    # product_details에서 ASIN별 최신 기록1건만 가져오는 서브쿼리
                     row = conn.execute(
                         "SELECT COUNT(DISTINCT le.asin) as cnt, "
                         "SUM(CASE WHEN le.title != '' AND le.title IS NOT NULL "
@@ -87,9 +87,13 @@ def _build_report(status: str, results: list[dict], elapsed: float, log_path: Pa
                         "  WHEN pd.buy_box_price IS NOT NULL THEN 1 WHEN pd.list_price_amount IS NOT NULL THEN 1 "
                         "  ELSE 0 END) as priced "
                         "FROM list_entries le "
-                        "LEFT JOIN product_details pd ON le.asin = pd.asin "
-                        "WHERE le.node_id=? AND le.fetched_at=?",
-                        (key, latest["fetched_at"])
+                        "LEFT JOIN ("
+                        "  SELECT asin, title, rating, buy_box_price, list_price_amount "
+                        "  FROM product_details "
+                        "  WHERE (asin, fetched_at) IN (SELECT asin, MAX(fetched_at) FROM product_details GROUP BY asin)"
+                        ") pd ON le.asin = pd.asin "
+                        "WHERE le.node_id=? AND le.run_id=?",
+                        (key, latest["run_id"])
                     ).fetchone()
                     db_stats[region] = {
                         "cnt": row["cnt"] or 0,
