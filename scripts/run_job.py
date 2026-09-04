@@ -28,15 +28,19 @@ def _send_telegram(message: str) -> None:
     token = os.environ.get("TG_BOT_TOKEN", "")
     chat_id = os.environ.get("TG_CHAT_ID", "")
     if not token or not chat_id:
+        print("  [telegram] TG_BOT_TOKEN or TG_CHAT_ID not set, skipping", flush=True)
         return
     try:
-        subprocess.run(
+        result = subprocess.run(
             ["bash", str(NOTIFY_SCRIPT), message],
             timeout=15,
             capture_output=True,
+            text=True,
         )
-    except Exception:
-        pass
+        if result.returncode != 0:
+            print(f"  [telegram] send failed rc={result.returncode}: {result.stderr.strip()}", flush=True)
+    except Exception as e:
+        print(f"  [telegram] exception: {e}", flush=True)
 
 
 def _build_report(status: str, results: list[dict], elapsed: float, log_path: Path) -> str:

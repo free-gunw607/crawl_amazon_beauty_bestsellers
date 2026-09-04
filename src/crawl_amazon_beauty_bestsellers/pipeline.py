@@ -210,8 +210,25 @@ class Pipeline:
         from bs4 import BeautifulSoup
 
         key = "ROOT" if region == "us" else f"{region}:ROOT"
-        snapshot = self.store.latest_snapshot(key)
-        missing = [r for r in snapshot if r.get("asin") and not r.get("title")]
+
+        # DB에서 직접 빈 제목 타겟 (latest_snapshot의 product_details 보강 없이)
+        run_row = self.store._query(
+            "SELECT run_id FROM list_entries WHERE node_id=? ORDER BY fetched_at DESC LIMIT 1",
+            (key,),
+        )
+        if not run_row:
+            return {"region": region.upper(), "filled": 0, "total_missing": 0}
+        run_id = run_row[0]["run_id"]
+
+        missing = self.store._query(
+            "SELECT le.asin, le.rank FROM list_entries le "
+            "LEFT JOIN product_details pd ON le.asin = pd.asin "
+            "WHERE le.node_id=? AND le.run_id=? "
+            "AND (le.title IS NULL OR le.title = '') "
+            "AND (pd.title IS NULL OR pd.title = '') "
+            "ORDER BY le.rank",
+            (key, run_id),
+        )
         if not missing:
             return {"region": region.upper(), "filled": 0, "total_missing": 0}
 
