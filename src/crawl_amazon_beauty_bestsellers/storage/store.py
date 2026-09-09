@@ -343,6 +343,149 @@ class Store:
         )
         return [dict(r) for r in rows]
 
+    def cross_region_catalog(self) -> list[dict[str, Any]]:
+        """All unique ASINs across all 5 ROOT nodes with per-region rank columns."""
+        rows = self._query("""
+            WITH ranked AS (
+                SELECT
+                    le.asin,
+                    CASE
+                        WHEN le.node_id = 'ROOT' THEN 'us'
+                        WHEN le.node_id LIKE 'uk:%%' THEN 'uk'
+                        WHEN le.node_id LIKE 'de:%%' THEN 'de'
+                        WHEN le.node_id LIKE 'fr:%%' THEN 'fr'
+                        WHEN le.node_id LIKE 'es:%%' THEN 'es'
+                    END AS region,
+                    le.rank, le.title, le.rating, le.ratings_count,
+                    le.price_amount, le.price_currency
+                FROM list_entries le
+                WHERE (le.node_id = 'ROOT' OR le.node_id LIKE '%%:ROOT')
+                AND le.run_id = (
+                    SELECT run_id FROM list_entries WHERE node_id = le.node_id
+                    ORDER BY fetched_at DESC LIMIT 1
+                )
+            )
+            SELECT
+                asin,
+                MAX(title) AS title,
+                MAX(rating) AS rating,
+                MAX(ratings_count) AS ratings_count,
+                MAX(price_amount) AS price_amount,
+                MAX(price_currency) AS price_currency,
+                MAX(CASE WHEN region='us' THEN rank END) AS us_rank,
+                MAX(CASE WHEN region='uk' THEN rank END) AS uk_rank,
+                MAX(CASE WHEN region='de' THEN rank END) AS de_rank,
+                MAX(CASE WHEN region='fr' THEN rank END) AS fr_rank,
+                MAX(CASE WHEN region='es' THEN rank END) AS es_rank,
+                COUNT(DISTINCT region) AS regions_count,
+                GROUP_CONCAT(DISTINCT region) AS regions
+            FROM ranked
+            GROUP BY asin
+            ORDER BY regions_count DESC, MIN(rank) ASC
+        """)
+        return [dict(r) for r in rows]
+
+    def region_rank_history(self, region: str, days: int = 30) -> list[dict[str, Any]]:
+        """Per-ASIN daily rank timeline for one region (pivot source data)."""
+        if region == "us":
+            where, params = "node_id = 'ROOT'", ()
+        else:
+            where, params = "node_id = ?", (f"{region}:ROOT",)
+        rows = self._query(f"""
+            SELECT
+                substr(fetched_at, 1, 10) AS day,
+                asin,
+                MIN(rank) AS best_rank
+            FROM list_entries
+            WHERE {where}
+            GROUP BY substr(fetched_at, 1, 10), asin
+            ORDER BY day DESC, best_rank
+        """, params)
+        results = [dict(r) for r in rows]
+        node = "ROOT" if region == "us" else f"{region}:ROOT"
+        snap = {r.get("asin"): r for r in self.latest_snapshot(node)}
+        for r in results:
+            meta = snap.get(r["asin"], {})
+            r["title"] = meta.get("title") or ""
+        return results
+
+    def rank_changes(self, region: str) -> list[dict[str, Any]]:
+        """New entrants, drop-offs, and rank moves between yesterday and today."""
+        node = "ROOT" if region == "us" else f"{region}:ROOT"
+        today_rows = self.latest_snapshot(node)
+        today = {r["asin"]: dict(r) for r in today_rows}
+        prev = self._query(
+            "SELECT run_id FROM list_entries WHERE node_id=? "
+            "AND substr(fetched_at, 1, 10) < date('now') "
+            "ORDER BY fetched_at DESC LIMIT 1",
+            (node,),
+        )
+        if not prev:
+            day = time.strftime("%Y-%m-%d")
+            return [
+                {"day": day, "asin": a, "rank": d.get("rank"), "title": d.get("title"),
+                 "price": d.get("price_amount"), "change_type": "NEW", "prev_rank": None}
+                for a, d in sorted(today.items(), key=lambda x: x[1].get("rank", 999))
+            ]
+        yesterday_rows = self._query(
+            "SELECT * FROM list_entries WHERE node_id=? AND run_id=? ORDER BY rank",
+            (node, prev[0]["run_id"]),
+        )
+        yesterday = {r["asin"]: dict(r) for r in yesterday_rows}
+        today_set = set(today.keys())
+        yesterday_set = set(yesterday.keys())
+        day = time.strftime("%Y-%m-%d")
+        result = []
+        for asin in sorted(today_set, key=lambda a: today[a].get("rank", 999)):
+            t = today[asin]
+            y = yesterday.get(asin)
+            if y is None:
+                result.append({"day": day, "asin": asin, "rank": t.get("rank"),
+                               "title": t.get("title"), "price": t.get("price_amount"),
+                               "change_type": "NEW", "prev_rank": None})
+            elif t.get("rank") != y.get("rank"):
+                result.append({"day": day, "asin": asin, "rank": t.get("rank"),
+                               "title": t.get("title"), "price": t.get("price_amount"),
+                               "change_type": "MOVED", "prev_rank": y.get("rank")})
+        for asin in sorted(yesterday_set - today_set, key=lambda a: yesterday[a].get("rank", 999)):
+            y = yesterday[asin]
+            result.append({"day": day, "asin": asin, "rank": None,
+                           "title": y.get("title"), "price": None,
+                           "change_type": "DROPPED", "prev_rank": y.get("rank")})
+        return result
+
+    def price_history_rows(self, region: str) -> list[list[str]]:
+        """Daily price records per ASIN for one region (append-ready rows)."""
+        node = "ROOT" if region == "us" else f"{region}:ROOT"
+        rows = self._query("""
+            SELECT
+                substr(fetched_at, 1, 10) AS day,
+                asin,
+                MIN(rank) AS best_rank,
+                price_amount,
+                price_currency,
+                rating,
+                ratings_count
+            FROM list_entries
+            WHERE node_id = ? AND price_amount IS NOT NULL
+            GROUP BY substr(fetched_at, 1, 10), asin
+            ORDER BY day, best_rank
+        """, (node,))
+        snap = {r.get("asin"): r for r in self.latest_snapshot(node)}
+        result = []
+        for r in rows:
+            meta = snap.get(r["asin"], {})
+            result.append([
+                r["day"], region.upper(), r["asin"],
+                str(meta.get("title") or "")[:140],
+                str(r["best_rank"]),
+                str(r["price_amount"]),
+                str(r["price_currency"] or "USD"),
+                str(r["rating"] or ""),
+                str(r["ratings_count"] or ""),
+            ])
+        return result
+
     def history_for_asin(self, asin: str) -> list[dict[str, Any]]:
         rows = self._query(
             "SELECT fetched_at, node_id, rank, price_amount, price_currency, rating, ratings_count "

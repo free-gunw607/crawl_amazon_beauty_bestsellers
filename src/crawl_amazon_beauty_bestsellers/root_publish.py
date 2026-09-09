@@ -24,6 +24,14 @@ STATE_REL = ".agent/state/root_sheet_id.json"
 HISTORY_TAB = "root_rank_history"
 HISTORY_HEADER = ["date", "region", "asin", "rank", "price_krw", "currency", "rating", "ratings_count", "title"]
 TREND_HEADER = ["day", "region", "asin", "best_rank", "prev_rank", "delta", "snapshots"]
+CROSS_REGION_HEADER = [
+    "rank", "asin", "title", "rating", "ratings_count", "price_usd",
+    "us_rank", "uk_rank", "de_rank", "fr_rank", "es_rank",
+    "regions_count", "regions",
+]
+RANK_CHANGES_HEADER = ["date", "region", "asin", "title", "rank", "price_usd", "change_type", "prev_rank", "delta"]
+PRICE_HISTORY_HEADER = ["date", "region", "asin", "title", "rank", "price", "currency", "rating", "ratings_count"]
+PRICE_HISTORY_TAB = "Price History"
 
 
 def _now() -> str:
@@ -184,6 +192,74 @@ def root_trend_grid(store, settings: Settings, region: str, days: int = 14) -> l
     return grid
 
 
+def cross_region_catalog_grid(store, settings: Settings) -> list[list[str]]:
+    catalog = store.cross_region_catalog()
+    grid = [CROSS_REGION_HEADER]
+    for row in catalog:
+        grid.append([
+            "", row["asin"],
+            str(row.get("title") or "")[:150],
+            str(row.get("rating") or ""),
+            str(row.get("ratings_count") or ""),
+            str(row.get("price_amount") or ""),
+            str(row.get("us_rank") or ""),
+            str(row.get("uk_rank") or ""),
+            str(row.get("de_rank") or ""),
+            str(row.get("fr_rank") or ""),
+            str(row.get("es_rank") or ""),
+            str(row.get("regions_count") or ""),
+            str(row.get("regions") or ""),
+        ])
+    return grid
+
+
+def rank_history_pivot_grid(store, settings: Settings, region: str, days: int = 30) -> list[list[str]]:
+    rows = store.region_rank_history(region, days)
+    dates = sorted(set(r["day"] for r in rows), reverse=True)[:days]
+    asins: dict[str, dict] = {}
+    for r in rows:
+        a = asins.setdefault(r["asin"], {"title": r.get("title", ""), "ranks": {}})
+        a["ranks"][r["day"]] = r["best_rank"]
+        if r.get("title") and not a["title"]:
+            a["title"] = r["title"]
+    header = ["asin", "title"] + [d[5:] for d in dates]
+    grid = [header]
+    sorted_asins = sorted(
+        asins.items(),
+        key=lambda x: (x[1]["ranks"].get(dates[0], 999) if dates else 999),
+    )
+    for asin, data in sorted_asins:
+        row = [asin, str(data["title"])[:140]]
+        for d in dates:
+            row.append(str(data["ranks"].get(d, "-")))
+        grid.append(row)
+    return grid
+
+
+def rank_changes_grid(store, settings: Settings, region: str) -> list[list[str]]:
+    changes = store.rank_changes(region)
+    order = {"NEW": 0, "MOVED": 1, "DROPPED": 2}
+    grid = [RANK_CHANGES_HEADER]
+    for row in sorted(changes, key=lambda r: (order.get(r["change_type"], 3), r.get("rank") or 999)):
+        prev = row.get("prev_rank")
+        curr = row.get("rank")
+        delta = (prev - curr) if prev and curr else ""
+        grid.append([
+            row["day"], region.upper(), row["asin"],
+            str(row.get("title") or "")[:140],
+            str(curr or ""),
+            str(row.get("price") or ""),
+            row["change_type"],
+            str(prev or ""),
+            str(delta),
+        ])
+    return grid
+
+
+def price_history_grid(store, settings: Settings, region: str) -> list[list[str]]:
+    return [PRICE_HISTORY_HEADER] + store.price_history_rows(region)
+
+
 def publish_root_region(settings: Settings, store, region: str, token: str | None = None) -> dict:
     tok = token or oauth_access_token()
     sheet_id = ensure_root_spreadsheet(settings, tok)
@@ -191,12 +267,14 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
 
     tabs = {
         f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region),
+        f"{region.upper()} Rank History": rank_history_pivot_grid(store, settings, region),
         "trend_14d": root_trend_grid(store, settings, region),
-        HISTORY_TAB: [HISTORY_HEADER],
+        "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
+        "Rank Changes": rank_changes_grid(store, settings, region),
     }
     changes: list[dict] = []
     for title, grid in tabs.items():
-        changes += _grid_resize_requests(title, meta.get(title), rows=len(grid) + 200, cols=max(9, max(len(r) for r in grid)))
+        changes += _grid_resize_requests(title, meta.get(title), rows=len(grid) + 200, cols=max(13, max(len(r) for r in grid)))
     if changes:
         _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}:batchUpdate", tok,
              body={"requests": changes})
@@ -204,12 +282,10 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
 
     stamp = [_now(), f"region={region.upper()}", "auto"]
     for title, grid in tabs.items():
-        if title == HISTORY_TAB:
-            continue
         _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate", tok,
              params={"valueInputOption": "USER_ENTERED"},
              body={"valueInputOption": "USER_ENTERED",
-                   "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * 6] + grid}]})
+                   "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)] + grid}]})
 
     history_new = root_history_rows(store, settings, region)
     appended = len(history_new)
@@ -226,5 +302,30 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
             _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A1:append",
                  tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
                  body={"values": chunk})
-    main_count = len(root_panel_grid(store, settings, region)) - 3  # subtract header rows
-    return {"backend": "token", "sheet": sheet_id, "region": region.upper(), "history_appended": appended, "published": main_count}
+
+    price_new = price_history_grid(store, settings, region)
+    price_appended = 0
+    if len(price_new) > 1:
+        try:
+            existing_price = _api("GET",
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{PRICE_HISTORY_TAB}'!A2:C",
+                tok, params={"majorDimension": "ROWS"})
+            known_price = set()
+            for row in existing_price.get("values", []):
+                if len(row) >= 3:
+                    known_price.add((row[0], row[1], row[2]))
+        except Exception:
+            known_price = set()
+        fresh_price = [r for r in price_new[1:] if (r[0], r[1], r[2]) not in known_price]
+        price_appended = len(fresh_price)
+        for chunk in _chunk_rows(fresh_price):
+            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{PRICE_HISTORY_TAB}'!A1:append",
+                 tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
+                 body={"values": chunk})
+
+    main_count = len(tabs[f"[{region.upper()}] Top 100"]) - 3
+    return {
+        "backend": "token", "sheet": sheet_id, "region": region.upper(),
+        "history_appended": appended, "price_appended": price_appended,
+        "published": main_count,
+    }

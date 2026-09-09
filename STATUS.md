@@ -20,6 +20,16 @@ v1.1 ROOT-CYCLE PIPELINE (2026-09-03)
 - **systemd timer**: daily 5AM KST (UTC 20:00), single service unit
 - **Telegram report**: detailed Korean briefing with per-region breakdown
 
+### v1.2 ANALYTICS TABS (2026-09-09) — code ready, pending live publish test
+- **8 new tabs** added to Sheet3 via `publish_root_region()`:
+  - `[US/DE/UK/FR/ES] Rank History` — per-ASIN daily rank pivot (9 dates × ~100-166 rows)
+  - `Cross-Region Catalog` — 416 ASINs with per-region rank columns (13 cols)
+  - `Rank Changes` — NEW/DROPPED/MOVED daily diff (~70-102 rows per region)
+  - `Price History` — append-only daily price log (~546 rows per region)
+- **Store methods added**: `cross_region_catalog()`, `region_rank_history()`, `rank_changes()`, `price_history_rows()`
+- **Grid functions added**: `cross_region_catalog_grid()`, `rank_history_pivot_grid()`, `rank_changes_grid()`, `price_history_grid()`
+- **Both copies synced**: Windows repo + liam2 repo
+
 ## Pipeline workflow
 1. `root-cycle --region <mp|all>` — fetch TOP 100 from root bestseller page
 2. `fill-titles --region <mp>` — lightweight title-only fetch for ASINs with empty titles
