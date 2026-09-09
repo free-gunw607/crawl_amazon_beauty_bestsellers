@@ -271,6 +271,7 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
         "trend_14d": root_trend_grid(store, settings, region),
         "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
         "Rank Changes": rank_changes_grid(store, settings, region),
+        PRICE_HISTORY_TAB: price_history_grid(store, settings, region),
     }
     changes: list[dict] = []
     for title, grid in tabs.items():
@@ -303,26 +304,7 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
                  tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
                  body={"values": chunk})
 
-    price_new = price_history_grid(store, settings, region)
     price_appended = 0
-    if len(price_new) > 1:
-        try:
-            existing_price = _api("GET",
-                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{PRICE_HISTORY_TAB}'!A2:C",
-                tok, params={"majorDimension": "ROWS"})
-            known_price = set()
-            for row in existing_price.get("values", []):
-                if len(row) >= 3:
-                    known_price.add((row[0], row[1], row[2]))
-        except Exception:
-            known_price = set()
-        fresh_price = [r for r in price_new[1:] if (r[0], r[1], r[2]) not in known_price]
-        price_appended = len(fresh_price)
-        for chunk in _chunk_rows(fresh_price):
-            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{PRICE_HISTORY_TAB}'!A1:append",
-                 tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
-                 body={"values": chunk})
-
     main_count = len(tabs[f"[{region.upper()}] Top 100"]) - 3
     return {
         "backend": "token", "sheet": sheet_id, "region": region.upper(),
