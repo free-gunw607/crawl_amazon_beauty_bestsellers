@@ -10,14 +10,23 @@ so local accumulation survives independent of the sheet.
 """
 from __future__ import annotations
 
+import json
 import os
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import Settings
 from .mr_publish import _api, _chunk_rows
-from .sheets_publish import SheetsPublishError, _grid_resize_requests, _sheet_meta_sa, oauth_access_token
+from .sheets_publish import (
+    SheetsPublishError,
+    _grid_resize_requests,
+    _gws,
+    _sheet_meta_gws,
+    _sheet_meta_sa,
+    oauth_access_token,
+)
 
 ROOT_TITLE = "beauty_personal_care_top100_live"
 STATE_REL = ".agent/state/root_sheet_id.json"
@@ -32,13 +41,35 @@ CROSS_REGION_HEADER = [
 RANK_CHANGES_HEADER = ["date", "region", "asin", "title", "rank", "price_usd", "change_type", "prev_rank", "delta"]
 PRICE_HISTORY_HEADER = ["date", "region", "asin", "title", "rank", "price", "currency", "rating", "ratings_count"]
 PRICE_HISTORY_TAB = "Price History"
+ALL_TOP_100_TAB = "[ALL] Top 100"
+
+
+def _service_account_access_token() -> str:
+    creds_source = os.environ.get("GDRIVE_CREDS", "")
+    if not creds_source:
+        raise SheetsPublishError("GDRIVE_CREDS is required for the service-account backend")
+    try:
+        raw = Path(creds_source).read_text(encoding="utf-8") if Path(creds_source).is_file() else creds_source
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(raw),
+            scopes=["https://www.googleapis.com/auth/spreadsheets"],
+        )
+        credentials.refresh(Request())
+    except Exception as exc:
+        raise SheetsPublishError(f"service-account token refresh failed: {exc}") from exc
+    if not credentials.token:
+        raise SheetsPublishError("service-account token refresh returned no access token")
+    return credentials.token
 
 
 def _now() -> str:
     return time.strftime("%Y-%m-%d %H:%M %Z")
 
 
-def ensure_root_spreadsheet(settings: Settings, token: str) -> str:
+def ensure_root_spreadsheet(settings: Settings, token: str | None = None, backend: str = "token") -> str:
     state_path = settings.resolve(STATE_REL)
     if state_path.exists():
         existing = state_path.read_text(encoding="utf-8").strip()
@@ -53,9 +84,18 @@ def ensure_root_spreadsheet(settings: Settings, token: str) -> str:
     sheet_id = ""
     for attempt in range(4):
         try:
-            created = _api("POST", "https://sheets.googleapis.com/v4/spreadsheets", token, body={
-                "properties": {"title": ROOT_TITLE},
-            })
+            if backend == "gws":
+                created = _gws(
+                    ["sheets", "spreadsheets", "create"],
+                    {},
+                    {"properties": {"title": ROOT_TITLE}},
+                )
+            else:
+                if not token:
+                    raise SheetsPublishError("access token is required to create root spreadsheet")
+                created = _api("POST", "https://sheets.googleapis.com/v4/spreadsheets", token, body={
+                    "properties": {"title": ROOT_TITLE},
+                })
             sheet_id = created["spreadsheetId"]
             break
         except SheetsPublishError as exc:
@@ -213,6 +253,25 @@ def cross_region_catalog_grid(store, settings: Settings) -> list[list[str]]:
     return grid
 
 
+def all_top100_grid(store, settings: Settings) -> list[list[str]]:
+    """Current combined Top 100, deduplicated across the five marketplaces."""
+    catalog = store.cross_region_catalog()
+    grid = [
+        ["fetched", "", "", "", "", "", ""],
+        ["combined latest US/DE/UK/FR/ES snapshots", "", "", "", "", "", ""],
+        ["rank", "asin", "title", "rating", "ratings_count", "price_usd", "url"],
+    ]
+    for rank, row in enumerate(catalog[:100], start=1):
+        asin = str(row.get("asin") or "")
+        grid.append([
+            str(rank), asin, str(row.get("title") or "")[:150],
+            str(row.get("rating") or ""), str(row.get("ratings_count") or ""),
+            str(row.get("price_amount") or ""),
+            f"https://www.amazon.com/dp/{asin}" if asin else "",
+        ])
+    return grid
+
+
 def rank_history_pivot_grid(store, settings: Settings, region: str, days: int = 30) -> list[list[str]]:
     rows = store.region_rank_history(region, days)
     dates = sorted(set(r["day"] for r in rows), reverse=True)[:days]
@@ -261,53 +320,106 @@ def price_history_grid(store, settings: Settings, region: str) -> list[list[str]
 
 
 def publish_root_region(settings: Settings, store, region: str, token: str | None = None) -> dict:
-    tok = token or oauth_access_token()
-    sheet_id = ensure_root_spreadsheet(settings, tok)
-    meta = _sheet_meta_sa(sheet_id, tok)
+    backend = os.environ.get("AMZ_BS_ROOT_BACKEND", "token").lower()
+    if backend not in {"token", "gws", "sa"}:
+        raise SheetsPublishError(f"unsupported root backend: {backend}")
+    tok = token or (
+        None if backend == "gws" else
+        _service_account_access_token() if backend == "sa" else
+        oauth_access_token()
+    )
+    sheet_id = ensure_root_spreadsheet(settings, tok, backend=backend)
+    meta = _sheet_meta_gws(sheet_id) if backend == "gws" else _sheet_meta_sa(sheet_id, tok or "")
 
+    # Per-region tabs must publish after each crawl.  The remaining tabs are
+    # global views; publishing their growing histories five times per cycle
+    # needlessly turns one daily run into hundreds of gws subprocess calls.
     tabs = {
         f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region),
         f"{region.upper()} Rank History": rank_history_pivot_grid(store, settings, region),
-        "trend_14d": root_trend_grid(store, settings, region),
-        "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
-        "Rank Changes": rank_changes_grid(store, settings, region),
-        PRICE_HISTORY_TAB: price_history_grid(store, settings, region),
     }
+    if region == "es":
+        tabs.update({
+            ALL_TOP_100_TAB: all_top100_grid(store, settings),
+            "trend_14d": root_trend_grid(store, settings, region),
+            "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
+            "Rank Changes": rank_changes_grid(store, settings, region),
+            PRICE_HISTORY_TAB: price_history_grid(store, settings, region),
+        })
     changes: list[dict] = []
     for title, grid in tabs.items():
         changes += _grid_resize_requests(title, meta.get(title), rows=len(grid) + 200, cols=max(13, max(len(r) for r in grid)))
     if changes:
-        _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}:batchUpdate", tok,
-             body={"requests": changes})
-        meta = _sheet_meta_sa(sheet_id, tok)
+        if backend == "gws":
+            _gws(["sheets", "spreadsheets", "batchUpdate"], {"spreadsheetId": sheet_id}, {"requests": changes})
+            meta = _sheet_meta_gws(sheet_id)
+        else:
+            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}:batchUpdate", tok or "",
+                 body={"requests": changes})
+            meta = _sheet_meta_sa(sheet_id, tok or "")
 
     stamp = [_now(), f"region={region.upper()}", "auto"]
     for title, grid in tabs.items():
-        _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate", tok,
-             params={"valueInputOption": "USER_ENTERED"},
-             body={"valueInputOption": "USER_ENTERED",
-                   "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)] + grid}]})
+        if backend == "gws":
+            # gws carries JSON in argv. Large history/analytics grids exceed
+            # Linux ARG_MAX unless each values payload is deliberately small.
+            stamped_grid = [stamp + [""] * (len(grid[0]) - 3)] + grid
+            row_offset = 1
+            for chunk in _chunk_rows(stamped_grid, max_bytes=30_000, max_rows=100):
+                _gws(
+                    ["sheets", "spreadsheets", "values", "batchUpdate"],
+                    {"spreadsheetId": sheet_id},
+                    {
+                        "valueInputOption": "USER_ENTERED",
+                        "data": [{"range": f"'{title}'!A{row_offset}", "values": chunk}],
+                    },
+                )
+                row_offset += len(chunk)
+        else:
+            body = {"valueInputOption": "USER_ENTERED",
+                    "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)] + grid}]}
+            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate", tok or "",
+                 params={"valueInputOption": "USER_ENTERED"},
+                 body=body)
 
     history_new = root_history_rows(store, settings, region)
     appended = len(history_new)
     if appended:
         known = set()
-        existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A2:E", tok,
-                        params={"majorDimension": "ROWS"})
+        if backend == "gws":
+            existing = _gws(
+                ["sheets", "spreadsheets", "values", "get"],
+                {"spreadsheetId": sheet_id, "range": f"'{HISTORY_TAB}'!A2:E", "majorDimension": "ROWS"},
+            )
+        else:
+            existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A2:E", tok or "",
+                            params={"majorDimension": "ROWS"})
         for row in existing.get("values", []):
             if len(row) >= 4:
                 known.add((row[0], row[1], row[2], row[3]))
         fresh = [r for r in history_new if (r[0], r[1], r[2], r[3]) not in known]
         appended = len(fresh)
         for chunk in _chunk_rows(fresh):
-            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A1:append",
-                 tok, params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
-                 body={"values": chunk})
+            if backend == "gws":
+                _gws(
+                    ["sheets", "spreadsheets", "values", "append"],
+                    {
+                        "spreadsheetId": sheet_id,
+                        "range": f"'{HISTORY_TAB}'!A1",
+                        "valueInputOption": "RAW",
+                        "insertDataOption": "INSERT_ROWS",
+                    },
+                    {"values": chunk},
+                )
+            else:
+                _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A1:append",
+                     tok or "", params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
+                     body={"values": chunk})
 
     price_appended = 0
     main_count = len(tabs[f"[{region.upper()}] Top 100"]) - 3
     return {
-        "backend": "token", "sheet": sheet_id, "region": region.upper(),
+        "backend": backend, "sheet": sheet_id, "region": region.upper(),
         "history_appended": appended, "price_appended": price_appended,
         "published": main_count,
     }

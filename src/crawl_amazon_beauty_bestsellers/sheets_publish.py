@@ -168,11 +168,22 @@ def _gws(args: list[str], params: dict, body: dict | None = None) -> dict:
     cmd = ["gws", *args, "--params", json.dumps(params)]
     if body is not None:
         cmd += ["--json", json.dumps(body)]
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
-    if proc.returncode != 0:
-        raise SheetsPublishError(f"gws {' '.join(args)} failed: {(proc.stderr or proc.stdout).strip()[-300:]}")
-    stdout = proc.stdout
-    return json.loads(stdout[stdout.index("{"):]) if "{" in stdout else {}
+    # Retrying an append could duplicate time-series rows. Reads and exact range
+    # writes are idempotent, so they get a bounded retry for transient DNS/API loss.
+    attempts = 4 if args[-1] in {"get", "batchUpdate", "clear"} else 1
+    last_error = ""
+    for attempt in range(attempts):
+        try:
+            proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            if proc.returncode == 0:
+                stdout = proc.stdout
+                return json.loads(stdout[stdout.index("{"):]) if "{" in stdout else {}
+            last_error = (proc.stderr or proc.stdout).strip()[-300:]
+        except subprocess.TimeoutExpired:
+            last_error = "gws command timed out after 300 seconds"
+        if attempt + 1 < attempts:
+            time.sleep(3 * (attempt + 1))
+    raise SheetsPublishError(f"gws {' '.join(args)} failed: {last_error}")
 
 
 def _sheet_meta_gws(spreadsheet_id: str) -> dict[str, dict]:

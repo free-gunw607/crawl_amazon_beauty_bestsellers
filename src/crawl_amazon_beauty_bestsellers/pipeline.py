@@ -205,7 +205,7 @@ class Pipeline:
                 _fetch(queued, "variant")
         return details, failures
 
-    def fill_titles_only(self, region: str) -> dict[str, Any]:
+    def fill_titles_only(self, region: str, limit: int | None = None) -> dict[str, Any]:
         """Fetch title-only for ASINs with empty titles in the latest ROOT snapshot."""
         from bs4 import BeautifulSoup
 
@@ -222,13 +222,17 @@ class Pipeline:
 
         missing = self.store._query(
             "SELECT le.asin, le.rank FROM list_entries le "
-            "LEFT JOIN product_details pd ON le.asin = pd.asin "
             "WHERE le.node_id=? AND le.run_id=? "
             "AND (le.title IS NULL OR le.title = '') "
-            "AND (pd.title IS NULL OR pd.title = '') "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM product_details pd "
+            "  WHERE pd.asin = le.asin AND pd.title IS NOT NULL AND TRIM(pd.title) != ''"
+            ") "
             "ORDER BY le.rank",
             (key, run_id),
         )
+        if limit is not None and limit > 0:
+            missing = missing[:limit]
         if not missing:
             return {"region": region.upper(), "filled": 0, "total_missing": 0}
 
@@ -242,6 +246,7 @@ class Pipeline:
         for idx, row in enumerate(missing, start=1):
             asin = row["asin"]
             url = f"{base_url}/dp/{asin}"
+            title = ""
             try:
                 result = client.get(url)
                 if len(result.text) < 500_000:
@@ -264,7 +269,7 @@ class Pipeline:
                 failed += 1
             if detail_delay > 0:
                 time.sleep(detail_delay)
-            print(f"  title {idx}/{len(missing)}: {asin} -> {'OK' if title else 'FAIL'}")
+            print(f"  title {idx}/{len(missing)}: {asin} -> {'OK' if title else 'FAIL'}", flush=True)
 
         return {"region": region.upper(), "filled": filled, "total_missing": len(missing), "failed": failed}
 

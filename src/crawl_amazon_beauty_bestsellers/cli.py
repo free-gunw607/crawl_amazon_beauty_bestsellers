@@ -88,6 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("fill-titles", help="fetch titles only for ASINs with empty titles in ROOT snapshots")
     p.add_argument("--region", required=True, help="marketplace code (us/uk/de/fr/es) or 'all'")
+    p.add_argument("--limit", type=int, default=None, help="maximum missing-title ASINs to fetch per region")
+    p.add_argument("--publish-root", action="store_true", help="publish the region root sheet after title fill")
 
     p = sub.add_parser("stats", help="database stats")
 
@@ -328,10 +330,14 @@ def main(argv: list[str] | None = None) -> int:
                 except Exception:
                     pass
         elif args.command == "fill-titles":
+            from .root_publish import publish_root_region
+
             regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
             for region in regions:
-                result = pipeline.fill_titles_only(region)
+                result = pipeline.fill_titles_only(region, limit=args.limit)
                 _print(result)
+                if args.publish_root:
+                    _print(publish_root_region(settings, pipeline.store, region))
         elif args.command == "stats":
             _print(pipeline.store.stats())
         elif args.command == "health":

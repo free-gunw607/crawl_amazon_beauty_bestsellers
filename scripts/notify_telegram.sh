@@ -3,8 +3,11 @@
 # Usage: notify_telegram.sh "message text"
 set -euo pipefail
 
+TG_BOT_TOKEN="${TG_BOT_TOKEN:-${TELEGRAM_BOT_TOKEN:-${BOT_TOKEN:-}}}"
+TG_CHAT_ID="${TG_CHAT_ID:-${TELEGRAM_CHAT_ID:-${TELEGRAM_ALERT_CHAT_ID:-${CHAT_ID:-}}}}"
+
 if [[ -z "${TG_BOT_TOKEN:-}" || -z "${TG_CHAT_ID:-}" ]]; then
-  echo "TG_BOT_TOKEN or TG_CHAT_ID not set, skipping notification" >&2
+  echo "Telegram token/chat env not set, skipping notification" >&2
   exit 0
 fi
 
@@ -14,7 +17,12 @@ if [[ -z "$MESSAGE" ]]; then
   exit 1
 fi
 
-curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+response="$(curl -s -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
   -d chat_id="${TG_CHAT_ID}" \
   -d text="${MESSAGE}" \
-  --max-time 10 >/dev/null 2>&1 || echo "Telegram send failed" >&2
+  --max-time 10)"
+
+if [[ "$response" != *'"ok":true'* ]]; then
+  echo "Telegram send failed" >&2
+  exit 1
+fi

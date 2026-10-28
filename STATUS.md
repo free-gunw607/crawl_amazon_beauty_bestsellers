@@ -1,74 +1,155 @@
 # STATUS
 
+## 2026-10-28 Shared operational email
+- Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.
+- SMTP credentials live at `~/.config/a4-mailer/smtp.env` on the node's private Linux filesystem (directory `0700`, file `0600`). Recipient lists remain repository-specific.
+- The A4 sender inventory was wired to load this common transport as a default without overriding explicit project settings.
+- SMTP authentication and delivery passed on 2026-10-28 from the LIAM1 WSL, LIAM2 WSL, and LIAM3 WSL. Each test delivered to the two repository-configured recipients. LIAM2/LIAM3 used the shared transport checker; LIAM1 exercised `run_job._send_email`, the production notification function. No crawler or Sheet write was run.
+- LIAM2 and LIAM3 have the updated Amazon sender and common helper. LIAM3's other installed A4 mailers were also connected and backed up before edits.
+- If Amazon email delivery fails or has no configured recipient, `run_job.py` now reports the SMTP failure through Telegram when Telegram is configured; it never retries via Gmail OAuth.
+- This shell is LIAM1's Ubuntu WSL (Windows host `DESKTOP-RO042LL`). LIAM1 SSH still times out, but local WSL mail delivery is verified. LIAM1's local cron service is stopped; production scheduling is on LIAM3 with LIAM2 takeover. LIAM4 remains unverified.
+
 ## Repository
-- repo: `crawl_amazon_beauty_bestsellers` — **PUBLIC**: https://github.com/free-gunw607/crawl_amazon_beauty_bestsellers
+- repo: `crawl_amazon_beauty_bestsellers` - PUBLIC: https://github.com/free-gunw607/crawl_amazon_beauty_bestsellers
 - workspace path: `~/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers`
 
-## Current objective
-Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES) with 100% title coverage, publish to Google Sheet 3 only. Run daily at 5AM KST via systemd timer. Telegram briefing after each run.
+## Current Objective
+Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES), publish to the primary Google Sheet `beauty_personal_care_top100_live`, and keep the daily 5AM KST pipeline recoverable with stale-sheet alerting.
 
-## Live Google Sheet (Sheet 3 — PRIMARY)
-https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
-- Tab: `beauty_personal_care_top100_live`
-- **Sheet 1 ABANDONED** — all effort focused on Sheet 3
+## 2026-10-28 Service Account Recovery
+- LIAM3 is the primary scheduler (05:00 KST + hourly catch-up/watchdog); LIAM2 is the secondary takeover worker (05:30 KST).
+- Both cron blocks now use `AMZ_BS_ROOT_BACKEND=sa` and a node-local key at `~/.config/amzbs/service-account.json` (directory mode 700, key mode 600). The key was added as a writer to the primary Sheet and Drive fallback folder; existing rows/files were not deleted or replaced.
+- LIAM3 and LIAM2 each passed the Service Account read-only sheet watchdog. LIAM2 catch-up and title-history checks also ran safely as no-ops against the already-current 2026-10-28 sheet.
+- 2026-10-28 Top 100 published 100 rows in all five regions. Title completion first hit the per-user Sheets write quota; the retry completed all five regions at 100/100.
+- Historical title recovery filled 354 titles via local/current mappings, then recovered the remaining 35 blank cells (21 region-ASIN groups) through polite marketplace product-page lookups. No block signal occurred. The history tab now has zero blank title cells. This updated title cells only; no history rows were deleted or inserted during this title repair.
+- Read-only Drive inventory confirms exactly one fallback XLSX per date 2026-10-23 through 2026-10-28. LIAM3 local-source-versus-sheet history comparison for 2026-10-23 through 2026-10-27 found zero missing local keys; 104 sheet-only keys were preserved.
+- Historical scheduled root publishing failed on 2026-10-24 through 2026-10-27 because the user OAuth credential was expired/revoked. LIAM3's 2026-10-28 05:00 run also started before the Service Account switch and used GWS OAuth. The next scheduled primary run (2026-10-29 05:00 KST) is the first full production run on the Service Account path.
+- Historical note (superseded 2026-10-28): Gmail OAuth previously blocked mail. Operational email now uses shared SMTP; Google OAuth/Service Account is separate and used for Drive/Sheets.
+- `scripts/enrich_titles_until_complete.py` now reads and writes Sheets through the configured Service Account and retries transient/quota API errors. `scripts/backfill_history_titles_from_marketplaces.py` repairs only blank history-title cells, stops on Amazon block signals, and never alters row keys.
+- 2026-10-28 pipeline repair: today's 05:00 run collected and published 500/500 rows, appended 245 `root_rank_history` rows, reached 100/100 titles in every regional tab, and created/uploaded the independent fallback XLSX. It was marked failed only because the same run attempted 389 old history-title repairs and hit the Sheets per-user write quota after 354 updates (35 blanks remained at that checkpoint).
+- Removed the whole-history title repair from the daily critical path; the daily job still verifies all five live Top 100 tabs and the root publisher appends today's history rows. The report now displays per-region history append counts and only marks complete when the Drive fallback file exists.
+- Added `--report-existing` to re-audit and resend a saved run without recrawling or creating a duplicate Drive workbook. Used it on 2026-10-28: read-only live audit confirmed 100/100 titles in US/DE/UK/FR/ES; all four phase/final report emails were accepted by SMTP with the existing fallback XLSX attached to the relevant reports.
+- LIAM2 and LIAM3 were rechecked against the live Sheet using their Service Account identities at 23:12 KST; both reported all five tabs current, zero stale regions, 32,632 history rows, newest marketplace history date 2026-10-27. Their read-only catch-up commands both returned “all regional tabs already have today's stamp.”
+- The LIAM2 `invalid_grant` lines are from its 05:30 catch-up run before the Service Account switch; the same catch-up code with the installed SA environment now passes. The old errors were GWS OAuth, not SMTP.
 
-## Current phase
-v1.1 ROOT-CYCLE PIPELINE (2026-09-03)
-- **Pipeline**: `run_job.py` runs root-cycle (5 regions) + fill-titles per region
-- **Title 100%** all 5 regions (US/DE/UK/FR/ES) — achieved via fill-titles feature
-- **Total time**: ~7 min full pipeline
-- **systemd timer**: daily 5AM KST (UTC 20:00), single service unit
-- **Telegram report**: detailed Korean briefing with per-region breakdown
+## Primary Live Sheet
+- title: `beauty_personal_care_top100_live`
+- spreadsheet id: `1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`
+- URL: https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit
+- important tabs: `[US] Top 100`, `[DE] Top 100`, `[UK] Top 100`, `[FR] Top 100`, `[ES] Top 100`, `root_rank_history`, `trend_14d`, `Cross-Region Catalog`, `Rank Changes`, `Price History`
 
-### v1.2 ANALYTICS TABS (2026-09-09) — code ready, pending live publish test
-- **8 new tabs** added to Sheet3 via `publish_root_region()`:
-  - `[US/DE/UK/FR/ES] Rank History` — per-ASIN daily rank pivot (9 dates × ~100-166 rows)
-  - `Cross-Region Catalog` — 416 ASINs with per-region rank columns (13 cols)
-  - `Rank Changes` — NEW/DROPPED/MOVED daily diff (~70-102 rows per region)
-  - `Price History` — append-only daily price log (~546 rows per region)
-- **Store methods added**: `cross_region_catalog()`, `region_rank_history()`, `rank_changes()`, `price_history_rows()`
-- **Grid functions added**: `cross_region_catalog_grid()`, `rank_history_pivot_grid()`, `rank_changes_grid()`, `price_history_grid()`
-- **Both copies synced**: Windows repo + liam2 repo
+## 2026-10-16 Automation Recovery
+- Scheduler `gws` OAuth had an `invalid_grant` refresh token. The first re-auth was made in the wrong default config; the cron-owned config at `A3-runtime-standards/local-config/gws` was then re-authorized with Sheets and Gmail scopes.
+- Gmail API is enabled for that OAuth project. End-to-end email alert and Telegram alert smoke tests both succeeded.
+- The 05:00 root upload completed for all five regions. Final live-Sheet verification after the completion pass: `US 09:12`, `DE 09:23`, `UK 09:38`, `FR 09:49`, `ES 10:00 KST`; all five Top 100 tables have `99/99` populated title rows.
+- The 05:20 completion schedule now covers `us de uk fr es` and resolves the exact live-Sheet blanks through marketplace fallback. It no longer wastes its daily run on stale DB-wide title queues.
+- The fallback publisher explicitly enforces the authenticated `gws` backend outside cron too, and republishes after a prior title lookup succeeded but publish failed.
+- The hourly watchdog was tested at 10:03 KST: `ok=true`, no stale regions, `root_rank_history` newest date `2026-10-16`.
+- `root_rank_history` title backfill on this recovery updated 313 current-mappable titles. Historical rows without a locally/currently resolvable title remain and are separate from the daily Top 100 completeness guarantee.
+- Corrected the Top 100 verification range from `A4:C103` to `A4:C104`: row 4 is a header, and rank 100 is row 104. Final live audit confirms US/DE/UK/FR/ES and `[ALL] Top 100` are all `100/100` titled.
+- `[ALL] Top 100` had been excluded from the publisher and was stale since 2026-08-31. It now regenerates from the five latest regional snapshots as a deduplicated global Top 100.
+- Daily fallback workbook is built directly from the local SQLite store, not exported from Google Sheets. It contains the five regional Top 100 tabs, `ALL Top 100`, history, and analytics; it is uploaded to Drive and emailed as an attachment. A live Drive upload and attachment-email test succeeded on 2026-10-16: file id `1MOde3GPApRCUDcGphsIik-hFj3Bgn_AG`.
+- The daily schedule is a single sequential orchestrator at 05:00, not independent 05:00/05:20/06:00 jobs. It waits for root upload before title completion, then creates the independent fallback workbook; if root upload fails, title completion is skipped but the fallback workbook still runs from the local store. It emits a dual-channel delay alert after 20 minutes and uses `flock` to prevent overlap with another day.
 
-## Pipeline workflow
-1. `root-cycle --region <mp|all>` — fetch TOP 100 from root bestseller page
-2. `fill-titles --region <mp>` — lightweight title-only fetch for ASINs with empty titles
-3. Publish to Sheet 3 via `publish-root --region <mp>`
-4. Telegram report sent automatically
+## 2026-10-13 Recovery Status
+- Today 05:00 KST did not run automatically.
+- Evidence:
+  - before repair, active crontab did not contain a `crawl_amazon_beauty_bestsellers` job;
+  - user systemd timers could not be used in this environment (`Failed to connect to bus: No such file or directory`);
+  - `.agent/logs/` had no 2026-10-13 05:00 run log for this repo.
+- A cron fallback is now installed:
+  - `0 5 * * * ... scripts/run_job.py --no-detail >> .agent/logs/cron_run_job.log 2>&1`
+  - `17 * * * * ... scripts/watchdog_sheet.py --max-age-hours 30 --alert >> .agent/logs/cron_watchdog.log 2>&1`
+- Cron environment now includes the working `gws` path and config:
+  - `PATH=/home/liam/.nvm/versions/node/v20.20.1/bin:...`
+  - `AMZ_BS_ROOT_BACKEND=gws`
+  - `AMZ_BS_ROOT_SHEETS_ID=1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80`
+  - `GOOGLE_WORKSPACE_CLI_CONFIG_DIR=/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws`
+- Manual recovery on 2026-10-13 KST updated the primary Sheet 3. Watchdog verification at 07:00 KST:
+  - `US`: `2026-10-13 06:54 KST`
+  - `DE`: `2026-10-13 06:39 KST`
+  - `UK`: `2026-10-13 06:43 KST`
+  - `FR`: `2026-10-13 06:34 KST`
+  - `ES`: `2026-10-13 06:34 KST`
+  - `root_rank_history_rows`: `10921`
+  - `root_rank_history_newest_date`: `2026-10-12`
+- A full `scripts/run_job.py` manual attempt published root sheets first but then hung in `fill-gaps`; the daily cron now uses `--no-detail` so Top100/history publishing is not blocked by detail enrichment.
+- A cron-equivalent `scripts/run_job.py --no-detail` attempt completed the core path but returned nonzero because of live collection issues:
+  - `US` published successfully;
+  - `DE/UK/FR` had transient DNS resolution failures;
+  - `ES` hit a captcha/block signal;
+  - `fill-titles --region us` timed out after 240s.
+- Follow-up schedule validation on 2026-10-13 09:36 KST fixed the daily lane so `--no-detail` is root-cycle only. It completed in 1m37s with `rc=0` and published 100 rows for every region.
+- Final Sheet verification at 09:38 KST:
+  - `US`: `2026-10-13 09:36 KST`
+  - `DE`: `2026-10-13 09:37 KST`
+  - `UK`: `2026-10-13 09:37 KST`
+  - `FR`: `2026-10-13 09:37 KST`
+  - `ES`: `2026-10-13 09:37 KST`
+  - `root_rank_history_rows`: `11352`
+  - `root_rank_history_newest_date`: `2026-10-13`
+- `scripts/run_job.py` now releases stale locks even on `KeyboardInterrupt`/fatal crashes.
+- Historical note (superseded 2026-10-28): email alert support previously used Gmail API through `gws`. Operational mail now uses shared SMTP.
+- Telegram alert support now accepts `TG_*`, `TELEGRAM_*`, and common `BOT_TOKEN`/`CHAT_ID` env names, and falls back to the gitignored WH env files used by `build_ops_powerhouse` / `capture_finance_pdf_news`. A verified Telegram smoke sent successfully on 2026-10-13 KST.
+- Title completeness recovery on 2026-10-13:
+  - initial Sheet title state after fast root publish: `US 100/100`, `DE 100/100`, `UK 100/100`, `FR 82/100`, `ES 75/100`;
+  - root-page parser provides 100 ASIN/rank rows, but Amazon only renders about 60 titles in the root DOM; `data-client-recs-list` has ASIN/rank but no title metadata;
+  - existing `/dp/ASIN` title enrichment works, but must run as small batches or it can hold the daily publish lane;
+  - added `scripts/enrich_titles_until_complete.py`, which repeats bounded `fill-titles --publish-root`, measures live Sheet completeness after each round, and falls back to alternate marketplaces for stalled ASINs;
+  - final verified Sheet title state: `US 100/100`, `DE 100/100`, `UK 100/100`, `FR 100/100`, `ES 100/100`;
+  - ES final stalled ASIN `B08B981F4X` was filled via DE/UK fallback title lookup.
+- `root_rank_history` title backfill:
+  - `scripts/enrich_titles_until_complete.py` now backfills blank `root_rank_history!I:I` cells after title enrichment using current Top100 titles and local DB/product detail title history;
+  - 2026-10-13 rows are now `400/400` titled;
+  - historical audit before backfill: `1972/11352` history rows lacked titles (`17.37%`);
+  - after Top100 + DB fallback backfill: `693/11352` rows still lack titles (`6.10%`);
+  - remaining historical blanks are older ASINs that are not present in current Top100 mapping or local DB title history; new daily rows should be backfilled by the scheduled enrichment job.
+
+## 2026-10-12 Recovery Status
+- Local repo was stale at `9850d18`, 48 commits behind `origin/main`; it has now been fast-forwarded to `d98edaf`.
+- Latest pushed code was already on `origin/main`; the immediate missing-code problem was local staleness, not evidence that `liam3` had unpushed commits.
+- Manual root-cycle publish succeeded to the primary Sheet 3 using the workspace `gws` config dir:
+  - `US`: 100 crawled / 100 published; sheet stamp `2026-10-12 09:13 KST`
+  - `DE`: 100 crawled / 100 published; sheet stamp `2026-10-12 09:20 KST`
+  - `UK`: 100 crawled / 100 published; sheet stamp `2026-10-12 09:19 KST`
+  - `FR`: 100 crawled / 100 published; sheet stamp `2026-10-12 09:20 KST`
+  - `ES`: 100 crawled / 100 published; sheet stamp `2026-10-12 09:19 KST`
+- `root_rank_history` received same-run append rows. US rows appear as `2026-10-11` because history dates use marketplace timezone, while execution was `2026-10-12` KST.
+- `src/crawl_amazon_beauty_bestsellers/root_publish.py` now supports `AMZ_BS_ROOT_BACKEND=gws`, reusing the proven workspace Google Workspace CLI OAuth path.
+
+## Failure Causes Identified
+1. Local checkout was not current: it was 48 commits behind `origin/main`.
+2. The active crontab no longer contains this repo's old local lane; `.agent/crontab_backup_20260826.txt` preserves the prior line only as backup.
+3. The interim scheduler loop was not durable; `.agent/logs/scheduler_loop.log` stops after 2026-08-25 23:18 KST.
+4. Earlier cron-era Sheets publish failed because `gws` was not available/configured in the cron environment.
+5. The latest root publisher expected `~/.config/gsheet-sync/{client_secret.json,refresh_token.json}`, but this machine's valid OAuth state is the workspace-local `gws` config at `/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws`.
+6. Service-account Drive upload reached Google but failed with Drive storage quota; owner OAuth via `gws` is the working path for Drive/Sheets.
+7. Sandboxed network calls to Amazon failed; escalated network runs are required for live crawling from this environment.
+8. Amazon captcha/block signals still occur under pressure; the repo policy is to stop/cool down instead of retry storming.
+9. `run_job.py` full pipeline can spend a long time in `fill-titles`; the urgent 2026-10-12 sheet recovery used `root-cycle` per region to avoid blocking on enrichment.
 
 ## Scheduler
-- **1 timer**: `amzbs-beauty.timer` — daily 5AM KST (UTC 20:00)
-- **1 service**: `amzbs-beauty.service` — runs `run_job.py` then sends Telegram report
-- **Install**: `systemctl --user daemon-reload && systemctl --user enable --now amzbs-beauty.timer`
-- **Check**: `systemctl --user status amzbs-beauty.timer`
+- active fallback: crontab block `crawl_amazon_beauty_bestsellers`
+- daily pipeline: `05:00 KST`, `scripts/run_daily_pipeline.py` (root publish, then exact-blank title completion, then independent local-data XLSX)
+- hourly stale-sheet watchdog: `:17`, `scripts/watchdog_sheet.py --max-age-hours 30 --alert`
+- daily XLSX Drive vault + email attachment: `scripts/export_fallback_workbook.py --email`, generated from SQLite and independent of Google Sheets read/write
+- intended systemd units remain in `deploy/systemd/`, but user systemd is not currently usable in this environment.
 
-## Data quality
-| Region | Title | Rating | Price | Status |
-|--------|-------|--------|-------|--------|
-| US | 100% | 100% | ~93% | ✅ |
-| DE | 100% | 100% | ~97% | ✅ |
-| UK | 100% | 100% | ~99% | ✅ |
-| FR | 100% | 100% | ~89% | ✅ |
-| ES | 100% | 100% | ~80% | ✅ |
+## Key Files
+- `scripts/run_job.py` - orchestrator for root-cycle5 regions + fill-titles + report
+- `src/crawl_amazon_beauty_bestsellers/cli.py` - CLI commands
+- `src/crawl_amazon_beauty_bestsellers/root_publish.py` - primary Sheet 3 publisher
+- `src/crawl_amazon_beauty_bestsellers/sheets_publish.py` - gws/token/SA sheet helper paths
+- `src/crawl_amazon_beauty_bestsellers/storage/store.py` - SQLite storage and analytics queries
+- `deploy/systemd/amzbs-beauty.service`
+- `deploy/systemd/amzbs-beauty.timer`
+- `deploy/systemd/amzbs-beauty-watchdog.service`
+- `deploy/systemd/amzbs-beauty-watchdog.timer`
+- `scripts/watchdog_sheet.py`
+- `scripts/enrich_titles_until_complete.py`
+- `scripts/backfill_history_titles_from_marketplaces.py`
 
-- **Price gaps**: geo-restriction on Korean IP (requires proxy/VPN for 100%)
-- **All prices USD** (currency_pref switched KRW→USD)
-
-## Key files
-- `scripts/run_job.py` — main orchestrator (root-cycle5 regions + fill-titles)
-- `src/crawl_amazon_beauty_bestsellers/cli.py` — CLI commands (root-cycle, fill-titles, publish-root)
-- `src/crawl_amazon_beauty_bestsellers/pipeline.py` — pipeline logic including `fill_titles_only()`
-- `src/crawl_amazon_beauty_bestsellers/storage/store.py` — SQLite storage with `update_title()`
-- `src/crawl_amazon_beauty_bestsellers/root_publish.py` — Sheet3 publisher
-- `~/.config/systemd/user/amzbs-beauty.service` — systemd service
-- `~/.config/systemd/user/amzbs-beauty.timer` — systemd timer
-
-## Git history
-- `26c10d3` Sheet3 전용 파이프라인: root-cycle + fill-titles, 텔레그램 리포트 JSON 파싱 버그 수정
-- `f818a4f` improve Telegram briefing: detailed Korean report with per-region breakdown
-- `dda5d09` fix Telegram briefing: parse JSON output, region-aggregated report
-
-## Pending items
-1. Verify tomorrow's 5AM KST timer run
-2. Optional: `fill-titles --region all` timeout issue (individual regions work fine)
-3. Optional: clean up `category_registry.json` (23 non-ROOT nodes no longer used)
+## Pending
+- Stabilize `liam1` SSH/Tailscale and document the liam1-3 repo synchronization path.
+- Monitor the next unattended 05:00 pipeline through its log and the delivered dual-channel report.
+- Decide whether `fill-titles`/`fill-gaps` should become a separate throttled enrichment cron rather than part of the daily Top100 publish lane.

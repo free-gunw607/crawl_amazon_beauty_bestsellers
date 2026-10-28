@@ -1,0 +1,9 @@
+[Unit]
+Description=Beauty Bestseller Sheet3 freshness watchdog timer
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+
+[Install]
+WantedBy=timers.target

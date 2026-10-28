@@ -12,7 +12,7 @@ class DriveUploadError(RuntimeError):
     pass
 
 
-def _upload_via_gws(file_path: Path, folder_id: str) -> dict[str, str]:
+def _upload_via_gws(file_path: Path, folder_id: str, remote_name: str | None = None) -> dict[str, str]:
     import subprocess
 
     cmd = [
@@ -20,7 +20,7 @@ def _upload_via_gws(file_path: Path, folder_id: str) -> dict[str, str]:
         "--upload", str(file_path),
         "--upload-content-type", XLSX_MIME,
         "--params", '{"supportsAllDrives": true}',
-        "--json", json.dumps({"name": file_path.name, "parents": [folder_id]}),
+        "--json", json.dumps({"name": remote_name or file_path.name, "parents": [folder_id]}),
     ]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
@@ -64,4 +64,4 @@ def upload_file(file_path: Path, remote_name: str | None = None) -> dict[str, st
             .execute()
         )
         return {"file_id": created.get("id", ""), "name": created.get("name", ""), "link": created.get("webViewLink", "")}
-    return _upload_via_gws(file_path, folder_id or DEFAULT_GWS_FOLDER_ID)
+    return _upload_via_gws(file_path, folder_id or DEFAULT_GWS_FOLDER_ID, remote_name)

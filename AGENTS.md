@@ -32,6 +32,7 @@ Collect Amazon beauty bestseller lists and product detail vendor intelligence on
   - keep hourly request volume bounded: hourly cycles are list-only; full detail passes run every 6h; expand active categories gradually and observe block signals between batches
   - soft blocks (HTTP 200 with empty parses) count as block signals: purge junk rows, cooldown >=55min before retry
   - never commit secrets (`.env`, tokens, service-account JSON); Drive uploads use the workspace gws CLI OAuth by default (`drive_upload.py`), service-account env path remains optional
+  - scheduled email uses `A3-runtime-standards/ops-scripts/shared_mailer.py` and `~/.config/a4-mailer/smtp.env`; recipient routing stays repo-local, and email failure must be reported through Telegram when configured
   - schedule activation (`run_job.py` timer) and any remote side effect require explicit owner approval
 - local expectations:
   - keep repository-local execution reproducible
