@@ -21,7 +21,7 @@
 - First rollout of the batching fix exposed this host's lower `ARG_MAX`: a 600KB gws argument was rejected locally before submission. Batch payloads are now capped below 90KB and covered by a row-contiguity/size test. Suite: 51 passed. The failed attempt did not mark its incomplete tab fresh; deploy this bounded version and rerun aggregate refresh.
 
 ## 2026-10-29 final recovery verification
-- The quota retry, <90KB bounded batching, stamp-after-success logic, partial-run region accounting, and Linux-native schedule lock are pushed and deployed to LIAM2/LIAM3. The full repository suite passes 53 tests.
+- The quota retry, <90KB bounded batching, stamp-after-success logic, partial-run region accounting, and Linux-native schedule lock are pushed and deployed to LIAM2/LIAM3. The full repository suite passes 57 tests.
 - LIAM3's aggregate publisher succeeded at 14:44. At 14:45, the live audit found all 15 workbook tabs fresh; `root_rank_history` had 33,631 data rows; all five 10/29 date-region cohorts had 100 unique ASINs; duplicate keys and internal blank rows were both 0.
 - The corrected read-only report audit found all five live Top100 tabs at 100/100 titles. Four report emails were accepted by SMTP for both configured recipients; the final email included the fallback XLSX, and the report path invoked Telegram delivery.
 - Next LIAM3 primary run: 10/30 05:00 KST. Catch-up remains enabled at :55 hourly; watchdog remains enabled at :00 hourly. Daily timer is nonpersistent.
@@ -30,6 +30,11 @@
 - The scheduled 14:55 catch-up exited in 5ms with status 1 before Python emitted output. Running the same catch-up directly returned the expected “all regional tabs are current and titles are complete.” This points to `flock -n` failing to acquire the shared lock at that instant; the competing holder had exited before it could be identified.
 - Moved the shared lock from the repo on `/mnt/c` to `~/.cache/amzbs/locks/daily_pipeline.lock` on native WSL Linux storage. Added `run_locked_schedule.sh`: lock contention is logged as an intentional skip with exit 0, while child failures preserve their exit code. LIAM3 systemd units were reinstalled; LIAM2's 05:30 secondary cron was updated to use the same native lock and wrapper.
 - Verified the LIAM3 systemd catch-up service itself at 14:57: it exited successfully after confirming all regions and titles current. Regression suite: 53 passed; shell syntax checks passed. Next automatic catch-up is 15:55, daily primary is 10/30 05:00 KST.
+
+## 2026-10-29 shared-view automatic recovery
+- Catch-up now checks freshness on the five aggregate tabs as well as regional Top100/title gaps. A stale shared tab triggers `publish-root --region es --shared-views-only`, rebuilding `[ALL] Top 100`, `trend_14d`, `Cross-Region Catalog`, `Rank Changes`, and `Price History` from SQLite without recrawling Amazon, rewriting regional Top100 tabs, or appending history.
+- The publisher marks each GWS tab `UPDATING` before changing its data and writes a valid timestamp only after all bounded batches succeed. The catch-up rereads all five aggregate stamps after publishing; any failure or stale remainder returns failure, sends the throttled email/Telegram alert, and retries on the next hourly catch-up (45-minute minimum attempt spacing).
+- Added regression coverage for stale-tab detection, aggregate-only recovery routing, post-publish verification, and the publisher's no-regional-write/no-history-append contract on both GWS and Service Account backends. Local suite: 58 passed. Runtime deployment and a live aggregate-only refresh remain to be verified.
 
 ## 2026-10-28 Shared operational email
 - Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.

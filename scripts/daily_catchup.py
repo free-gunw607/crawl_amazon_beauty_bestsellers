@@ -61,6 +61,21 @@ def _stale_regions(env: dict[str, str]) -> list[str]:
     return stale
 
 
+def _stale_aggregate_tabs(env: dict[str, str], now: datetime | None = None) -> list[str]:
+    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+    from watchdog_sheet import AGGREGATE_TABS, _gws_values, _stamp_is_fresh
+
+    checked_at = now or datetime.now()
+    stale: list[str] = []
+    for tab in AGGREGATE_TABS:
+        rows = _gws_values(f"'{tab}'!A1:C1", env)
+        stamp = rows[0][0] if rows and rows[0] else ""
+        fresh, _ = _stamp_is_fresh(stamp, checked_at, 30.0)
+        if not fresh:
+            stale.append(tab)
+    return stale
+
+
 def _title_gaps(env: dict[str, str]) -> dict[str, list[tuple[str, str]]]:
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     from enrich_titles_until_complete import _sheet_title_count
@@ -175,18 +190,33 @@ def _root_recovery_command(regions: list[str]) -> list[str]:
     ]
 
 
+def _shared_views_recovery_command() -> list[str]:
+    return [
+        sys.executable,
+        "-m",
+        "crawl_amazon_beauty_bestsellers.cli",
+        "publish-root",
+        "--region",
+        "es",
+        "--shared-views-only",
+    ]
+
+
 def _pending_recovery_alert(
     gaps: dict[str, list[tuple[str, str]]],
     drive_gap: bool,
     state: dict[str, object],
+    stale_tabs: list[str] | None = None,
 ) -> dict[str, object]:
     now = time.time()
     last = float(state.get("recovery_alert_epoch", 0) or 0)
     if now - last < 6 * 60 * 60:
         print("[catchup] unresolved title alert cooldown active", flush=True)
         return state
-    lines = ["Amazon Beauty daily recovery is still incomplete."]
+    lines = ["Amazon Beauty daily delivery recovery is still incomplete."]
     lines.extend(f"{region.upper()}: {len(missing)} blank title(s)" for region, missing in gaps.items())
+    if stale_tabs:
+        lines.append("Stale shared Sheet tabs: " + ", ".join(stale_tabs))
     if drive_gap:
         lines.append("Fallback XLSX is not confirmed in Drive.")
     lines.append("Automatic recovery will retry the remaining delivery gaps on the next catch-up interval.")
@@ -220,6 +250,7 @@ def main() -> int:
     try:
         stale = _stale_regions(env)
         gaps = _title_gaps(env)
+        stale_aggregates = _stale_aggregate_tabs(env)
     except Exception as exc:
         previous = {}
         if state_path.is_file():
@@ -247,7 +278,7 @@ def main() -> int:
     # No local run means this node cannot prove that its local fallback is stale
     # or missing. The shared live Sheet is the cross-node source of truth.
     drive_gap = _fallback_missing_drive(latest_run) if latest_run else False
-    if not stale and not gaps and not drive_gap:
+    if not stale and not gaps and not drive_gap and not stale_aggregates:
         print("[catchup] all regional tabs are current and titles are complete")
         return 0
 
@@ -260,18 +291,57 @@ def main() -> int:
             previous = json.loads(state_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             previous = {}
+    if stale_aggregates and not stale:
+        now_epoch = time.time()
+        last_attempt = float(previous.get("aggregate_attempt_epoch", 0) or 0)
+        if now_epoch - last_attempt >= 45 * 60:
+            state_dir.mkdir(parents=True, exist_ok=True)
+            previous.update({"aggregate_attempt_epoch": now_epoch,
+                             "aggregate_attempted_at": datetime.now().isoformat(),
+                             "stale_aggregate_tabs": stale_aggregates})
+            state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
+            print("[catchup] repairing stale shared tabs from saved SQLite: " + ", ".join(stale_aggregates), flush=True)
+            try:
+                refresh_rc = subprocess.run(_shared_views_recovery_command(), cwd=REPO_ROOT, env=env).returncode
+            except OSError as exc:
+                print(f"[catchup] shared-tab publisher could not start: {exc}", flush=True)
+                refresh_rc = 127
+            try:
+                remaining_aggregates = _stale_aggregate_tabs(env)
+            except Exception as exc:
+                print(f"[catchup] shared-tab verification failed: {exc}", flush=True)
+                remaining_aggregates = stale_aggregates
+            if refresh_rc != 0 or remaining_aggregates:
+                print(f"[catchup] shared-tab repair incomplete rc={refresh_rc}; stale={remaining_aggregates}", flush=True)
+                previous = _pending_recovery_alert(gaps, drive_gap, previous, remaining_aggregates)
+                state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
+                stale_aggregates = remaining_aggregates or stale_aggregates
+                if not gaps and not drive_gap:
+                    return refresh_rc or 1
+            else:
+                print("[catchup] all shared tabs passed post-publish freshness verification", flush=True)
+                stale_aggregates = []
+        else:
+            print("[catchup] shared-tab retry cooldown active", flush=True)
+            previous = _pending_recovery_alert(gaps, drive_gap, previous, stale_aggregates)
+            state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
+            if not gaps and not drive_gap:
+                return 0
+    if not stale and not gaps and not drive_gap and not stale_aggregates:
+        print("[catchup] regional, title, Drive, and shared-tab checks are all current", flush=True)
+        return 0
     if stale:
         if _recent_root_block(latest_run):
             print("[catchup] recent Amazon block detected in the last root run; waiting for 55-minute cooldown", flush=True)
-            if gaps or drive_gap:
-                previous = _pending_recovery_alert(gaps, drive_gap, previous)
+            if gaps or drive_gap or stale_aggregates:
+                previous = _pending_recovery_alert(gaps, drive_gap, previous, stale_aggregates)
                 state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
             return 0
         last_attempt = float(previous.get("stale_attempt_epoch", 0) or 0)
         if time.time() - last_attempt < 55 * 60:
             print("[catchup] stale-list recovery cooldown active", flush=True)
-            if gaps or drive_gap:
-                previous = _pending_recovery_alert(gaps, drive_gap, previous)
+            if gaps or drive_gap or stale_aggregates:
+                previous = _pending_recovery_alert(gaps, drive_gap, previous, stale_aggregates)
                 state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
             return 0
     state_dir.mkdir(parents=True, exist_ok=True)
@@ -305,7 +375,7 @@ def main() -> int:
             cwd=REPO_ROOT,
             env=env,
         )
-        return recovery.returncode
+        return recovery.returncode or (1 if stale_aggregates else 0)
 
     if gaps and _recent_marketplace_block(run_dir):
         print("[catchup] Amazon block cooldown is active; title recovery will resume after 55 minutes", flush=True)
@@ -318,10 +388,10 @@ def main() -> int:
         env=env,
     )
     if recovery.returncode != 0:
-        previous = _pending_recovery_alert(gaps, drive_gap, previous)
+        previous = _pending_recovery_alert(gaps, drive_gap, previous, stale_aggregates)
     previous.update({"title_recovery_checked_at": datetime.now().isoformat(), "title_recovery_returncode": recovery.returncode})
     state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
-    return recovery.returncode
+    return recovery.returncode or (1 if stale_aggregates else 0)
 
 
 if __name__ == "__main__":

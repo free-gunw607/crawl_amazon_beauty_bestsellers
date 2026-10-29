@@ -341,7 +341,24 @@ def price_history_grid(store, settings: Settings, region: str) -> list[list[str]
     return [PRICE_HISTORY_HEADER] + store.price_history_rows(region)
 
 
-def publish_root_region(settings: Settings, store, region: str, token: str | None = None) -> dict:
+def _shared_root_tabs(store, settings: Settings, region: str = "es") -> dict[str, list[list[str]]]:
+    return {
+        ALL_TOP_100_TAB: all_top100_grid(store, settings),
+        "trend_14d": root_trend_grid(store, settings, region),
+        "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
+        "Rank Changes": rank_changes_grid(store, settings, region),
+        PRICE_HISTORY_TAB: price_history_grid(store, settings, region),
+    }
+
+
+def publish_root_region(
+    settings: Settings,
+    store,
+    region: str,
+    token: str | None = None,
+    *,
+    shared_views_only: bool = False,
+) -> dict:
     backend = os.environ.get("AMZ_BS_ROOT_BACKEND", "token").lower()
     if backend not in {"token", "gws", "sa"}:
         raise SheetsPublishError(f"unsupported root backend: {backend}")
@@ -353,21 +370,20 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
     sheet_id = ensure_root_spreadsheet(settings, tok, backend=backend)
     meta = _sheet_meta_gws(sheet_id) if backend == "gws" else _sheet_meta_sa(sheet_id, tok or "")
 
-    # Per-region tabs must publish after each crawl.  The remaining tabs are
-    # global views; publishing their growing histories five times per cycle
-    # needlessly turns one daily run into hundreds of gws subprocess calls.
-    tabs = {
-        f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region),
-        f"{region.upper()} Rank History": rank_history_pivot_grid(store, settings, region),
-    }
-    if region == "es":
-        tabs.update({
-            ALL_TOP_100_TAB: all_top100_grid(store, settings),
-            "trend_14d": root_trend_grid(store, settings, region),
-            "Cross-Region Catalog": cross_region_catalog_grid(store, settings),
-            "Rank Changes": rank_changes_grid(store, settings, region),
-            PRICE_HISTORY_TAB: price_history_grid(store, settings, region),
-        })
+    # Per-region tabs publish after their own crawl. Shared views can also be
+    # repaired independently from SQLite, without restamping a regional tab or
+    # appending history a second time.
+    if shared_views_only:
+        if region != "es":
+            raise SheetsPublishError("shared views currently use the ES analytics timezone; pass --region es")
+        tabs = _shared_root_tabs(store, settings, region)
+    else:
+        tabs = {
+            f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region),
+            f"{region.upper()} Rank History": rank_history_pivot_grid(store, settings, region),
+        }
+        if region == "es":
+            tabs.update(_shared_root_tabs(store, settings, region))
     changes: list[dict] = []
     for title, grid in tabs.items():
         changes += _grid_resize_requests(title, meta.get(title), rows=len(grid) + 200, cols=max(13, max(len(r) for r in grid)))
@@ -382,32 +398,65 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
 
     stamp = [_now(), f"region={region.upper()}", "auto"]
     for title, grid in tabs.items():
+        marker_body = {
+            "valueInputOption": "RAW",
+            "data": [{
+                "range": f"'{title}'!A1",
+                "values": [["UPDATING", f"region={region.upper()}", "auto"]],
+            }],
+        }
         if backend == "gws":
             # Batch multiple bounded ranges into each API request. The prior
             # one-request-per-30KB-chunk loop exhausted Google's per-user
             # writes/minute quota on growing history tabs. Keep argv well below
             # ARG_MAX and publish the freshness stamp only after every data
             # chunk succeeds, so the watchdog cannot bless a partial tab.
+            _gws(["sheets", "spreadsheets", "values", "batchUpdate"], {"spreadsheetId": sheet_id}, marker_body)
             for batch in _gws_values_batches(title, grid):
                 _gws(
                     ["sheets", "spreadsheets", "values", "batchUpdate"],
                     {"spreadsheetId": sheet_id},
                     {"valueInputOption": "USER_ENTERED", "data": batch},
                 )
-            _gws(
-                ["sheets", "spreadsheets", "values", "batchUpdate"],
-                {"spreadsheetId": sheet_id},
-                {"valueInputOption": "USER_ENTERED", "data": [{
-                    "range": f"'{title}'!A1",
-                    "values": [stamp + [""] * (len(grid[0]) - 3)],
-                }]},
-            )
+            final_stamp_body = {
+                "valueInputOption": "RAW",
+                "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)]}],
+            }
+            _gws(["sheets", "spreadsheets", "values", "batchUpdate"], {"spreadsheetId": sheet_id}, final_stamp_body)
         else:
-            body = {"valueInputOption": "USER_ENTERED",
-                    "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)] + grid}]}
-            _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate", tok or "",
-                 params={"valueInputOption": "USER_ENTERED"},
-                 body=body)
+            _api(
+                "POST",
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate",
+                tok or "",
+                params={"valueInputOption": "RAW"},
+                body=marker_body,
+            )
+            _api(
+                "POST",
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate",
+                tok or "",
+                params={"valueInputOption": "USER_ENTERED"},
+                body={"valueInputOption": "USER_ENTERED", "data": [{"range": f"'{title}'!A2", "values": grid}]},
+            )
+            final_stamp_body = {
+                "valueInputOption": "RAW",
+                "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)]}],
+            }
+            _api(
+                "POST",
+                f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate",
+                tok or "",
+                params={"valueInputOption": "RAW"},
+                body=final_stamp_body,
+            )
+
+    if shared_views_only:
+        return {
+            "backend": backend,
+            "sheet": sheet_id,
+            "shared_views": list(tabs),
+            "published_tabs": len(tabs),
+        }
 
     history_new = root_history_rows(store, settings, region)
     appended = len(history_new)

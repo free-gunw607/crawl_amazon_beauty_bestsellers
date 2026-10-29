@@ -79,6 +79,8 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("publish-root", help="publish region root Top100 into sheet 3 (beauty_personal_care_top100_live)")
     p.add_argument("--region", required=True)
+    p.add_argument("--shared-views-only", action="store_true",
+                   help="refresh shared analytics tabs from SQLite without touching regional tabs or appending history")
 
     p = sub.add_parser("root-cycle", help="crawl-root then publish-root for one region")
     p.add_argument("--region", required=True)
@@ -267,7 +269,12 @@ def main(argv: list[str] | None = None) -> int:
                         if args.command == "root-cycle":
                             return 4
                 if args.command in ("publish-root", "root-cycle"):
-                    _print(publish_root_region(settings, pipeline.store, region))
+                    _print(publish_root_region(
+                        settings,
+                        pipeline.store,
+                        region,
+                        shared_views_only=bool(getattr(args, "shared_views_only", False)),
+                    ))
             except SheetsPublishError as exc:
                 print(str(exc))
                 return 3

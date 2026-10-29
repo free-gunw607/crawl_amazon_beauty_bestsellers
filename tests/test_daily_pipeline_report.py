@@ -37,7 +37,7 @@ def test_title_completion_keeps_historical_backfill_off_daily_quota_path() -> No
 def test_partial_recovery_refreshes_shared_sheet_views_without_crawling() -> None:
     command = _global_sheet_refresh_command("python")
 
-    assert command[-3:] == ["publish-root", "--region", "es"]
+    assert command[-3:] == ["--region", "es", "--shared-views-only"]
     assert "root-cycle" not in command
 
 

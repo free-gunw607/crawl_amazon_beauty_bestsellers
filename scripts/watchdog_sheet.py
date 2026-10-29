@@ -15,14 +15,18 @@ SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
 GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 REGIONS = ["US", "DE", "UK", "FR", "ES"]
 TOP100_TABS = [f"[{region}] Top 100" for region in REGIONS]
-STAMPED_TABS = [
-    *TOP100_TABS,
-    *[f"{region} Rank History" for region in REGIONS],
+REGIONAL_HISTORY_TABS = [f"{region} Rank History" for region in REGIONS]
+AGGREGATE_TABS = [
     "[ALL] Top 100",
     "trend_14d",
     "Cross-Region Catalog",
     "Rank Changes",
     "Price History",
+]
+STAMPED_TABS = [
+    *TOP100_TABS,
+    *REGIONAL_HISTORY_TABS,
+    *AGGREGATE_TABS,
 ]
 
 

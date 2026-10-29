@@ -130,9 +130,9 @@ def _root_collection_command(python: str, summary_path: Path, regions: tuple[str
 
 
 def _global_sheet_refresh_command(python: str) -> list[str]:
-    # The ES publisher also refreshes shared [ALL]/trend/catalog/history views.
-    # It reads the local DB only; this does not crawl Amazon.
-    return [python, "-m", "crawl_amazon_beauty_bestsellers.cli", "publish-root", "--region", "es"]
+    # Shared analytics can be rebuilt from SQLite without restamping ES regional
+    # tabs or touching append-only history.
+    return [python, "-m", "crawl_amazon_beauty_bestsellers.cli", "publish-root", "--region", "es", "--shared-views-only"]
 
 
 def _title_lines(titles: dict[str, object], title_rc: int | None) -> list[str]:

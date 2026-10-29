@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from datetime import datetime
 
-from watchdog_sheet import STAMPED_TABS, _history_metrics, _stamp_is_fresh
+from watchdog_sheet import AGGREGATE_TABS, STAMPED_TABS, _history_metrics, _stamp_is_fresh
 
 
 def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> None:
@@ -58,6 +58,7 @@ def test_watchdog_covers_all_fifteen_published_workbook_tabs() -> None:
     assert "UK Rank History" in STAMPED_TABS
     assert "[ALL] Top 100" in STAMPED_TABS
     assert "Price History" in STAMPED_TABS
+    assert len(AGGREGATE_TABS) == 5
 
 
 def test_watchdog_marks_invalid_or_old_tab_stamp_stale() -> None:

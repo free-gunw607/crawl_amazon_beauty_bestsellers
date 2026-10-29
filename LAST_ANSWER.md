@@ -1,6 +1,7 @@
 # LAST ANSWER
 
 ## 2026-10-29 Recovery update
+- New fix in progress: catch-up now detects stale aggregate tabs and repairs them from local SQLite through `--shared-views-only`, without Amazon recrawl or history append. It verifies tab stamps after publishing and alerts/retries when any remain stale. Tests: 58 passed; runtime deployment and live verification remain.
 - Final verification: UK-only recovery published 100 rows and appended 100 history rows; title recovery filled one Top100 title and 65 latest-history titles. All five current tabs audit at 100/100 titles.
 - Sheets write-quota recovery is deployed: gws batches stay below 90KB, quota responses retry after 65 seconds, and each tab stamp is written only after all its data chunks complete. Partial run reports scope to the markets in the run. Full suite: 53 passed.
 - Aggregate refresh completed at 14:44. At 14:45 the live audit showed all 15 workbook tabs fresh, 33,631 history rows, five latest cohorts at 100 unique keys, 0 duplicates, and 0 internal blank rows. The corrected read-only audit generated four report emails accepted for both recipients, with fallback XLSX attached to the final email; Telegram send was invoked.

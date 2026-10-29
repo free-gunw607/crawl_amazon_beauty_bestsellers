@@ -7,7 +7,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import daily_catchup
 import watchdog_sheet
-from daily_catchup import _failed_root_regions, _fallback_missing_drive, _recent_marketplace_block, _recent_root_block, _root_recovery_command
+from daily_catchup import (
+    _failed_root_regions,
+    _fallback_missing_drive,
+    _recent_marketplace_block,
+    _recent_root_block,
+    _root_recovery_command,
+    _shared_views_recovery_command,
+    _stale_aggregate_tabs,
+)
 
 
 def test_catchup_respects_55_minute_marketplace_block_cooldown(tmp_path: Path) -> None:
@@ -43,6 +51,44 @@ def test_partial_root_run_selects_only_incomplete_regions(tmp_path: Path) -> Non
 def test_root_recovery_command_uses_pipeline_region_choices() -> None:
     command = _root_recovery_command(["UK", "Fr"])
     assert command[-2:] == ["UK", "FR"]
+
+
+def test_shared_views_recovery_does_not_touch_regional_tabs_or_history() -> None:
+    command = _shared_views_recovery_command()
+    assert command[-3:] == ["--region", "es", "--shared-views-only"]
+
+
+def test_catchup_detects_stale_aggregate_tabs(monkeypatch) -> None:
+    fresh = time.strftime("%Y-%m-%d %H:%M KST")
+
+    def values(range_name: str, _env: dict[str, str]) -> list[list[str]]:
+        return [["2020-01-01 00:00 KST" if "trend_14d" in range_name else fresh]]
+
+    monkeypatch.setattr(watchdog_sheet, "_gws_values", values)
+    assert _stale_aggregate_tabs({}) == ["trend_14d"]
+
+
+def test_catchup_repairs_stale_shared_views_without_recrawling(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(daily_catchup, "REPO_ROOT", tmp_path)
+    monkeypatch.setattr(sys, "argv", ["daily_catchup.py"])
+    monkeypatch.setattr(daily_catchup, "_env", lambda: {})
+    monkeypatch.setattr(daily_catchup, "_stale_regions", lambda _env: [])
+    monkeypatch.setattr(daily_catchup, "_title_gaps", lambda _env: {})
+    calls = {"audit": 0, "command": None}
+
+    def stale_tabs(_env: dict[str, str]) -> list[str]:
+        calls["audit"] += 1
+        return ["trend_14d"] if calls["audit"] == 1 else []
+
+    def run(command, **_kwargs):
+        calls["command"] = command
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(daily_catchup, "_stale_aggregate_tabs", stale_tabs)
+    monkeypatch.setattr(daily_catchup, "_latest_completed_run", lambda _today: None)
+    monkeypatch.setattr(daily_catchup.subprocess, "run", run)
+    assert daily_catchup.main() == 0
+    assert calls["command"][-3:] == ["--region", "es", "--shared-views-only"]
 
 
 def test_failed_region_is_not_retried_if_another_node_updated_sheet_later(tmp_path: Path, monkeypatch) -> None:
