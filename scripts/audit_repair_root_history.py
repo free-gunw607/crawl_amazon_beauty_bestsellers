@@ -54,6 +54,18 @@ def _summarize_missing(rows: list[list[str]]) -> dict[str, object]:
     }
 
 
+def _incomplete_cohorts(rows: list[list[str]]) -> list[dict[str, object]]:
+    cohorts: dict[tuple[str, str], set[str]] = {}
+    for row in rows:
+        if len(row) >= 3:
+            cohorts.setdefault((row[1], row[0]), set()).add(row[2])
+    return [
+        {"region": region, "date": day, "unique_asins": len(asins)}
+        for (region, day), asins in sorted(cohorts.items())
+        if len(asins) < 100
+    ]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apply", action="store_true", help="Append missing local keys without changing existing Sheet rows.")
@@ -97,6 +109,9 @@ def main() -> int:
         "mode": "apply" if args.apply else "dry_run",
         "spreadsheet": f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit",
         "local_history_rows": len(local_rows),
+        "local_date_region_cohorts": len({(row[0], row[1]) for row in local_rows if len(row) >= 3}),
+        "local_incomplete_date_region_cohorts": len(_incomplete_cohorts(local_rows)),
+        "local_incomplete_samples": _incomplete_cohorts(local_rows)[:50],
         "sheet_history_keys": len(existing_keys),
         "sheet_only_keys_preserved": len(existing_keys - local_keys),
         **_summarize_missing(missing_rows),

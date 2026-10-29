@@ -8,10 +8,11 @@ from watchdog_sheet import _history_metrics
 
 def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> None:
     metrics = _history_metrics({
-        "range": "root_rank_history!A1:I8",
+        "range": "root_rank_history!A1:I10",
         "values": [
             ["date", "region", "asin"],
             ["2026-10-28", "US", "A", "2"],
+            [],
             ["2026-10-29", "US", "A", "1"],
             ["2026-10-29", "US", "A", "1"],
             ["2026-10-28", "DE", "B", "1"],
@@ -23,8 +24,10 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
 
     assert metrics == {
         "rows": 7,
-        "physical_last_row": 8,
-        "blank_rows_within_range": 0,
+        "physical_last_row": 10,
+        "last_populated_row": 9,
+        "blank_rows_within_range": 1,
+        "trailing_blank_rows": 1,
         "newest_date": "2026-10-29",
         "latest_by_region": {
             "US": {"date": "2026-10-29", "rows": 2, "unique_keys": 1},
@@ -34,7 +37,7 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
             "ES": {"date": "2026-10-28", "rows": 1, "unique_keys": 1},
         },
         "duplicate_keys": 1,
-        "blank_row_numbers_sample": [],
+        "blank_row_numbers_sample": [3],
         "date_region_cohorts": 6,
         "incomplete_date_region_cohorts": 6,
         "incomplete_date_region_samples": [

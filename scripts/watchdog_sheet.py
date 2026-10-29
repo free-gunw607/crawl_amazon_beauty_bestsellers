@@ -81,6 +81,11 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
         row_num for row_num, row in enumerate(values, start=1)
         if not isinstance(row, list) or not any(str(cell).strip() for cell in row)
     ]
+    populated_row_numbers = [
+        row_num for row_num, row in enumerate(values, start=1)
+        if isinstance(row, list) and any(str(cell).strip() for cell in row)
+    ]
+    last_populated_row = max(populated_row_numbers, default=0)
     for row in data_rows:
         if len(row) < 4:
             continue
@@ -108,7 +113,9 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
     return {
         "rows": len(data_rows),
         "physical_last_row": physical_last_row,
-        "blank_rows_within_range": max(0, physical_last_row - 1 - len(data_rows)),
+        "last_populated_row": last_populated_row,
+        "blank_rows_within_range": len(blank_rows),
+        "trailing_blank_rows": max(0, physical_last_row - last_populated_row),
         "newest_date": max((str(row[0]) for row in data_rows if row and str(row[0]).strip()), default=""),
         "latest_by_region": by_region,
         "duplicate_keys": duplicate_keys,
@@ -186,7 +193,9 @@ def main() -> int:
         "stale_regions": stale,
         "root_rank_history_rows": history_count,
         "root_rank_history_physical_last_row": history_metrics["physical_last_row"],
+        "root_rank_history_last_populated_row": history_metrics["last_populated_row"],
         "root_rank_history_blank_rows_within_range": history_metrics["blank_rows_within_range"],
+        "root_rank_history_trailing_blank_rows": history_metrics["trailing_blank_rows"],
         "root_rank_history_newest_date": newest_history,
         "root_rank_history_latest_by_region": history_metrics["latest_by_region"],
         "root_rank_history_duplicate_keys": history_metrics["duplicate_keys"],
