@@ -10,7 +10,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHEET_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
-GWS_CONFIG_DIR = "/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws"
+GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
 

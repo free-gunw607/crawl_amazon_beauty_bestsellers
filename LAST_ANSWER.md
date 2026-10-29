@@ -156,6 +156,15 @@ Active cron now includes:
 ```
 # 2026-10-28 — Shared A4 mail transport repair
 
+## 2026-10-29 — Active root-run recovery repair
+
+- Confirmed today's original 05:00 production pass had all five regions. A second run fired at 13:39 because the newly enabled 05:00 systemd timer used `Persistent=true`; this was an install-time missed-run catch-up.
+- That extra run succeeded for US/DE/FR/ES and was blocked by Amazon on UK (`0/0`, `fail=1`). The old summary incorrectly said `completed` because `run_job.py` did not propagate its rc=4 region failure to the process exit code and the parent checked only the summary status.
+- Code now requires 100+ crawled and published rows and zero failures per selected region, propagates rc=4 as failure, and has catch-up retry only failed/stale regions after the 55-minute block cooldown. Daily timer persistence is disabled to prevent another install-time recrawl.
+- Validation: `PYTHONPATH=src pytest -q` -> 37 passed; Python compilation, `bash -n`, and `git diff --check` passed. Full `systemd-analyze verify` is pending on LIAM3 because this LIAM1 checkout has no `.venv/bin/python` at the unit's configured path.
+- Deployed the current recovery code to LIAM3 and LIAM2. LIAM3's 13:52 manual check correctly deferred the blocked UK retry; LIAM2's 13:53 check confirmed all five tabs/titles current and did not recrawl. Partial-region success now refreshes shared aggregate tabs from local SQLite without crawling ES. Cross-node newer Sheet stamps suppress retries for failures already repaired elsewhere.
+- Remaining proof: scheduled 13:55 check, UK retry after 14:35 KST cooldown, live Sheet/history verification, and corrected SMTP/Telegram report. LIAM2's Drive OAuth, Git commit/push, and LIAM1/LIAM4 fleet checks are not yet complete.
+
 - Removed Gmail OAuth/Gmail API from the Amazon operational email sender. SMTP failure is reported directly; the sender does not switch transports after an ambiguous delivery.
 - If Amazon mail has no recipient or SMTP delivery fails, `run_job.py` now sends a failure alert through Telegram when configured.
 - Added a shared loader at `A3-runtime-standards/ops-scripts/shared_mailer.py`; repository recipients and explicit SMTP overrides remain local.

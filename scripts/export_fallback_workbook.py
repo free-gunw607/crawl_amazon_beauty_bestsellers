@@ -12,7 +12,7 @@ from openpyxl.styles import Alignment, Font
 from openpyxl.utils import get_column_letter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-GWS_CONFIG_DIR = "/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws"
+GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 REGIONS = ["us", "de", "uk", "fr", "es"]
 
 

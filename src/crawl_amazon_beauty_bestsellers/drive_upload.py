@@ -15,33 +15,86 @@ class DriveUploadError(RuntimeError):
 def _upload_via_gws(file_path: Path, folder_id: str, remote_name: str | None = None) -> dict[str, str]:
     import subprocess
 
-    cmd = [
-        "gws", "drive", "files", "create",
-        "--upload", str(file_path),
-        "--upload-content-type", XLSX_MIME,
-        "--params", '{"supportsAllDrives": true}',
-        "--json", json.dumps({"name": remote_name or file_path.name, "parents": [folder_id]}),
-    ]
-    try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
-    except FileNotFoundError:
-        raise DriveUploadError("gws CLI not found on PATH")
-    if proc.returncode != 0:
-        raise DriveUploadError(f"gws upload failed: {proc.stderr.strip()[-300:]}")
-    stdout = proc.stdout
-    info = json.loads(stdout[stdout.index("{"):])
+    root = Path(__file__).resolve().parents[2]
+    name = remote_name or file_path.name
+
+    def run(command: list[str], operation: str) -> dict[str, object]:
+        try:
+            proc = subprocess.run(command, cwd=root, capture_output=True, text=True, timeout=600)
+        except FileNotFoundError as exc:
+            raise DriveUploadError("gws CLI not found on PATH") from exc
+        if proc.returncode != 0:
+            raise DriveUploadError(f"gws {operation} failed: {proc.stderr.strip()[-500:]}")
+        stdout = proc.stdout
+        try:
+            return json.loads(stdout[stdout.index("{"):])
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise DriveUploadError(f"gws {operation} returned invalid JSON") from exc
+
+    escaped_name = name.replace("\\", "\\\\").replace("'", "\\'")
+    escaped_folder = folder_id.replace("\\", "\\\\").replace("'", "\\'")
+    query = f"name = '{escaped_name}' and '{escaped_folder}' in parents and trashed = false"
+    listed = run(
+        [
+            "gws", "drive", "files", "list",
+            "--params", json.dumps({
+                "q": query,
+                "pageSize": 100,
+                "orderBy": "modifiedTime desc",
+                "fields": "files(id,name,webViewLink,modifiedTime)",
+                "supportsAllDrives": True,
+                "includeItemsFromAllDrives": True,
+            }),
+        ],
+        "file lookup",
+    )
+    matches = listed.get("files", [])
+    existing = matches[0] if isinstance(matches, list) and matches and isinstance(matches[0], dict) else None
+    if existing and existing.get("id"):
+        params = {
+            "fileId": existing["id"],
+            "supportsAllDrives": True,
+            "fields": "id,name,webViewLink",
+        }
+        info = run(
+            [
+                "gws", "drive", "files", "update",
+                "--params", json.dumps(params),
+                "--upload", str(file_path),
+                "--upload-content-type", XLSX_MIME,
+            ],
+            "file update",
+        )
+    else:
+        info = run(
+            [
+                "gws", "drive", "files", "create",
+                "--upload", str(file_path),
+                "--upload-content-type", XLSX_MIME,
+                "--params", '{"supportsAllDrives": true, "fields": "id,name,webViewLink"}',
+                "--json", json.dumps({"name": name, "parents": [folder_id]}),
+            ],
+            "upload",
+        )
     file_id = info.get("id", "")
     return {
         "file_id": file_id,
-        "name": info.get("name", ""),
-        "link": f"https://drive.google.com/file/d/{file_id}/view",
+        "name": str(info.get("name") or (existing or {}).get("name") or name),
+        "link": str(info.get("webViewLink") or (existing or {}).get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"),
     }
 
 
 def upload_file(file_path: Path, remote_name: str | None = None) -> dict[str, str]:
+    backend = os.environ.get("AMZ_BS_DRIVE_BACKEND", "gws").lower()
     creds_env = os.environ.get("GDRIVE_CREDS", "")
     folder_id = os.environ.get("AMZ_BS_DRIVE_FOLDER_ID", "")
-    if creds_env:
+    if backend == "gws":
+        return _upload_via_gws(file_path, folder_id or DEFAULT_GWS_FOLDER_ID, remote_name)
+    if backend != "sa":
+        raise DriveUploadError(f"unsupported Drive upload backend: {backend}")
+    if not creds_env:
+        raise DriveUploadError("GDRIVE_CREDS is required when AMZ_BS_DRIVE_BACKEND=sa")
+    if backend == "sa":
         from google.oauth2 import service_account
         from googleapiclient.discovery import build
         from googleapiclient.http import MediaFileUpload
@@ -64,4 +117,3 @@ def upload_file(file_path: Path, remote_name: str | None = None) -> dict[str, st
             .execute()
         )
         return {"file_id": created.get("id", ""), "name": created.get("name", ""), "link": created.get("webViewLink", "")}
-    return _upload_via_gws(file_path, folder_id or DEFAULT_GWS_FOLDER_ID, remote_name)

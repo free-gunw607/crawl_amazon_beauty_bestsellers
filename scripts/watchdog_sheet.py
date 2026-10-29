@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -11,7 +12,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
-GWS_CONFIG_DIR = "/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws"
+GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 REGIONS = ["US", "DE", "UK", "FR", "ES"]
 
 
@@ -28,7 +29,7 @@ def _load_env() -> None:
             os.environ[key.strip()] = value.strip().strip("\"'")
 
 
-def _gws_values(range_name: str, env: dict[str, str] | None = None) -> list[list[str]]:
+def _gws_value_payload(range_name: str, env: dict[str, str] | None = None) -> dict[str, object]:
     env = dict(env or os.environ)
     if env.get("AMZ_BS_ROOT_BACKEND", "gws").lower() == "sa":
         sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -41,7 +42,7 @@ def _gws_values(range_name: str, env: dict[str, str] | None = None) -> list[list
             timeout=60,
         )
         response.raise_for_status()
-        return response.json().get("values", [])
+        return response.json()
     env.setdefault("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", GWS_CONFIG_DIR)
     env.setdefault("GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND", "keyring")
     proc = subprocess.run(
@@ -59,7 +60,25 @@ def _gws_values(range_name: str, env: dict[str, str] | None = None) -> list[list
         raise RuntimeError((proc.stderr or proc.stdout).strip()[-500:])
     stdout = proc.stdout
     payload = json.loads(stdout[stdout.index("{"):])
-    return payload.get("values", [])
+    return payload
+
+
+def _gws_values(range_name: str, env: dict[str, str] | None = None) -> list[list[str]]:
+    return _gws_value_payload(range_name, env).get("values", [])
+
+
+def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
+    values = payload.get("values", [])
+    rows = [row for row in values if isinstance(row, list) and any(str(cell).strip() for cell in row)]
+    data_rows = rows[1:] if rows else []
+    range_match = re.search(r":(?:[A-Z]+)(\d+)$", str(payload.get("range", "")))
+    physical_last_row = int(range_match.group(1)) if range_match else len(values)
+    return {
+        "rows": len(data_rows),
+        "physical_last_row": physical_last_row,
+        "blank_rows_within_range": max(0, physical_last_row - 1 - len(data_rows)),
+        "newest_date": next((row[0] for row in reversed(data_rows) if row), ""),
+    }
 
 
 def _parse_stamp(value: str) -> datetime:
@@ -116,9 +135,10 @@ def main() -> int:
         else:
             ok.append(line)
 
-    history_rows = _gws_values("root_rank_history!A:I")
-    history_count = len(history_rows)
-    newest_history = history_rows[-1][0] if history_rows and history_rows[-1] else ""
+    history_payload = _gws_value_payload("root_rank_history!A:I")
+    history_metrics = _history_metrics(history_payload)
+    history_count = int(history_metrics["rows"])
+    newest_history = str(history_metrics["newest_date"])
 
     payload = {
         "ok": not stale,
@@ -127,6 +147,8 @@ def main() -> int:
         "ok_regions": ok,
         "stale_regions": stale,
         "root_rank_history_rows": history_count,
+        "root_rank_history_physical_last_row": history_metrics["physical_last_row"],
+        "root_rank_history_blank_rows_within_range": history_metrics["blank_rows_within_range"],
         "root_rank_history_newest_date": newest_history,
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))

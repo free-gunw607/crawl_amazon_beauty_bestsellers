@@ -1,0 +1,17 @@
+[Unit]
+Description=Beauty Bestseller title-gap and missed-run recovery
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers
+Environment=PYTHONPATH=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/src
+Environment=AMZ_BS_ROOT_BACKEND=sa
+Environment=AMZ_BS_DRIVE_BACKEND=gws
+Environment=AMZ_BS_ROOT_SHEETS_ID=1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80
+Environment=GDRIVE_CREDS=%h/.config/amzbs/service-account.json
+Environment=PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=GOOGLE_WORKSPACE_CLI_CONFIG_DIR=%h/.config/gws-amazon
+Environment=GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=keyring
+EnvironmentFile=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.env
+ExecStart=/usr/bin/flock -n %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.agent/locks/daily_pipeline.lock %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/daily_catchup.py --not-before-hour 5 --email
+TimeoutStartSec=3600

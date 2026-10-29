@@ -1,0 +1,9 @@
+[Unit]
+Description=Beauty Bestseller hourly recovery check
+
+[Timer]
+OnCalendar=*-*-* *:55:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

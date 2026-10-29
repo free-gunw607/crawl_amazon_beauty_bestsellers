@@ -5,8 +5,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 from run_daily_pipeline import (
     _build_final,
+    _global_sheet_refresh_command,
     _merge_history_counts_from_log,
+    _root_complete,
     _root_table,
+    _titles_complete,
     _title_completion_command,
 )
 
@@ -19,6 +22,13 @@ def test_title_completion_keeps_historical_backfill_off_daily_quota_path() -> No
 
     audit_command = _title_completion_command("python", Path("audit.json"), read_only=True)
     assert "--no-fallback" in audit_command
+
+
+def test_partial_recovery_refreshes_shared_sheet_views_without_crawling() -> None:
+    command = _global_sheet_refresh_command("python")
+
+    assert command[-3:] == ["publish-root", "--region", "es"]
+    assert "root-cycle" not in command
 
 
 def test_root_report_includes_append_only_history_rows() -> None:
@@ -47,6 +57,35 @@ def test_drive_upload_failure_cannot_be_reported_as_pipeline_complete() -> None:
     )
 
     assert "Final status: ATTENTION REQUIRED" in report
+
+
+def test_missing_live_top100_title_cannot_be_reported_as_complete() -> None:
+    titles = {
+        "regions": [
+            {"region": region, "total": 100, "titled": 99 if region == "US" else 100, "missing": 1 if region == "US" else 0}
+            for region in ("US", "DE", "UK", "FR", "ES")
+        ]
+    }
+
+    assert not _titles_complete(titles)
+
+
+def test_root_completion_requires_full_publish_and_no_failed_regions() -> None:
+    root = {
+        "regions": [
+            {"region": region, "crawled": 100, "published": 100, "fail": int(region == "UK")}
+            for region in ("US", "DE", "UK", "FR", "ES")
+        ]
+    }
+
+    assert not _root_complete(root)
+    assert _root_complete(root, ("US", "DE", "FR", "ES"))
+
+
+def test_root_completion_rejects_short_publish_counts() -> None:
+    root = {"regions": [{"region": "UK", "crawled": 100, "published": 99, "fail": 0}]}
+
+    assert not _root_complete(root, ("UK",))
 
 
 def test_older_root_summary_recovers_history_counts_from_raw_log(tmp_path: Path) -> None:

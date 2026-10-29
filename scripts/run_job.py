@@ -450,6 +450,7 @@ def main() -> int:
         elif rc == 4:
             result["fail"] = 1
             result["crawled"] = 0
+            overall_rc = 1
 
         # Phase 1.5: fill titles for this region. The daily cron uses
         # --no-detail so the core Sheet publish cannot be held by /dp/ calls.

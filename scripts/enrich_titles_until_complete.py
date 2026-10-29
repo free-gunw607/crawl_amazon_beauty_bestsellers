@@ -13,7 +13,7 @@ from urllib.parse import quote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
-GWS_CONFIG_DIR = "/home/liam/agent-coding/agent-system/A3-runtime-standards/local-config/gws"
+GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 DEFAULT_REGIONS = ["us", "de", "uk", "fr", "es"]
 DEFAULT_FALLBACK_MARKETS = ["de", "uk", "fr", "us", "es"]
 REGIONS_ALL = ["us", "de", "uk", "fr", "es"]
@@ -240,33 +240,6 @@ def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = No
     }
 
 
-def _fill_titles(region: str, batch_size: int, timeout_sec: int, env: dict[str, str]) -> tuple[int, str]:
-    cmd = [
-        sys.executable,
-        "-m",
-        "crawl_amazon_beauty_bestsellers.cli",
-        "fill-titles",
-        "--region",
-        region,
-        "--limit",
-        str(batch_size),
-        "--publish-root",
-    ]
-    try:
-        proc = subprocess.run(
-            cmd,
-            cwd=REPO_ROOT,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=timeout_sec,
-        )
-        return proc.returncode, (proc.stdout + "\n" + proc.stderr).strip()
-    except subprocess.TimeoutExpired as exc:
-        output = ((exc.stdout or "") + "\n" + (exc.stderr or "")).strip()
-        return 124, f"timeout after {timeout_sec}s\n{output}"
-
-
 def _fallback_marketplace_titles(
     region: str,
     missing: Iterable[tuple[str, str]],
@@ -276,7 +249,7 @@ def _fallback_marketplace_titles(
     sys.path.insert(0, str(REPO_ROOT / "src"))
     from bs4 import BeautifulSoup
     from crawl_amazon_beauty_bestsellers.config import load_settings
-    from crawl_amazon_beauty_bestsellers.http_client import AmazonClient
+    from crawl_amazon_beauty_bestsellers.http_client import AmazonClient, CaptchaBlocked
     from crawl_amazon_beauty_bestsellers.root_publish import publish_root_region
     from crawl_amazon_beauty_bestsellers.storage.store import Store
 
@@ -292,12 +265,18 @@ def _fallback_marketplace_titles(
     clients: dict[str, AmazonClient] = {}
     ordered_markets = list(dict.fromkeys([region, *markets]))
     overrides = _title_overrides()
+    db_titles = _db_title_map()
 
     missing_rows = list(missing)[:max_items]
+    publish_needed = False
     try:
         for _rank, asin in missing_rows:
-            title = overrides.get(f"{region}:{asin}".lower(), "") or overrides.get(asin.lower(), "")
-            source = "override" if title else ""
+            title = (
+                overrides.get(f"{region}:{asin}".lower(), "")
+                or overrides.get(asin.lower(), "")
+                or db_titles.get(asin, "")
+            )
+            source = "override" if title and (overrides.get(f"{region}:{asin}".lower()) or overrides.get(asin.lower())) else "local_db" if title else ""
             for market in ordered_markets if not title else []:
                 profile = settings.marketplace(market)
                 if profile is None:
@@ -308,6 +287,8 @@ def _fallback_marketplace_titles(
                     clients[market] = client
                     try:
                         client.bootstrap_us_location()
+                    except CaptchaBlocked:
+                        raise
                     except Exception:
                         pass
                 try:
@@ -315,13 +296,19 @@ def _fallback_marketplace_titles(
                     soup = BeautifulSoup(response.text, "html.parser")
                     title_el = soup.select_one("#productTitle")
                     title = (title_el.get_text(" ", strip=True) if title_el else "").strip()
+                    if not title:
+                        meta = soup.select_one('meta[property="og:title"], meta[name="title"]')
+                        title = str(meta.get("content", "")).strip() if meta else ""
                     if title:
                         source = market
                         break
+                except CaptchaBlocked:
+                    raise
                 except Exception:
                     continue
             if title and store.update_title(asin, node, title):
                 filled += 1
+                publish_needed = True
                 print(
                     json.dumps(
                         {"region": region.upper(), "asin": asin, "fallback_market": source, "title": title[:120]},
@@ -329,15 +316,73 @@ def _fallback_marketplace_titles(
                     ),
                     flush=True,
                 )
-        # A previous attempt can write the title locally then fail during
-        # publish; publish whenever this invocation was repairing live blanks.
-        if missing_rows:
+        # A previous attempt can write locally then fail during publish; the
+        # local DB title map above will rediscover it and trigger this publish.
+        if publish_needed:
             print(publish_root_region(settings, store, region), flush=True)
         return filled
     finally:
         for client in clients.values():
             client.close()
         store.close()
+
+
+def _recover_region_titles(
+    region: str,
+    *,
+    max_rounds: int,
+    sleep_sec: int,
+    max_sleep_sec: int,
+    markets: list[str],
+    env: dict[str, str],
+) -> dict[str, object]:
+    """Retry only current live-sheet title gaps and verify after every publish."""
+    from crawl_amazon_beauty_bestsellers.http_client import CaptchaBlocked
+
+    titled, total, missing = _sheet_title_count(region, env)
+    rounds: list[dict[str, object]] = []
+    blocked = ""
+    for round_no in range(1, max_rounds + 1):
+        if total >= 100 and not missing:
+            break
+        before = len(missing)
+        # Rotate fallback-market priority between rounds while keeping the
+        # product's own marketplace first inside _fallback_marketplace_titles.
+        if markets:
+            offset = (round_no - 1) % len(markets)
+            round_markets = markets[offset:] + markets[:offset]
+        else:
+            round_markets = []
+        try:
+            filled = _fallback_marketplace_titles(region, missing, round_markets, max_items=len(missing))
+        except CaptchaBlocked as exc:
+            blocked = str(exc)
+            rounds.append({"round": round_no, "before_missing": before, "blocked": blocked})
+            break
+        titled, total, missing = _sheet_title_count(region, env)
+        rounds.append({
+            "round": round_no,
+            "before_missing": before,
+            "filled_local": filled,
+            "after_missing": len(missing),
+        })
+        print(json.dumps({"region": region.upper(), "event": "title_recovery_round", **rounds[-1]}, ensure_ascii=False), flush=True)
+        if total >= 100 and not missing:
+            break
+        if round_no < max_rounds and sleep_sec > 0:
+            delay = min(max_sleep_sec, sleep_sec * (2 ** (round_no - 1)))
+            print(json.dumps({"region": region.upper(), "event": "retry_cooldown", "seconds": delay}, ensure_ascii=False), flush=True)
+            time.sleep(delay)
+    return {
+        "region": region.upper(),
+        "titled": titled,
+        "total": total,
+        "missing": len(missing),
+        "missing_asins": missing,
+        "rounds": rounds,
+        "blocked": blocked,
+        "complete": total >= 100 and not missing,
+    }
 
 
 def _notify(summary: str) -> None:
@@ -357,12 +402,10 @@ def _notify(summary: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--regions", nargs="+", default=DEFAULT_REGIONS)
-    parser.add_argument("--batch-size", type=int, default=10)
-    # The CLI queue is DB-wide and may select stale ASINs. The fallback below
-    # receives the exact blanks from the live Sheet, so it is the default.
-    parser.add_argument("--max-rounds", type=int, default=0)
-    parser.add_argument("--timeout-sec", type=int, default=420)
+    # Every recovery round works from the exact current live-sheet blanks.
+    parser.add_argument("--max-rounds", type=int, default=4, help="bounded recovery rounds per region; later catchups resume remaining gaps")
     parser.add_argument("--sleep-sec", type=int, default=20)
+    parser.add_argument("--max-sleep-sec", type=int, default=300)
     parser.add_argument("--target", type=int, default=100)
     parser.add_argument("--alert", action="store_true")
     parser.add_argument("--fallback", action="store_true", default=True)
@@ -383,7 +426,6 @@ def main() -> int:
             {
                 "event": "title_enrichment_start",
                 "regions": args.regions,
-                "batch_size": args.batch_size,
                 "max_rounds": args.max_rounds,
                 "target": args.target,
             },
@@ -392,88 +434,31 @@ def main() -> int:
         flush=True,
     )
 
+    all_complete = True
+    block_seen = False
     for region in [r.lower() for r in args.regions]:
-        previous = -1
-        stalled_rounds = 0
-        for round_no in range(1, args.max_rounds + 1):
-            titled, total, missing = _sheet_title_count(region, env)
-            print(
-                json.dumps(
-                    {
-                        "region": region.upper(),
-                        "round": round_no,
-                        "before": f"{titled}/{total}",
-                        "missing": len(missing),
-                        "sample": missing[:5],
-                    },
-                    ensure_ascii=False,
-                ),
-                flush=True,
-            )
-            if total and titled >= min(args.target, total):
-                break
-            if titled == previous:
-                stalled_rounds += 1
-            else:
-                stalled_rounds = 0
-            if stalled_rounds >= 2:
-                print(json.dumps({"region": region.upper(), "event": "stalled"}), flush=True)
-                break
-            previous = titled
-
-            rc, output = _fill_titles(region, args.batch_size, args.timeout_sec, env)
-            print(output, flush=True)
-            titled_after, total_after, missing_after = _sheet_title_count(region, env)
-            print(
-                json.dumps(
-                    {
-                        "region": region.upper(),
-                        "round": round_no,
-                        "fill_rc": rc,
-                        "after": f"{titled_after}/{total_after}",
-                        "remaining": len(missing_after),
-                    },
-                    ensure_ascii=False,
-                ),
-                flush=True,
-            )
-            if rc == 124:
-                break
-            if titled_after >= min(args.target, total_after):
-                break
-            if args.sleep_sec > 0:
-                time.sleep(args.sleep_sec)
-
-        titled_final, total_final, missing_final = _sheet_title_count(region, env)
-        if args.fallback and total_final and titled_final < min(args.target, total_final):
-            print(
-                json.dumps(
-                    {
-                        "region": region.upper(),
-                        "event": "fallback_start",
-                        "before": f"{titled_final}/{total_final}",
-                        "missing": missing_final,
-                    },
-                    ensure_ascii=False,
-                ),
-                flush=True,
-            )
-            _fallback_marketplace_titles(
+        if args.fallback and not block_seen:
+            result = _recover_region_titles(
                 region,
-                missing_final,
-                args.fallback_marketplaces,
-                max(args.batch_size, len(missing_final)),
+                max_rounds=max(1, args.max_rounds),
+                sleep_sec=args.sleep_sec,
+                max_sleep_sec=args.max_sleep_sec,
+                markets=list(args.fallback_marketplaces),
+                env=env,
             )
-            titled_final, total_final, missing_final = _sheet_title_count(region, env)
-        results.append(f"{region.upper()}: {titled_final}/{total_final} titles, missing={len(missing_final)}")
-        summary_regions.append(
-            {
-                "region": region.upper(),
-                "titled": titled_final,
-                "total": total_final,
-                "missing": len(missing_final),
-            }
-        )
+        else:
+            titled, total, missing = _sheet_title_count(region, env)
+            result = {"region": region.upper(), "titled": titled, "total": total, "missing": len(missing), "missing_asins": missing, "rounds": [], "blocked": ""}
+        complete = int(result["total"]) >= args.target and int(result["missing"]) == 0
+        all_complete = all_complete and complete
+        result["complete"] = complete
+        summary_regions.append(result)
+        results.append(f"{region.upper()}: {result['titled']}/{result['total']} titles, missing={result['missing']}")
+        if result.get("blocked"):
+            block_seen = True
+            results.append(f"  stopped on Amazon block signal: {result['blocked']}")
+        elif block_seen and args.fallback:
+            results.append("  network recovery skipped after an earlier marketplace block signal")
 
     if args.backfill_history:
         history_dates = set(args.history_date) if args.history_date else None
@@ -494,7 +479,7 @@ def main() -> int:
         )
     if args.alert:
         _notify(summary)
-    return 0
+    return 0 if all_complete else 1
 
 
 if __name__ == "__main__":

@@ -5,7 +5,10 @@ Description=Beauty Bestseller Sheet3 freshness watchdog
 Type=oneshot
 WorkingDirectory=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers
 Environment=PYTHONPATH=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/src
-Environment=GOOGLE_WORKSPACE_CLI_CONFIG_DIR=%h/agent-coding/agent-system/A3-runtime-standards/local-config/gws
+Environment=AMZ_BS_ROOT_BACKEND=sa
+Environment=GDRIVE_CREDS=%h/.config/amzbs/service-account.json
+Environment=PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=GOOGLE_WORKSPACE_CLI_CONFIG_DIR=%h/.config/gws-amazon
 Environment=GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=keyring
 EnvironmentFile=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.env
 ExecStart=%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/watchdog_sheet.py --max-age-hours 30 --alert

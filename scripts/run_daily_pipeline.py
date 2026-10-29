@@ -28,6 +28,8 @@ def _env() -> dict[str, str]:
     if not env.get("AMZ_BS_ROOT_BACKEND"):
         env["AMZ_BS_ROOT_BACKEND"] = "sa" if env.get("GDRIVE_CREDS") else "gws"
     env.setdefault("AMZ_BS_ROOT_SHEETS_ID", "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80")
+    env.setdefault("GOOGLE_WORKSPACE_CLI_CONFIG_DIR", str(Path.home() / ".config" / "gws-amazon"))
+    env.setdefault("GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND", "keyring")
     return env
 
 
@@ -88,26 +90,35 @@ def _root_table(root: dict[str, object]) -> list[str]:
         ("History +", "history_appended"),
         ("Failed", "fail"),
     ):
-        values = [int(by_region.get(region, {}).get(key, 0) or 0) for region in REGIONS]
-        lines.append(f"{label:<10} " + " ".join(f"{value:>5}" for value in values) + f" {sum(values):>7}")
+        values = [int(by_region.get(region, {}).get(key, 0) or 0) for region in REGIONS if region in by_region]
+        rendered = [
+            f"{int(by_region[region].get(key, 0) or 0):>5}" if region in by_region else f"{'—':>5}"
+            for region in REGIONS
+        ]
+        lines.append(f"{label:<10} " + " ".join(rendered) + f" {sum(values):>7}")
     return lines
 
 
-def _title_completion_command(python: str, summary_path: Path, *, read_only: bool = False) -> list[str]:
+def _title_completion_command(python: str, summary_path: Path, *, regions: tuple[str, ...] = REGIONS, read_only: bool = False) -> list[str]:
     command = [
         python,
         "scripts/enrich_titles_until_complete.py",
-        "--regions", "us", "de", "uk", "fr", "es",
-        "--batch-size", "10",
-        "--max-rounds", "0",
-        "--timeout-sec", "420",
-        "--sleep-sec", "15",
+        "--regions", *(region.lower() for region in regions),
+        "--max-rounds", "4",
+        "--sleep-sec", "45",
+        "--max-sleep-sec", "300",
         "--no-backfill-history",
     ]
     if read_only:
         command.append("--no-fallback")
     command.extend(["--summary-json", str(summary_path)])
     return command
+
+
+def _global_sheet_refresh_command(python: str) -> list[str]:
+    # The ES publisher also refreshes shared [ALL]/trend/catalog/history views.
+    # It reads the local DB only; this does not crawl Amazon.
+    return [python, "-m", "crawl_amazon_beauty_bestsellers.cli", "publish-root", "--region", "es"]
 
 
 def _title_lines(titles: dict[str, object], title_rc: int | None) -> list[str]:
@@ -123,7 +134,38 @@ def _title_lines(titles: dict[str, object], title_rc: int | None) -> list[str]:
                 f"{str(row.get('region', '?')).upper()}: "
                 f"{row.get('titled', 0)}/{row.get('total', 0)} titles, missing {row.get('missing', 0)}"
             )
+            rounds = row.get("rounds")
+            if isinstance(rounds, list) and rounds:
+                lines.append(f"  recovery rounds: {len(rounds)}")
+            if row.get("blocked"):
+                lines.append(f"  stopped on block signal: {row['blocked']}")
     return lines or ["No title result was produced."]
+
+
+def _titles_complete(titles: dict[str, object]) -> bool:
+    rows = titles.get("regions")
+    if not isinstance(rows, list) or len(rows) != len(REGIONS):
+        return False
+    by_region = {str(row.get("region", "")).upper(): row for row in rows if isinstance(row, dict)}
+    return all(
+        int(by_region.get(region, {}).get("total", 0) or 0) >= 100
+        and int(by_region.get(region, {}).get("titled", 0) or 0) >= 100
+        and int(by_region.get(region, {}).get("missing", 1) or 0) == 0
+        for region in REGIONS
+    )
+
+
+def _root_complete(root: dict[str, object], expected_regions: tuple[str, ...] = REGIONS) -> bool:
+    rows = root.get("regions")
+    if not isinstance(rows, list):
+        return False
+    by_region = {str(row.get("region", "")).upper(): row for row in rows if isinstance(row, dict)}
+    return all(
+        int(by_region.get(region, {}).get("crawled", 0) or 0) >= 100
+        and int(by_region.get(region, {}).get("published", 0) or 0) >= 100
+        and int(by_region.get(region, {}).get("fail", 1) or 0) == 0
+        for region in expected_regions
+    )
 
 
 def _fallback_lines(fallback: dict[str, object], fallback_rc: int) -> list[str]:
@@ -143,7 +185,7 @@ def _fallback_lines(fallback: dict[str, object], fallback_rc: int) -> list[str]:
 def _build_final(trigger: str, root_rc: int, title_rc: int | None, fallback_rc: int, root: dict[str, object], titles: dict[str, object], fallback: dict[str, object]) -> str:
     drive = fallback.get("drive")
     drive_uploaded = isinstance(drive, dict) and bool(drive.get("file_id"))
-    completed = root_rc == 0 and title_rc == 0 and fallback_rc == 0 and drive_uploaded
+    completed = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded
     status = "COMPLETED" if completed else "ATTENTION REQUIRED"
     recovery = trigger in {"catchup", "secondary-takeover", "manual"}
     drive_line = (
@@ -201,8 +243,22 @@ def main() -> int:
         type=Path,
         help="Re-audit and deliver a prior run's report without recrawling or reuploading its fallback XLSX.",
     )
+    parser.add_argument(
+        "--resume-existing",
+        type=Path,
+        help="Resume titles and rebuild the fallback for a saved run without recrawling its regional lists.",
+    )
+    parser.add_argument(
+        "--silent-incomplete",
+        action="store_true",
+        help="Do not send repeated incomplete recovery reports; the catch-up scheduler owns the throttled pending alert.",
+    )
+    parser.add_argument("--regions", nargs="+", choices=REGIONS, default=list(REGIONS),
+                        help="Regions to collect for this run; defaults to all five.")
     args = parser.parse_args()
     env = _env()
+    if args.report_existing and args.resume_existing:
+        parser.error("choose only one of --report-existing or --resume-existing")
     if args.report_existing:
         run_dir = args.report_existing.expanduser().resolve()
         root_path, titles_path, fallback_path = (run_dir / "root.json", run_dir / "titles.json", run_dir / "fallback.json")
@@ -210,7 +266,7 @@ def main() -> int:
             parser.error("--report-existing requires existing root.json and fallback.json files")
         root = _read_summary(root_path)
         root = _merge_history_counts_from_log(root)
-        root_rc = 0 if root.get("status") == "completed" else 1
+        root_rc = 0 if root.get("status") == "completed" and _root_complete(root) else 1
         title_rc = _run(
             "read-only live title audit",
             _title_completion_command(sys.executable, titles_path, read_only=True),
@@ -220,12 +276,33 @@ def main() -> int:
         fallback = _read_summary(fallback_path)
         workbook = Path(str(fallback.get("xlsx", "")))
         fallback_rc = 0 if workbook.is_file() else 1
+    elif args.resume_existing:
+        run_dir = args.resume_existing.expanduser().resolve()
+        root_path, titles_path, fallback_path = (run_dir / "root.json", run_dir / "titles.json", run_dir / "fallback.json")
+        if not root_path.is_file() or not fallback_path.is_file():
+            parser.error("--resume-existing requires existing root.json and fallback.json files")
+        root = _merge_history_counts_from_log(_read_summary(root_path))
+        root_rc = 0 if root.get("status") == "completed" and _root_complete(root) else 1
+        title_rc = _run("resume live title completion", _title_completion_command(sys.executable, titles_path), env)
+        titles = _read_summary(titles_path)
+        fallback_rc = _run(
+            "refresh independent XLSX fallback",
+            [sys.executable, "scripts/export_fallback_workbook.py", "--summary-json", str(fallback_path)],
+            env,
+        )
+        fallback = _read_summary(fallback_path)
+        workbook = Path(str(fallback.get("xlsx", "")))
     else:
         run_dir = REPO_ROOT / ".agent" / "state" / "daily_pipeline" / time.strftime("%Y%m%d_%H%M%S")
         run_dir.mkdir(parents=True, exist_ok=True)
         root_path, titles_path, fallback_path = (run_dir / "root.json", run_dir / "titles.json", run_dir / "fallback.json")
 
-        root_rc = _run("root collection", [sys.executable, "scripts/run_job.py", "--no-detail", "--no-notify", "--summary-json", str(root_path)], env)
+        selected_regions = tuple(args.regions)
+        root_rc = _run("root collection", [sys.executable, "scripts/run_job.py", "--no-detail", "--no-notify", "--regions", *selected_regions, "--summary-json", str(root_path)], env)
+        if root_rc == 0 and set(selected_regions) != set(REGIONS):
+            refresh_rc = _run("refresh shared Sheet views from saved SQLite", _global_sheet_refresh_command(sys.executable), env)
+            if refresh_rc != 0:
+                root_rc = refresh_rc
         title_rc: int | None = None
         if root_rc == 0:
             title_rc = _run(
@@ -240,11 +317,18 @@ def main() -> int:
         # exporter and cannot prevent the local file from being attached below.
         fallback_rc = _run("independent XLSX fallback", [sys.executable, "scripts/export_fallback_workbook.py", "--summary-json", str(fallback_path)], env)
         root, titles, fallback = _read_summary(root_path), _read_summary(titles_path), _read_summary(fallback_path)
+        if root_rc == 0 and not _root_complete(root, selected_regions):
+            print("[daily] root summary has a failed or incomplete region", flush=True)
+            root_rc = 1
         workbook = Path(str(fallback.get("xlsx", "")))
 
     final = _build_final(args.trigger, root_rc, title_rc, fallback_rc, root, titles, fallback)
     drive_uploaded = isinstance(fallback.get("drive"), dict) and bool(fallback["drive"].get("file_id"))
-    complete = root_rc == 0 and title_rc == 0 and fallback_rc == 0 and drive_uploaded
+    complete = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded
+
+    if args.silent_incomplete and not complete:
+        print("[daily] recovery remains incomplete; notification is handled by the throttled catch-up alert", flush=True)
+        return 1
 
     # Successful runs retain the three phase reports. Failed runs send one
     # final report rather than flooding the inbox every time a catch-up fires.
