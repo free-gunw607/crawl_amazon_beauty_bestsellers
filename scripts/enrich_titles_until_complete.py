@@ -240,6 +240,20 @@ def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = No
     }
 
 
+def _latest_root_history_dates(env: dict[str, str]) -> set[str]:
+    rows = _gws_values("root_rank_history!A:B", env)
+    latest: dict[str, str] = {}
+    for row in rows[1:]:
+        if len(row) < 2:
+            continue
+        day, region = str(row[0]).strip(), str(row[1]).strip().upper()
+        if len(day) != 10 or not region:
+            continue
+        if day > latest.get(region, ""):
+            latest[region] = day
+    return set(latest.values())
+
+
 def _fallback_marketplace_titles(
     region: str,
     missing: Iterable[tuple[str, str]],
@@ -413,6 +427,8 @@ def main() -> int:
     parser.add_argument("--fallback-marketplaces", nargs="+", default=DEFAULT_FALLBACK_MARKETS)
     parser.add_argument("--backfill-history", action="store_true", default=True)
     parser.add_argument("--no-backfill-history", dest="backfill_history", action="store_false")
+    parser.add_argument("--backfill-latest-history", action="store_true",
+                        help="Repair blank titles only for each region's latest root_rank_history date.")
     parser.add_argument("--history-date", action="append", default=None, help="limit root_rank_history backfill to this date; may repeat")
     parser.add_argument("--summary-json", type=Path, help="Write final title/history results for an enclosing report.")
     args = parser.parse_args()
@@ -463,6 +479,12 @@ def main() -> int:
     if args.backfill_history:
         history_dates = set(args.history_date) if args.history_date else None
         history_result = _backfill_root_rank_history(env, dates=history_dates)
+    elif args.backfill_latest_history:
+        history_dates = _latest_root_history_dates(env)
+        history_result = _backfill_root_rank_history(env, dates=history_dates) if history_dates else {
+            "missing_before": 0, "updated": 0, "remaining_after": 0, "by_date": {},
+        }
+    if history_result is not None:
         print(json.dumps({"event": "root_rank_history_backfill", **history_result}, ensure_ascii=False), flush=True)
         results.append(
             "root_rank_history backfill: "

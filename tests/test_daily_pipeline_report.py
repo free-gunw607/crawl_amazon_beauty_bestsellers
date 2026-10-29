@@ -18,10 +18,13 @@ def test_title_completion_keeps_historical_backfill_off_daily_quota_path() -> No
     command = _title_completion_command("python", Path("titles.json"))
 
     assert "--no-backfill-history" in command
+    assert "--backfill-latest-history" in command
     assert command[command.index("--summary-json") + 1] == "titles.json"
 
     audit_command = _title_completion_command("python", Path("audit.json"), read_only=True)
     assert "--no-fallback" in audit_command
+    assert "--no-backfill-history" in audit_command
+    assert "--backfill-latest-history" not in audit_command
 
 
 def test_partial_recovery_refreshes_shared_sheet_views_without_crawling() -> None:

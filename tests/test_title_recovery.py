@@ -53,3 +53,15 @@ def test_title_recovery_stops_immediately_on_amazon_block(monkeypatch) -> None:
     assert result["missing"] == 1
     assert result["blocked"]
     assert len(result["rounds"]) == 1
+
+
+def test_latest_history_backfill_limits_itself_to_latest_date_per_region(monkeypatch) -> None:
+    monkeypatch.setattr(title_recovery, "_gws_values", lambda _range, _env: [
+        ["date", "region"],
+        ["2026-10-28", "US"],
+        ["2026-10-29", "US"],
+        ["2026-10-28", "UK"],
+        ["2026-10-29", "UK"],
+    ])
+
+    assert title_recovery._latest_root_history_dates({}) == {"2026-10-29"}

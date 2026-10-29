@@ -107,10 +107,11 @@ def _title_completion_command(python: str, summary_path: Path, *, regions: tuple
         "--max-rounds", "4",
         "--sleep-sec", "45",
         "--max-sleep-sec", "300",
-        "--no-backfill-history",
     ]
     if read_only:
-        command.append("--no-fallback")
+        command.extend(["--no-fallback", "--no-backfill-history"])
+    else:
+        command.extend(["--no-backfill-history", "--backfill-latest-history"])
     command.extend(["--summary-json", str(summary_path)])
     return command
 
