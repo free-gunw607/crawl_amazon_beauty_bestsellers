@@ -16,6 +16,7 @@ from crawl_amazon_beauty_bestsellers.sheets_publish import (
     oauth_access_token,
     oauth_ready,
 )
+from crawl_amazon_beauty_bestsellers.root_publish import _gws_values_batches
 
 
 def test_gws_retries_quota_errors_after_one_minute(monkeypatch) -> None:
@@ -29,6 +30,17 @@ def test_gws_retries_quota_errors_after_one_minute(monkeypatch) -> None:
 
     assert _gws(["sheets", "spreadsheets", "values", "batchUpdate"], {}, {}) == {}
     assert waits == [65]
+
+
+def test_root_tab_gws_batches_stay_below_argument_limit_and_cover_rows() -> None:
+    grid = [["header"]] + [[f"row-{n}", "x" * 500] for n in range(1000)]
+    batches = _gws_values_batches("Rank History", grid)
+    assert len(batches) > 1
+    encoded_sizes = [len(json.dumps({"data": batch}, ensure_ascii=False)) for batch in batches]
+    assert max(encoded_sizes) < 90_000
+    written = [row for batch in batches for item in batch for row in item["values"]]
+    assert written == grid
+    assert batches[0][0]["range"] == "'Rank History'!A2"
 
 
 def test_oauth_ready_false_when_missing(tmp_path, monkeypatch):

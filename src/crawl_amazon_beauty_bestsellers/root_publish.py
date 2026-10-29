@@ -44,6 +44,28 @@ PRICE_HISTORY_TAB = "Price History"
 ALL_TOP_100_TAB = "[ALL] Top 100"
 
 
+def _gws_values_batches(title: str, grid: list[list[str]]) -> list[list[dict]]:
+    """Build bounded gws argv payloads with contiguous row ranges."""
+    data_items: list[dict] = []
+    row_offset = 2  # Row 1 is the freshness stamp, written after the data.
+    for chunk in _chunk_rows(grid, max_bytes=55_000, max_rows=800):
+        data_items.append({"range": f"'{title}'!A{row_offset}", "values": chunk})
+        row_offset += len(chunk)
+    batches: list[list[dict]] = []
+    batch: list[dict] = []
+    batch_bytes = 0
+    for item in data_items:
+        item_bytes = len(json.dumps(item, ensure_ascii=False))
+        if batch and batch_bytes + item_bytes > 85_000:
+            batches.append(batch)
+            batch, batch_bytes = [], 0
+        batch.append(item)
+        batch_bytes += item_bytes
+    if batch:
+        batches.append(batch)
+    return batches
+
+
 def _service_account_access_token() -> str:
     creds_source = os.environ.get("GDRIVE_CREDS", "")
     if not creds_source:
@@ -366,25 +388,7 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
             # writes/minute quota on growing history tabs. Keep argv well below
             # ARG_MAX and publish the freshness stamp only after every data
             # chunk succeeds, so the watchdog cannot bless a partial tab.
-            data_items: list[dict] = []
-            row_offset = 2
-            for chunk in _chunk_rows(grid, max_bytes=120_000, max_rows=1000):
-                data_items.append({"range": f"'{title}'!A{row_offset}", "values": chunk})
-                row_offset += len(chunk)
-            batch: list[dict] = []
-            batch_bytes = 0
-            for item in data_items:
-                item_bytes = len(json.dumps(item, ensure_ascii=False))
-                if batch and batch_bytes + item_bytes > 600_000:
-                    _gws(
-                        ["sheets", "spreadsheets", "values", "batchUpdate"],
-                        {"spreadsheetId": sheet_id},
-                        {"valueInputOption": "USER_ENTERED", "data": batch},
-                    )
-                    batch, batch_bytes = [], 0
-                batch.append(item)
-                batch_bytes += item_bytes
-            if batch:
+            for batch in _gws_values_batches(title, grid):
                 _gws(
                     ["sheets", "spreadsheets", "values", "batchUpdate"],
                     {"spreadsheetId": sheet_id},
