@@ -176,3 +176,4 @@ Active cron now includes:
 - LIAM3 installed A4 sender code was updated with backups under `/tmp/a4-mail-rollout-backup`. LIAM2 received the updated Amazon sender and common module.
 - LIAM1 SSH remains unavailable; LIAM4 SSH is also unavailable. Neither node is verified.
 - No commit or push was made.
+- Watchdog hardening: it now audits update stamps across all 15 Top100/history/analytics tabs, instead of only the five Top100 tabs. Missing or stale tabs trigger the existing email/Telegram alert path. Verification: `PYTHONPATH=src pytest -q` -> 46 passed; py_compile and `git diff --check` also passed.

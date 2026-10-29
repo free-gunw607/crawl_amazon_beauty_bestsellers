@@ -3,7 +3,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
-from watchdog_sheet import _history_metrics
+from datetime import datetime
+
+from watchdog_sheet import STAMPED_TABS, _history_metrics, _stamp_is_fresh
 
 
 def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> None:
@@ -49,3 +51,18 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
             {"date": "2026-10-29", "region": "US", "unique_asins": 1},
         ],
     }
+
+
+def test_watchdog_covers_all_fifteen_published_workbook_tabs() -> None:
+    assert len(STAMPED_TABS) == 15
+    assert "UK Rank History" in STAMPED_TABS
+    assert "[ALL] Top 100" in STAMPED_TABS
+    assert "Price History" in STAMPED_TABS
+
+
+def test_watchdog_marks_invalid_or_old_tab_stamp_stale() -> None:
+    now = datetime(2026, 10, 29, 14, 0)
+
+    assert _stamp_is_fresh("2026-10-29 13:40 KST", now, 30)[0]
+    assert not _stamp_is_fresh("2026-10-28 05:03 KST", now, 8)[0]
+    assert not _stamp_is_fresh("", now, 30)[0]

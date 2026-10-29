@@ -14,6 +14,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
 GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
 REGIONS = ["US", "DE", "UK", "FR", "ES"]
+TOP100_TABS = [f"[{region}] Top 100" for region in REGIONS]
+STAMPED_TABS = [
+    *TOP100_TABS,
+    *[f"{region} Rank History" for region in REGIONS],
+    "[ALL] Top 100",
+    "trend_14d",
+    "Cross-Region Catalog",
+    "Rank Changes",
+    "Price History",
+]
 
 
 def _load_env() -> None:
@@ -130,6 +140,16 @@ def _parse_stamp(value: str) -> datetime:
     return datetime.strptime(value.replace(" KST", ""), "%Y-%m-%d %H:%M")
 
 
+def _stamp_is_fresh(value: str, now: datetime, max_age_hours: float) -> tuple[bool, str]:
+    try:
+        stamped_at = _parse_stamp(value)
+    except ValueError:
+        return False, f"invalid stamp `{value}`"
+    age = (now - stamped_at).total_seconds() / 3600
+    line = f"{value} age={age:.1f}h"
+    return age <= max_age_hours, line
+
+
 def _send_alert(message: str) -> None:
     sys.path.insert(0, str(REPO_ROOT / "scripts"))
     from run_job import _send_email, _send_telegram
@@ -164,21 +184,22 @@ def main() -> int:
 
     now = datetime.now()
     stale: list[str] = []
-    ok: list[str] = []
-    for region in REGIONS:
-        rows = _gws_values(f"[{region}] Top 100!A1:C1")
+    ok_tabs: list[str] = []
+    stale_regions: list[str] = []
+    ok_regions: list[str] = []
+    for tab in STAMPED_TABS:
+        rows = _gws_values(f"'{tab}'!A1:C1")
         stamp = rows[0][0] if rows and rows[0] else ""
-        try:
-            stamped_at = _parse_stamp(stamp)
-        except ValueError:
-            stale.append(f"{region}: invalid stamp `{stamp}`")
-            continue
-        age = (now - stamped_at).total_seconds() / 3600
-        line = f"{region}: {stamp} age={age:.1f}h"
-        if age > args.max_age_hours:
+        fresh, detail = _stamp_is_fresh(stamp, now, args.max_age_hours)
+        line = f"{tab}: {detail}"
+        if not fresh:
             stale.append(line)
+            if tab in TOP100_TABS:
+                stale_regions.append(line)
         else:
-            ok.append(line)
+            ok_tabs.append(line)
+            if tab in TOP100_TABS:
+                ok_regions.append(line)
 
     history_payload = _gws_value_payload("root_rank_history!A:I")
     history_metrics = _history_metrics(history_payload)
@@ -189,8 +210,10 @@ def main() -> int:
         "ok": not stale,
         "checked_at": time.strftime("%Y-%m-%d %H:%M %Z"),
         "sheet": SHEET3_ID,
-        "ok_regions": ok,
-        "stale_regions": stale,
+        "ok_regions": ok_regions,
+        "stale_regions": stale_regions,
+        "ok_tabs": ok_tabs,
+        "stale_tabs": stale,
         "root_rank_history_rows": history_count,
         "root_rank_history_physical_last_row": history_metrics["physical_last_row"],
         "root_rank_history_last_populated_row": history_metrics["last_populated_row"],
@@ -213,7 +236,7 @@ def main() -> int:
             f"checked_at: {payload['checked_at']}",
             f"Sheet3: https://docs.google.com/spreadsheets/d/{SHEET3_ID}/edit",
             "",
-            "stale:",
+            "stale tabs:",
             *stale,
             "",
             f"root_rank_history rows: {history_count}",
