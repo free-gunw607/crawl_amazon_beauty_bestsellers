@@ -11,7 +11,7 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
         "range": "root_rank_history!A1:I8",
         "values": [
             ["date", "region", "asin"],
-            ["2026-10-28", "US", "A"],
+            ["2026-10-28", "US", "A", "2"],
             ["2026-10-29", "US", "A", "1"],
             ["2026-10-29", "US", "A", "1"],
             ["2026-10-28", "DE", "B", "1"],
@@ -34,4 +34,15 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
             "ES": {"date": "2026-10-28", "rows": 1, "unique_keys": 1},
         },
         "duplicate_keys": 1,
+        "blank_row_numbers_sample": [],
+        "date_region_cohorts": 6,
+        "incomplete_date_region_cohorts": 6,
+        "incomplete_date_region_samples": [
+            {"date": "2026-10-28", "region": "DE", "unique_asins": 1},
+            {"date": "2026-10-28", "region": "ES", "unique_asins": 1},
+            {"date": "2026-10-28", "region": "FR", "unique_asins": 1},
+            {"date": "2026-10-28", "region": "UK", "unique_asins": 1},
+            {"date": "2026-10-28", "region": "US", "unique_asins": 1},
+            {"date": "2026-10-29", "region": "US", "unique_asins": 1},
+        ],
     }

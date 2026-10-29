@@ -74,8 +74,13 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
     range_match = re.search(r":(?:[A-Z]+)(\d+)$", str(payload.get("range", "")))
     physical_last_row = int(range_match.group(1)) if range_match else len(values)
     by_region: dict[str, dict[str, object]] = {}
+    daily_asins: dict[tuple[str, str], set[str]] = {}
     all_keys: set[tuple[str, str, str, str]] = set()
     duplicate_keys = 0
+    blank_rows = [
+        row_num for row_num, row in enumerate(values, start=1)
+        if not isinstance(row, list) or not any(str(cell).strip() for cell in row)
+    ]
     for row in data_rows:
         if len(row) < 4:
             continue
@@ -83,6 +88,7 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
         if not day or not region or not asin or not rank:
             continue
         key = (day, region.upper(), asin, rank)
+        daily_asins.setdefault((day, region.upper()), set()).add(asin)
         if key in all_keys:
             duplicate_keys += 1
         all_keys.add(key)
@@ -94,6 +100,11 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
             current["_keys"].add((asin, rank))
     for current in by_region.values():
         current["unique_keys"] = len(current.pop("_keys"))
+    incomplete = [
+        {"date": day, "region": region, "unique_asins": len(asins)}
+        for (day, region), asins in sorted(daily_asins.items())
+        if len(asins) < 100
+    ]
     return {
         "rows": len(data_rows),
         "physical_last_row": physical_last_row,
@@ -101,6 +112,10 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
         "newest_date": max((str(row[0]) for row in data_rows if row and str(row[0]).strip()), default=""),
         "latest_by_region": by_region,
         "duplicate_keys": duplicate_keys,
+        "blank_row_numbers_sample": blank_rows[:50],
+        "date_region_cohorts": len(daily_asins),
+        "incomplete_date_region_cohorts": len(incomplete),
+        "incomplete_date_region_samples": incomplete[:50],
     }
 
 
@@ -175,6 +190,10 @@ def main() -> int:
         "root_rank_history_newest_date": newest_history,
         "root_rank_history_latest_by_region": history_metrics["latest_by_region"],
         "root_rank_history_duplicate_keys": history_metrics["duplicate_keys"],
+        "root_rank_history_blank_row_numbers_sample": history_metrics["blank_row_numbers_sample"],
+        "root_rank_history_date_region_cohorts": history_metrics["date_region_cohorts"],
+        "root_rank_history_incomplete_date_region_cohorts": history_metrics["incomplete_date_region_cohorts"],
+        "root_rank_history_incomplete_date_region_samples": history_metrics["incomplete_date_region_samples"],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
