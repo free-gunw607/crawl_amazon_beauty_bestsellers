@@ -192,7 +192,20 @@ def _batch_update_values(updates: list[dict[str, object]], env: dict[str, str], 
             raise RuntimeError((proc.stderr or proc.stdout).strip()[-800:])
 
 
-def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = None) -> dict[str, object]:
+def _history_row_in_scope(day: str, region: str, dates: set[str] | None,
+                          latest_by_region: dict[str, str] | None) -> bool:
+    if dates and day not in dates:
+        return False
+    if latest_by_region and day != latest_by_region.get(region):
+        return False
+    return True
+
+
+def _backfill_root_rank_history(
+    env: dict[str, str],
+    dates: set[str] | None = None,
+    latest_by_region: dict[str, str] | None = None,
+) -> dict[str, object]:
     rows = _gws_values("root_rank_history!A:I", env)
     titles = _top100_title_map(env)
     db_titles = _db_title_map()
@@ -204,9 +217,9 @@ def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = No
         if len(row) < 4:
             continue
         day = row[0].strip()
-        if dates and day not in dates:
-            continue
         region = row[1].strip() if len(row) > 1 else ""
+        if not _history_row_in_scope(day, region, dates, latest_by_region):
+            continue
         asin = row[2].strip() if len(row) > 2 else ""
         title = row[8].strip() if len(row) > 8 else ""
         if not day or not region or not asin or title:
@@ -227,7 +240,8 @@ def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = No
         if len(row) < 4:
             continue
         day = row[0].strip()
-        if dates and day not in dates:
+        region = row[1].strip() if len(row) > 1 else ""
+        if not _history_row_in_scope(day, region, dates, latest_by_region):
             continue
         title = row[8].strip() if len(row) > 8 else ""
         if not title:
@@ -240,7 +254,7 @@ def _backfill_root_rank_history(env: dict[str, str], dates: set[str] | None = No
     }
 
 
-def _latest_root_history_dates(env: dict[str, str]) -> set[str]:
+def _latest_root_history_dates(env: dict[str, str]) -> dict[str, str]:
     rows = _gws_values("root_rank_history!A:B", env)
     latest: dict[str, str] = {}
     for row in rows[1:]:
@@ -251,7 +265,7 @@ def _latest_root_history_dates(env: dict[str, str]) -> set[str]:
             continue
         if day > latest.get(region, ""):
             latest[region] = day
-    return set(latest.values())
+    return latest
 
 
 def _fallback_marketplace_titles(
@@ -480,8 +494,8 @@ def main() -> int:
         history_dates = set(args.history_date) if args.history_date else None
         history_result = _backfill_root_rank_history(env, dates=history_dates)
     elif args.backfill_latest_history:
-        history_dates = _latest_root_history_dates(env)
-        history_result = _backfill_root_rank_history(env, dates=history_dates) if history_dates else {
+        latest_by_region = _latest_root_history_dates(env)
+        history_result = _backfill_root_rank_history(env, latest_by_region=latest_by_region) if latest_by_region else {
             "missing_before": 0, "updated": 0, "remaining_after": 0, "by_date": {},
         }
     if history_result is not None:

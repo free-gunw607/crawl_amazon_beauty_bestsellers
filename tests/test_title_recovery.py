@@ -64,4 +64,10 @@ def test_latest_history_backfill_limits_itself_to_latest_date_per_region(monkeyp
         ["2026-10-29", "UK"],
     ])
 
-    assert title_recovery._latest_root_history_dates({}) == {"2026-10-29"}
+    assert title_recovery._latest_root_history_dates({}) == {
+        "US": "2026-10-29",
+        "UK": "2026-10-29",
+    }
+    latest = {"US": "2026-10-29", "UK": "2026-10-28"}
+    assert title_recovery._history_row_in_scope("2026-10-28", "UK", None, latest)
+    assert not title_recovery._history_row_in_scope("2026-10-28", "US", None, latest)
