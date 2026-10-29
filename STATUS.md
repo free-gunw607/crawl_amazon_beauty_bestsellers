@@ -40,7 +40,8 @@
 ## 2026-10-29 Drive delivery hardening
 - GWS Drive list/get/update now retry bounded transient and rate-limit failures; idempotent updates retry after backoff, while non-idempotent creates remain single-shot to avoid duplicate files after ambiguous responses.
 - Every GWS upload now reads the remote file back and verifies its ID, MIME type, byte size, MD5, target folder, and non-trashed state. Catch-up also checks the saved fallback's remote file on each hourly pass; a deleted, moved, or mismatched file is treated as a delivery gap and re-uploaded. Authentication/API unavailability becomes a visible delivery gap and uses the existing throttled alert/retry path.
-- Local XLSX remains available and attached to email even when Drive fails. Regression suite: 61 passed. LIAM3 live readback and same-file update verification remain to be run after fleet deployment.
+- Local XLSX remains available and attached to email even when Drive fails. Regression suite: 61 passed. Deployed the uploader and catch-up verifier to LIAM2/LIAM3; both passed `py_compile`.
+- LIAM3 live test at 15:42 KST updated the existing fallback file in place (Drive ID `1P1V92U9cCkeMXZfKekSLbhB3rIlZVu3R`); the post-upload remote readback passed ID, XLSX MIME, byte-size, MD5, parent-folder, and non-trashed checks. The LIAM3 catch-up systemd run then exited 0 after its hourly remote-file audit.
 
 ## 2026-10-28 Shared operational email
 - Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.

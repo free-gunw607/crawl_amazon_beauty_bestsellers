@@ -1,7 +1,8 @@
 # LAST ANSWER
 
 ## 2026-10-29 Recovery update
-- Additional Drive hardening: bounded retries for transient GWS errors; never blindly retry non-idempotent file creation; verify remote ID, MIME type, size, MD5, target folder, and non-trashed status after upload; recheck the existing Drive file during hourly catch-up and repair missing/mismatched delivery. Local XLSX/mail fallback remains independent. Tests: 61 passed; LIAM3 live verification pending.
+- Additional Drive hardening: bounded retries for transient GWS errors; never blindly retry non-idempotent file creation; verify remote ID, MIME type, size, MD5, target folder, and non-trashed status after upload; recheck the existing Drive file during hourly catch-up and repair missing/mismatched delivery. Local XLSX/mail fallback remains independent. Tests: 61 passed. Deployed to LIAM2/LIAM3 and passed `py_compile` on both.
+- LIAM3 live Drive update at 15:42 KST succeeded in place on existing file ID `1P1V92U9cCkeMXZfKekSLbhB3rIlZVu3R`; remote readback matched local size/checksum and expected folder. The subsequent LIAM3 catch-up systemd audit exited 0.
 - Fixed and deployed stale aggregate-tab recovery to LIAM2/LIAM3. Catch-up detects stale shared views and rebuilds them from SQLite through `--shared-views-only`, without Amazon recrawl or history append. It rechecks stamps after publishing and alerts/retries if any remain stale. Tests: 58 passed.
 - LIAM3 live shared-only publish passed at 15:24 KST. All five shared tabs updated; all 15 monitored tabs fresh; regional tabs stayed unchanged; root history remained 33,631 rows with latest cohorts 100 each, 0 duplicate keys, 0 internal blanks. LIAM3 catch-up service exited 0 after the refresh.
 - Final verification: UK-only recovery published 100 rows and appended 100 history rows; title recovery filled one Top100 title and 65 latest-history titles. All five current tabs audit at 100/100 titles.
