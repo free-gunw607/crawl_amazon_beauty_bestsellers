@@ -1,6 +1,7 @@
 # LAST ANSWER
 
 ## 2026-10-29 Recovery update
+- Additional Drive hardening: bounded retries for transient GWS errors; never blindly retry non-idempotent file creation; verify remote ID, MIME type, size, MD5, target folder, and non-trashed status after upload; recheck the existing Drive file during hourly catch-up and repair missing/mismatched delivery. Local XLSX/mail fallback remains independent. Tests: 61 passed; LIAM3 live verification pending.
 - Fixed and deployed stale aggregate-tab recovery to LIAM2/LIAM3. Catch-up detects stale shared views and rebuilds them from SQLite through `--shared-views-only`, without Amazon recrawl or history append. It rechecks stamps after publishing and alerts/retries if any remain stale. Tests: 58 passed.
 - LIAM3 live shared-only publish passed at 15:24 KST. All five shared tabs updated; all 15 monitored tabs fresh; regional tabs stayed unchanged; root history remained 33,631 rows with latest cohorts 100 each, 0 duplicate keys, 0 internal blanks. LIAM3 catch-up service exited 0 after the refresh.
 - Final verification: UK-only recovery published 100 rows and appended 100 history rows; title recovery filled one Top100 title and 65 latest-history titles. All five current tabs audit at 100/100 titles.

@@ -7,6 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import daily_catchup
 import watchdog_sheet
+from crawl_amazon_beauty_bestsellers import drive_upload
 from daily_catchup import (
     _failed_root_regions,
     _fallback_missing_drive,
@@ -37,6 +38,20 @@ def test_catchup_detects_missing_drive_delivery(tmp_path: Path) -> None:
 
     fallback.write_text(json.dumps({"xlsx": str(workbook), "drive": {"file_id": "drive-id"}}), encoding="utf-8")
     assert not _fallback_missing_drive(tmp_path)
+
+
+def test_catchup_checks_existing_drive_file_remotely(tmp_path: Path, monkeypatch) -> None:
+    workbook = tmp_path / "fallback.xlsx"
+    workbook.write_bytes(b"xlsx")
+    (tmp_path / "fallback.json").write_text(
+        json.dumps({"xlsx": str(workbook), "drive": {"file_id": "drive-id"}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(drive_upload, "verify_file", lambda *_args, **_kwargs: False)
+    assert _fallback_missing_drive(tmp_path, {"AMZ_BS_DRIVE_BACKEND": "gws"})
+
+    monkeypatch.setattr(drive_upload, "verify_file", lambda *_args, **_kwargs: True)
+    assert not _fallback_missing_drive(tmp_path, {"AMZ_BS_DRIVE_BACKEND": "gws"})
 
 
 def test_partial_root_run_selects_only_incomplete_regions(tmp_path: Path) -> None:

@@ -167,14 +167,25 @@ def _recent_marketplace_block(run_dir: Path, now: float | None = None) -> bool:
         return False
 
 
-def _fallback_missing_drive(run_dir: Path | None) -> bool:
+def _fallback_missing_drive(run_dir: Path | None, env: dict[str, str] | None = None) -> bool:
     if run_dir is None:
         return True
     try:
         summary = json.loads((run_dir / "fallback.json").read_text(encoding="utf-8"))
         drive = summary.get("drive")
         workbook = Path(str(summary.get("xlsx", "")))
-        return not workbook.is_file() or not isinstance(drive, dict) or not bool(drive.get("file_id"))
+        if not workbook.is_file() or not isinstance(drive, dict) or not bool(drive.get("file_id")):
+            return True
+        if env is None or env.get("AMZ_BS_DRIVE_BACKEND", "gws").lower() != "gws":
+            return False
+        from crawl_amazon_beauty_bestsellers.drive_upload import DEFAULT_GWS_FOLDER_ID, verify_file
+
+        folder_id = env.get("AMZ_BS_DRIVE_FOLDER_ID") or DEFAULT_GWS_FOLDER_ID
+        try:
+            return not verify_file(str(drive["file_id"]), workbook, folder_id, env=env)
+        except Exception as exc:
+            print(f"[catchup] Drive remote verification unavailable: {exc}", flush=True)
+            return True
     except (OSError, json.JSONDecodeError, TypeError):
         return True
 
@@ -277,7 +288,7 @@ def main() -> int:
     stale = sorted((set(stale) | (set(failed_regions) & set(REGIONS))), key=REGIONS.index)
     # No local run means this node cannot prove that its local fallback is stale
     # or missing. The shared live Sheet is the cross-node source of truth.
-    drive_gap = _fallback_missing_drive(latest_run) if latest_run else False
+    drive_gap = _fallback_missing_drive(latest_run, env) if latest_run else False
     if not stale and not gaps and not drive_gap and not stale_aggregates:
         print("[catchup] all regional tabs are current and titles are complete")
         return 0

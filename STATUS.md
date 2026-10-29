@@ -37,6 +37,11 @@
 - Added regression coverage for stale-tab detection, aggregate-only recovery routing, post-publish verification, and the publisher's no-regional-write/no-history-append contract on both GWS and Service Account backends. Local suite: 58 passed. Deployed to LIAM2/LIAM3; LIAM3 live shared-only publish and post-publish verification succeeded at 15:24 KST.
 - Live verification after the shared-only publish: all five aggregate tabs stamped 15:24, all 15 monitored tabs fresh, regional Top100/history stamps unchanged, 33,631 history rows, each latest 10/29 region cohort 100 unique keys, 0 duplicates, 0 internal blanks. LIAM3 catch-up systemd service also exited 0 at 15:24.
 
+## 2026-10-29 Drive delivery hardening
+- GWS Drive list/get/update now retry bounded transient and rate-limit failures; idempotent updates retry after backoff, while non-idempotent creates remain single-shot to avoid duplicate files after ambiguous responses.
+- Every GWS upload now reads the remote file back and verifies its ID, MIME type, byte size, MD5, target folder, and non-trashed state. Catch-up also checks the saved fallback's remote file on each hourly pass; a deleted, moved, or mismatched file is treated as a delivery gap and re-uploaded. Authentication/API unavailability becomes a visible delivery gap and uses the existing throttled alert/retry path.
+- Local XLSX remains available and attached to email even when Drive fails. Regression suite: 61 passed. LIAM3 live readback and same-file update verification remain to be run after fleet deployment.
+
 ## 2026-10-28 Shared operational email
 - Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.
 - SMTP credentials live at `~/.config/a4-mailer/smtp.env` on the node's private Linux filesystem (directory `0700`, file `0600`). Recipient lists remain repository-specific.
