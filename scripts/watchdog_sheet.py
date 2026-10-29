@@ -73,11 +73,34 @@ def _history_metrics(payload: dict[str, object]) -> dict[str, object]:
     data_rows = rows[1:] if rows else []
     range_match = re.search(r":(?:[A-Z]+)(\d+)$", str(payload.get("range", "")))
     physical_last_row = int(range_match.group(1)) if range_match else len(values)
+    by_region: dict[str, dict[str, object]] = {}
+    all_keys: set[tuple[str, str, str, str]] = set()
+    duplicate_keys = 0
+    for row in data_rows:
+        if len(row) < 4:
+            continue
+        day, region, asin, rank = (str(cell).strip() for cell in row[:4])
+        if not day or not region or not asin or not rank:
+            continue
+        key = (day, region.upper(), asin, rank)
+        if key in all_keys:
+            duplicate_keys += 1
+        all_keys.add(key)
+        current = by_region.setdefault(region.upper(), {"date": "", "rows": 0, "_keys": set()})
+        if day > str(current["date"]):
+            current.update({"date": day, "rows": 0, "_keys": set()})
+        if day == current["date"]:
+            current["rows"] = int(current["rows"]) + 1
+            current["_keys"].add((asin, rank))
+    for current in by_region.values():
+        current["unique_keys"] = len(current.pop("_keys"))
     return {
         "rows": len(data_rows),
         "physical_last_row": physical_last_row,
         "blank_rows_within_range": max(0, physical_last_row - 1 - len(data_rows)),
-        "newest_date": next((row[0] for row in reversed(data_rows) if row), ""),
+        "newest_date": max((str(row[0]) for row in data_rows if row and str(row[0]).strip()), default=""),
+        "latest_by_region": by_region,
+        "duplicate_keys": duplicate_keys,
     }
 
 
@@ -150,6 +173,8 @@ def main() -> int:
         "root_rank_history_physical_last_row": history_metrics["physical_last_row"],
         "root_rank_history_blank_rows_within_range": history_metrics["blank_rows_within_range"],
         "root_rank_history_newest_date": newest_history,
+        "root_rank_history_latest_by_region": history_metrics["latest_by_region"],
+        "root_rank_history_duplicate_keys": history_metrics["duplicate_keys"],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
 
