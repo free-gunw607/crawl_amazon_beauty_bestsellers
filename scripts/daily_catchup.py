@@ -164,6 +164,17 @@ def _fallback_missing_drive(run_dir: Path | None) -> bool:
         return True
 
 
+def _root_recovery_command(regions: list[str]) -> list[str]:
+    return [
+        sys.executable,
+        "scripts/run_daily_pipeline.py",
+        "--trigger",
+        "catchup",
+        "--regions",
+        *[region.lower() for region in regions],
+    ]
+
+
 def _pending_recovery_alert(
     gaps: dict[str, list[tuple[str, str]]],
     drive_gap: bool,
@@ -271,7 +282,7 @@ def main() -> int:
         )
         print(f"[catchup] recovering stale regions: {','.join(stale)}", flush=True)
         recovery = subprocess.run(
-            [sys.executable, "scripts/run_daily_pipeline.py", "--trigger", "catchup", "--regions", *[region.upper() for region in stale]],
+            _root_recovery_command(stale),
             cwd=REPO_ROOT,
             env=env,
         )
@@ -282,7 +293,7 @@ def main() -> int:
         if stale:
             print("[catchup] stale live regions need a full crawl; no same-day run is available", flush=True)
             recovery = subprocess.run(
-                [sys.executable, "scripts/run_daily_pipeline.py", "--trigger", "catchup", "--regions", *[region.upper() for region in stale]],
+                _root_recovery_command(stale),
                 cwd=REPO_ROOT,
                 env=env,
             )

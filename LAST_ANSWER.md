@@ -1,5 +1,9 @@
 # LAST ANSWER
 
+## 2026-10-29 Recovery update
+- Published `77a7c4c`: watchdog now checks freshness stamps on all 15 workbook tabs; live LIAM3 audit at 14:15 found all 15 fresh, 0 duplicate root-history keys, and 0 internal blank rows.
+- The 14:35 catch-up initially stopped before collection because it passed uppercase `UK` to a lowercase-only CLI. No Sheet rows were changed; fallback XLSX was regenerated and updated in the same Drive file. The case-normalization fix is covered by a regression test (47 tests passing) and is being deployed for a UK-only retry.
+
 ## 2026-10-28 Closeout
 - Pipeline completion: the 05:00 primary collected/published 500/500; `root_rank_history` appended 245 rows (US 100, DE 38, UK 29, FR 34, ES 44); the live title audit confirmed 100/100 in all five regions; fallback XLSX was created and uploaded to Drive. The first run was flagged because whole-history title repair hit Sheets write quota after 354 of 389 repairs. That noncritical historical repair is now excluded from the daily write-quota path; daily rank append remains enabled.
 - Reused today's existing artifacts with `run_daily_pipeline.py --report-existing` (no recrawl and no duplicate Drive upload). The live title audit passed, and the three phase emails plus final report were each accepted by SMTP for the two configured recipients; the final report includes the existing fallback XLSX.

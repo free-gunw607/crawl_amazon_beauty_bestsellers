@@ -7,7 +7,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import daily_catchup
 import watchdog_sheet
-from daily_catchup import _failed_root_regions, _fallback_missing_drive, _recent_marketplace_block, _recent_root_block
+from daily_catchup import _failed_root_regions, _fallback_missing_drive, _recent_marketplace_block, _recent_root_block, _root_recovery_command
 
 
 def test_catchup_respects_55_minute_marketplace_block_cooldown(tmp_path: Path) -> None:
@@ -38,6 +38,11 @@ def test_partial_root_run_selects_only_incomplete_regions(tmp_path: Path) -> Non
     ]}), encoding="utf-8")
 
     assert _failed_root_regions(tmp_path) == ["uk"]
+
+
+def test_root_recovery_command_uses_run_job_region_choices() -> None:
+    command = _root_recovery_command(["UK", "Fr"])
+    assert command[-2:] == ["uk", "fr"]
 
 
 def test_failed_region_is_not_retried_if_another_node_updated_sheet_later(tmp_path: Path, monkeypatch) -> None:
