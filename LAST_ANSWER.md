@@ -1,6 +1,10 @@
 # LAST ANSWER
 
 ## 2026-10-29 Recovery update
+- Final verification: UK-only recovery published 100 rows and appended 100 history rows; title recovery filled one Top100 title and 65 latest-history titles. All five current tabs audit at 100/100 titles.
+- Sheets write-quota recovery is deployed: gws batches stay below 90KB, quota responses retry after 65 seconds, and each tab stamp is written only after all its data chunks complete. Partial run reports scope to the markets in the run. Full suite: 51 passed.
+- Aggregate refresh completed at 14:44. At 14:45 the live audit showed all 15 workbook tabs fresh, 33,631 history rows, five latest cohorts at 100 unique keys, 0 duplicates, and 0 internal blank rows. The corrected read-only audit generated four report emails accepted for both recipients, with fallback XLSX attached to the final email; Telegram send was invoked.
+- LIAM3 next primary: 10/30 05:00 KST; hourly catch-up :55 and watchdog :00 are enabled.
 - Published `77a7c4c`: watchdog now checks freshness stamps on all 15 workbook tabs; live LIAM3 audit at 14:15 found all 15 fresh, 0 duplicate root-history keys, and 0 internal blank rows.
 - The 14:35 catch-up initially stopped before collection because region codes cross two CLIs with different casing rules. Both boundaries are now normalized and regression-tested (48 tests passing). No Amazon request or Sheet write occurred in the rejected invocations; fallback XLSX regenerated and updated the same Drive file. The corrected UK-only recovery is next.
 - Corrected UK-only recovery completed with 100/100 rows, appended 100 history rows, filled the one missing live title, and repaired 65 latest-date history titles. All five live Top100 title counts then audited at 100/100; fallback XLSX updated the existing Drive file. Its global-view refresh hit Sheets per-user write quota; batching/backoff and stamp-after-success fixes are implemented locally and await fleet deployment/live recheck.

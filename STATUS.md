@@ -20,6 +20,12 @@
 - The recovery's aggregate-view refresh hit Google's per-user Sheets write quota because `root_publish` sent one API write for every 30KB history chunk. It wrote stamps before finishing data, so the older watchdog could mistake a partially written view for a complete one. Fix in progress: batch multiple ranges into fewer requests, retry idempotent quota-limited writes after 65 seconds, and write each freshness stamp only after all tab data succeeds. Partial-run resume now evaluates only regions in that run's summary.
 - First rollout of the batching fix exposed this host's lower `ARG_MAX`: a 600KB gws argument was rejected locally before submission. Batch payloads are now capped below 90KB and covered by a row-contiguity/size test. Suite: 51 passed. The failed attempt did not mark its incomplete tab fresh; deploy this bounded version and rerun aggregate refresh.
 
+## 2026-10-29 final recovery verification
+- Supersedes the earlier "fix in progress" and "await deployment" notes above: the quota retry, <90KB bounded batching, stamp-after-success logic, and partial-run region accounting are pushed and deployed to LIAM2/LIAM3. The full repository suite passes 51 tests.
+- LIAM3's aggregate publisher succeeded at 14:44. At 14:45, the live audit found all 15 workbook tabs fresh; `root_rank_history` had 33,631 data rows; all five 10/29 date-region cohorts had 100 unique ASINs; duplicate keys and internal blank rows were both 0.
+- The corrected read-only report audit found all five live Top100 tabs at 100/100 titles. Four report emails were accepted by SMTP for both configured recipients; the final email included the fallback XLSX, and the report path invoked Telegram delivery.
+- Next LIAM3 primary run: 10/30 05:00 KST. Catch-up remains enabled at :55 hourly; watchdog remains enabled at :00 hourly. Daily timer is nonpersistent.
+
 ## 2026-10-28 Shared operational email
 - Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.
 - SMTP credentials live at `~/.config/a4-mailer/smtp.env` on the node's private Linux filesystem (directory `0700`, file `0600`). Recipient lists remain repository-specific.
