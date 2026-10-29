@@ -60,7 +60,7 @@ def _incomplete_cohorts(rows: list[list[str]]) -> list[dict[str, object]]:
         if len(row) >= 3:
             cohorts.setdefault((row[1], row[0]), set()).add(row[2])
     return [
-        {"region": region, "date": day, "unique_asins": len(asins)}
+        {"region": region, "date": day, "unique_asins": len(asins), "missing_slots_to_100": max(0, 100 - len(asins))}
         for (region, day), asins in sorted(cohorts.items())
         if len(asins) < 100
     ]
@@ -111,6 +111,7 @@ def main() -> int:
         "local_history_rows": len(local_rows),
         "local_date_region_cohorts": len({(row[0], row[1]) for row in local_rows if len(row) >= 3}),
         "local_incomplete_date_region_cohorts": len(_incomplete_cohorts(local_rows)),
+        "local_missing_asin_slots_to_100": sum(int(row["missing_slots_to_100"]) for row in _incomplete_cohorts(local_rows)),
         "local_incomplete_samples": _incomplete_cohorts(local_rows)[:50],
         "sheet_history_keys": len(existing_keys),
         "sheet_only_keys_preserved": len(existing_keys - local_keys),

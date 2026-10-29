@@ -41,5 +41,5 @@ def test_local_incomplete_cohorts_count_unique_asins_per_region_date() -> None:
     rows.append(["2026-09-17", "UK", "A1", "9"])
 
     assert _incomplete_cohorts(rows) == [
-        {"region": "UK", "date": "2026-09-17", "unique_asins": 50}
+        {"region": "UK", "date": "2026-09-17", "unique_asins": 50, "missing_slots_to_100": 50}
     ]
