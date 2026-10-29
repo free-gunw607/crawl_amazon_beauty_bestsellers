@@ -171,7 +171,7 @@ def _root_recovery_command(regions: list[str]) -> list[str]:
         "--trigger",
         "catchup",
         "--regions",
-        *[region.lower() for region in regions],
+        *[region.upper() for region in regions],
     ]
 
 

@@ -8,10 +8,16 @@ from run_daily_pipeline import (
     _global_sheet_refresh_command,
     _merge_history_counts_from_log,
     _root_complete,
+    _root_collection_command,
     _root_table,
     _titles_complete,
     _title_completion_command,
 )
+
+
+def test_root_collection_command_normalizes_pipeline_regions_for_run_job() -> None:
+    command = _root_collection_command("python", Path("root.json"), ("UK",))
+    assert command[command.index("--regions") + 1] == "uk"
 
 
 def test_title_completion_keeps_historical_backfill_off_daily_quota_path() -> None:

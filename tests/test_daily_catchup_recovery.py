@@ -40,9 +40,9 @@ def test_partial_root_run_selects_only_incomplete_regions(tmp_path: Path) -> Non
     assert _failed_root_regions(tmp_path) == ["uk"]
 
 
-def test_root_recovery_command_uses_run_job_region_choices() -> None:
+def test_root_recovery_command_uses_pipeline_region_choices() -> None:
     command = _root_recovery_command(["UK", "Fr"])
-    assert command[-2:] == ["uk", "fr"]
+    assert command[-2:] == ["UK", "FR"]
 
 
 def test_failed_region_is_not_retried_if_another_node_updated_sheet_later(tmp_path: Path, monkeypatch) -> None:

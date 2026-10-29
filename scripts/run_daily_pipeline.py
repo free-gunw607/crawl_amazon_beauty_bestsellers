@@ -116,6 +116,19 @@ def _title_completion_command(python: str, summary_path: Path, *, regions: tuple
     return command
 
 
+def _root_collection_command(python: str, summary_path: Path, regions: tuple[str, ...]) -> list[str]:
+    return [
+        python,
+        "scripts/run_job.py",
+        "--no-detail",
+        "--no-notify",
+        "--regions",
+        *(region.lower() for region in regions),
+        "--summary-json",
+        str(summary_path),
+    ]
+
+
 def _global_sheet_refresh_command(python: str) -> list[str]:
     # The ES publisher also refreshes shared [ALL]/trend/catalog/history views.
     # It reads the local DB only; this does not crawl Amazon.
@@ -299,7 +312,7 @@ def main() -> int:
         root_path, titles_path, fallback_path = (run_dir / "root.json", run_dir / "titles.json", run_dir / "fallback.json")
 
         selected_regions = tuple(args.regions)
-        root_rc = _run("root collection", [sys.executable, "scripts/run_job.py", "--no-detail", "--no-notify", "--regions", *selected_regions, "--summary-json", str(root_path)], env)
+        root_rc = _run("root collection", _root_collection_command(sys.executable, root_path, selected_regions), env)
         if root_rc == 0 and set(selected_regions) != set(REGIONS):
             refresh_rc = _run("refresh shared Sheet views from saved SQLite", _global_sheet_refresh_command(sys.executable), env)
             if refresh_rc != 0:
