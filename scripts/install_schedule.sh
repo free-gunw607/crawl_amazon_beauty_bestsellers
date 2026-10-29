@@ -5,6 +5,8 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UNIT_DIR="${HOME}/.config/systemd/user"
+LOCK_DIR="${HOME}/.cache/amzbs/locks"
+LOCK_FILE="${LOCK_DIR}/daily_pipeline.lock"
 UNITS=(
   amzbs-beauty.service
   amzbs-beauty.timer
@@ -48,8 +50,8 @@ GDRIVE_CREDS=$SERVICE_ACCOUNT_FILE
 GOOGLE_WORKSPACE_CLI_CONFIG_DIR=$GWS_CONFIG_DIR
 GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=keyring
 PYTHONPATH=$REPO_ROOT/src
-0 5 * * * cd $REPO_ROOT && /usr/bin/flock -n .agent/locks/daily_pipeline.lock $PYTHON_BIN scripts/run_daily_pipeline.py >> .agent/logs/cron_daily_pipeline.log 2>&1
-55 5-23 * * * cd $REPO_ROOT && /usr/bin/flock -n .agent/locks/daily_pipeline.lock $PYTHON_BIN scripts/daily_catchup.py --not-before-hour 5 --email >> .agent/logs/cron_daily_catchup.log 2>&1
+0 5 * * * cd $REPO_ROOT && /bin/bash scripts/run_locked_schedule.sh $LOCK_FILE $PYTHON_BIN scripts/run_daily_pipeline.py >> .agent/logs/cron_daily_pipeline.log 2>&1
+55 5-23 * * * cd $REPO_ROOT && /bin/bash scripts/run_locked_schedule.sh $LOCK_FILE $PYTHON_BIN scripts/daily_catchup.py --not-before-hour 5 --email >> .agent/logs/cron_daily_catchup.log 2>&1
 17 * * * * cd $REPO_ROOT && $PYTHON_BIN scripts/watchdog_sheet.py --max-age-hours 30 --alert >> .agent/logs/cron_watchdog.log 2>&1
 $CRON_MARK_END
 EOF
@@ -101,6 +103,7 @@ install_units() {
     return
   fi
   mkdir -p "$UNIT_DIR"
+  mkdir -p "$LOCK_DIR"
   for unit in "${UNITS[@]}"; do
     cp "$REPO_ROOT/deploy/systemd/$unit" "$UNIT_DIR/"
   done

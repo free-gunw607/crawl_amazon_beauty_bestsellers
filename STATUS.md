@@ -26,6 +26,11 @@
 - The corrected read-only report audit found all five live Top100 tabs at 100/100 titles. Four report emails were accepted by SMTP for both configured recipients; the final email included the fallback XLSX, and the report path invoked Telegram delivery.
 - Next LIAM3 primary run: 10/30 05:00 KST. Catch-up remains enabled at :55 hourly; watchdog remains enabled at :00 hourly. Daily timer is nonpersistent.
 
+## 2026-10-29 scheduler lock hardening
+- The scheduled 14:55 catch-up exited in 5ms with status 1 before Python emitted output. Running the same catch-up directly returned the expected “all regional tabs are current and titles are complete.” This points to `flock -n` failing to acquire the shared lock at that instant; the competing holder had exited before it could be identified.
+- Moved the shared lock from the repo on `/mnt/c` to `~/.cache/amzbs/locks/daily_pipeline.lock` on native WSL Linux storage. Added `run_locked_schedule.sh`: lock contention is logged as an intentional skip with exit 0, while child failures preserve their exit code. LIAM3 systemd units were reinstalled; LIAM2's 05:30 secondary cron was updated to use the same native lock and wrapper.
+- Verified the LIAM3 systemd catch-up service itself at 14:57: it exited successfully after confirming all regions and titles current. Regression suite: 53 passed; shell syntax checks passed. Next automatic catch-up is 15:55, daily primary is 10/30 05:00 KST.
+
 ## 2026-10-28 Shared operational email
 - Scheduled report email now uses the shared SMTP mailer; the Gmail API/OAuth mail path was removed from `scripts/run_job.py`. Drive/Sheets OAuth is independent.
 - SMTP credentials live at `~/.config/a4-mailer/smtp.env` on the node's private Linux filesystem (directory `0700`, file `0600`). Recipient lists remain repository-specific.

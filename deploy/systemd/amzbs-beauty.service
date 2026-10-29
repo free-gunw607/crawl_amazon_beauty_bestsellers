@@ -13,5 +13,5 @@ Environment=PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/sbin:/usr/local/bin:/usr
 Environment=GOOGLE_WORKSPACE_CLI_CONFIG_DIR=%h/.config/gws-amazon
 Environment=GOOGLE_WORKSPACE_CLI_KEYRING_BACKEND=keyring
 EnvironmentFile=-%h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.env
-ExecStart=/usr/bin/flock -n %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.agent/locks/daily_pipeline.lock %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_daily_pipeline.py --trigger scheduled
+ExecStart=/bin/bash %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_locked_schedule.sh %h/.cache/amzbs/locks/daily_pipeline.lock %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/.venv/bin/python %h/agent-coding/agent-projects/A4-worker-repos/crawl_amazon_beauty_bestsellers/scripts/run_daily_pipeline.py --trigger scheduled
 TimeoutStartSec=3600
