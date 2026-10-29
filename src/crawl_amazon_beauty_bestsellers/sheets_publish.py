@@ -182,7 +182,12 @@ def _gws(args: list[str], params: dict, body: dict | None = None) -> dict:
         except subprocess.TimeoutExpired:
             last_error = "gws command timed out after 300 seconds"
         if attempt + 1 < attempts:
-            time.sleep(3 * (attempt + 1))
+            lowered = last_error.lower()
+            if "quota" in lowered or "rate limit" in lowered or "429" in lowered:
+                delay = 65
+            else:
+                delay = 3 * (attempt + 1)
+            time.sleep(delay)
     raise SheetsPublishError(f"gws {' '.join(args)} failed: {last_error}")
 
 

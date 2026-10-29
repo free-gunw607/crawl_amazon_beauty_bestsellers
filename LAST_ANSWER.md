@@ -3,6 +3,7 @@
 ## 2026-10-29 Recovery update
 - Published `77a7c4c`: watchdog now checks freshness stamps on all 15 workbook tabs; live LIAM3 audit at 14:15 found all 15 fresh, 0 duplicate root-history keys, and 0 internal blank rows.
 - The 14:35 catch-up initially stopped before collection because region codes cross two CLIs with different casing rules. Both boundaries are now normalized and regression-tested (48 tests passing). No Amazon request or Sheet write occurred in the rejected invocations; fallback XLSX regenerated and updated the same Drive file. The corrected UK-only recovery is next.
+- Corrected UK-only recovery completed with 100/100 rows, appended 100 history rows, filled the one missing live title, and repaired 65 latest-date history titles. All five live Top100 title counts then audited at 100/100; fallback XLSX updated the existing Drive file. Its global-view refresh hit Sheets per-user write quota; batching/backoff and stamp-after-success fixes are implemented locally and await fleet deployment/live recheck.
 
 ## 2026-10-28 Closeout
 - Pipeline completion: the 05:00 primary collected/published 500/500; `root_rank_history` appended 245 rows (US 100, DE 38, UK 29, FR 34, ES 44); the live title audit confirmed 100/100 in all five regions; fallback XLSX was created and uploaded to Drive. The first run was flagged because whole-history title repair hit Sheets write quota after 354 of 389 repairs. That noncritical historical repair is now excluded from the daily write-quota path; daily rank append remains enabled.

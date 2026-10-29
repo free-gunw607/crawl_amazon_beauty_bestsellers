@@ -8,6 +8,7 @@ from run_daily_pipeline import (
     _global_sheet_refresh_command,
     _merge_history_counts_from_log,
     _root_complete,
+    _regions_in_root,
     _root_collection_command,
     _root_table,
     _titles_complete,
@@ -88,7 +89,13 @@ def test_root_completion_requires_full_publish_and_no_failed_regions() -> None:
     }
 
     assert not _root_complete(root)
-    assert _root_complete(root, ("US", "DE", "FR", "ES"))
+
+
+def test_root_recovery_summary_is_evaluated_for_its_selected_regions() -> None:
+    root = {"regions": [{"region": "uk", "crawled": 100, "published": 100, "fail": 0}]}
+    assert _regions_in_root(root) == ("UK",)
+    assert _root_complete(root, _regions_in_root(root))
+    assert not _root_complete(root, ("US", "DE", "FR", "ES"))
 
 
 def test_root_completion_rejects_short_publish_counts() -> None:

@@ -182,6 +182,18 @@ def _root_complete(root: dict[str, object], expected_regions: tuple[str, ...] = 
     )
 
 
+def _regions_in_root(root: dict[str, object]) -> tuple[str, ...]:
+    rows = root.get("regions")
+    if not isinstance(rows, list):
+        return REGIONS
+    regions = tuple(
+        str(row.get("region", "")).upper()
+        for row in rows
+        if isinstance(row, dict) and str(row.get("region", "")).upper() in REGIONS
+    )
+    return regions or REGIONS
+
+
 def _fallback_lines(fallback: dict[str, object], fallback_rc: int) -> list[str]:
     xlsx = Path(str(fallback.get("xlsx", "")))
     if not xlsx.is_file():
@@ -280,7 +292,8 @@ def main() -> int:
             parser.error("--report-existing requires existing root.json and fallback.json files")
         root = _read_summary(root_path)
         root = _merge_history_counts_from_log(root)
-        root_rc = 0 if root.get("status") == "completed" and _root_complete(root) else 1
+        expected_regions = _regions_in_root(root)
+        root_rc = 0 if root.get("status") == "completed" and _root_complete(root, expected_regions) else 1
         title_rc = _run(
             "read-only live title audit",
             _title_completion_command(sys.executable, titles_path, read_only=True),
@@ -296,7 +309,8 @@ def main() -> int:
         if not root_path.is_file() or not fallback_path.is_file():
             parser.error("--resume-existing requires existing root.json and fallback.json files")
         root = _merge_history_counts_from_log(_read_summary(root_path))
-        root_rc = 0 if root.get("status") == "completed" and _root_complete(root) else 1
+        expected_regions = _regions_in_root(root)
+        root_rc = 0 if root.get("status") == "completed" and _root_complete(root, expected_regions) else 1
         title_rc = _run("resume live title completion", _title_completion_command(sys.executable, titles_path), env)
         titles = _read_summary(titles_path)
         fallback_rc = _run(
@@ -312,13 +326,14 @@ def main() -> int:
         root_path, titles_path, fallback_path = (run_dir / "root.json", run_dir / "titles.json", run_dir / "fallback.json")
 
         selected_regions = tuple(args.regions)
-        root_rc = _run("root collection", _root_collection_command(sys.executable, root_path, selected_regions), env)
-        if root_rc == 0 and set(selected_regions) != set(REGIONS):
+        collection_rc = _run("root collection", _root_collection_command(sys.executable, root_path, selected_regions), env)
+        root_rc = collection_rc
+        if collection_rc == 0 and set(selected_regions) != set(REGIONS):
             refresh_rc = _run("refresh shared Sheet views from saved SQLite", _global_sheet_refresh_command(sys.executable), env)
             if refresh_rc != 0:
                 root_rc = refresh_rc
         title_rc: int | None = None
-        if root_rc == 0:
+        if collection_rc == 0:
             title_rc = _run(
                 "title completion",
                 _title_completion_command(sys.executable, titles_path),
@@ -331,7 +346,7 @@ def main() -> int:
         # exporter and cannot prevent the local file from being attached below.
         fallback_rc = _run("independent XLSX fallback", [sys.executable, "scripts/export_fallback_workbook.py", "--summary-json", str(fallback_path)], env)
         root, titles, fallback = _read_summary(root_path), _read_summary(titles_path), _read_summary(fallback_path)
-        if root_rc == 0 and not _root_complete(root, selected_regions):
+        if collection_rc == 0 and not _root_complete(root, selected_regions):
             print("[daily] root summary has a failed or incomplete region", flush=True)
             root_rc = 1
         workbook = Path(str(fallback.get("xlsx", "")))

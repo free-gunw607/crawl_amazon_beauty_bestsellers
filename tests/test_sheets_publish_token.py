@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from types import SimpleNamespace
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -10,10 +11,24 @@ import pytest
 
 from crawl_amazon_beauty_bestsellers.sheets_publish import (
     SheetsPublishError,
+    _gws,
     _publish_rest,
     oauth_access_token,
     oauth_ready,
 )
+
+
+def test_gws_retries_quota_errors_after_one_minute(monkeypatch) -> None:
+    results = [
+        SimpleNamespace(returncode=1, stderr="Quota exceeded for write requests", stdout=""),
+        SimpleNamespace(returncode=0, stderr="", stdout="{}"),
+    ]
+    waits = []
+    monkeypatch.setattr("crawl_amazon_beauty_bestsellers.sheets_publish.subprocess.run", lambda *a, **k: results.pop(0))
+    monkeypatch.setattr("crawl_amazon_beauty_bestsellers.sheets_publish.time.sleep", waits.append)
+
+    assert _gws(["sheets", "spreadsheets", "values", "batchUpdate"], {}, {}) == {}
+    assert waits == [65]
 
 
 def test_oauth_ready_false_when_missing(tmp_path, monkeypatch):

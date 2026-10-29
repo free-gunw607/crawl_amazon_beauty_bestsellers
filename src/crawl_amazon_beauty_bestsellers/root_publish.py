@@ -361,20 +361,43 @@ def publish_root_region(settings: Settings, store, region: str, token: str | Non
     stamp = [_now(), f"region={region.upper()}", "auto"]
     for title, grid in tabs.items():
         if backend == "gws":
-            # gws carries JSON in argv. Large history/analytics grids exceed
-            # Linux ARG_MAX unless each values payload is deliberately small.
-            stamped_grid = [stamp + [""] * (len(grid[0]) - 3)] + grid
-            row_offset = 1
-            for chunk in _chunk_rows(stamped_grid, max_bytes=30_000, max_rows=100):
+            # Batch multiple bounded ranges into each API request. The prior
+            # one-request-per-30KB-chunk loop exhausted Google's per-user
+            # writes/minute quota on growing history tabs. Keep argv well below
+            # ARG_MAX and publish the freshness stamp only after every data
+            # chunk succeeds, so the watchdog cannot bless a partial tab.
+            data_items: list[dict] = []
+            row_offset = 2
+            for chunk in _chunk_rows(grid, max_bytes=120_000, max_rows=1000):
+                data_items.append({"range": f"'{title}'!A{row_offset}", "values": chunk})
+                row_offset += len(chunk)
+            batch: list[dict] = []
+            batch_bytes = 0
+            for item in data_items:
+                item_bytes = len(json.dumps(item, ensure_ascii=False))
+                if batch and batch_bytes + item_bytes > 600_000:
+                    _gws(
+                        ["sheets", "spreadsheets", "values", "batchUpdate"],
+                        {"spreadsheetId": sheet_id},
+                        {"valueInputOption": "USER_ENTERED", "data": batch},
+                    )
+                    batch, batch_bytes = [], 0
+                batch.append(item)
+                batch_bytes += item_bytes
+            if batch:
                 _gws(
                     ["sheets", "spreadsheets", "values", "batchUpdate"],
                     {"spreadsheetId": sheet_id},
-                    {
-                        "valueInputOption": "USER_ENTERED",
-                        "data": [{"range": f"'{title}'!A{row_offset}", "values": chunk}],
-                    },
+                    {"valueInputOption": "USER_ENTERED", "data": batch},
                 )
-                row_offset += len(chunk)
+            _gws(
+                ["sheets", "spreadsheets", "values", "batchUpdate"],
+                {"spreadsheetId": sheet_id},
+                {"valueInputOption": "USER_ENTERED", "data": [{
+                    "range": f"'{title}'!A1",
+                    "values": [stamp + [""] * (len(grid[0]) - 3)],
+                }]},
+            )
         else:
             body = {"valueInputOption": "USER_ENTERED",
                     "data": [{"range": f"'{title}'!A1", "values": [stamp + [""] * (len(grid[0]) - 3)] + grid}]}
