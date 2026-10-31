@@ -1,5 +1,14 @@
 # LAST ANSWER
 
+## 2026-10-31 Beauty Index v14 shipped and verified
+- Published v14 to https://liambeautyindex.dpdns.org. Date changes now drive the Daily Market Pulse, overview metrics, and brand footprint; the pulse shows `AS OF` and distinguishes unchanged rankings from missing snapshots.
+- Brands now contains Brand directory and Brand detail subtabs; brand profiles retain their own Overview/Products/Trend tabs. Added Products archive search across title, brand, and ASIN, leading to direct product pages. Chart points show captured date and rank/value on hover.
+- Live browser QA passed: historical date Oct 15; all five market cards; unchanged Oct 31 comparison; Brands subtabs and profile tabs; Products search/detail tabs; rank chart hover.
+- Site v14 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_79792b3c682c8191b6b9bfe58a679dd0`; deployment `appgdep_6ae5f9525b808191837eb4b160489a97`; source `66a2a459e50a1d7e24ed5f703da378f8ea318be0`.
+- Rollback: v13 available; v12 remains previous known-good. Macro-facing Google Sheet and fallback XLSX were untouched.
+- Follow-up candidates: synchronized date context across views, richer item entry/exit and capture-gap labels, and catalog market/rank/first-seen filters.
+
+
 ## 2026-10-30 scheduler duplication repair
 - Removed the stale LIAM3 `PRIMARY` cron block after backing up the full crontab with mode 0600; all unrelated cron tasks were preserved.
 - The sole LIAM3 primary is now the enabled 05:00 KST systemd timer. Its hourly catch-up and watchdog timers remain active. The crontab has no Amazon Beauty entries; user lingering is enabled and Windows WSL keepalive tasks are present.

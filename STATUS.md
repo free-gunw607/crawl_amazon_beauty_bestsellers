@@ -1,5 +1,16 @@
 # STATUS
 
+## 2026-10-31 Beauty Index v14 — Date-aware pulse, Brands subtabs, Product finder
+- Fixed the Overview Daily Market Pulse to use each market’s latest snapshot on or before the selected date. The heading now reports `AS OF`; each card displays its actual snapshot date and row count. Unchanged lists say `No rank changes vs [previous date] · all N positions held`, distinct from missing data or missing comparison history. Overview KPIs and brand footprint now follow the selected date.
+- Moved Brand Detail into Brands as an internal `Brand directory / Brand detail` subtab; individual brand profiles retain Overview, Products, and Trend tabs and shareable `#brand/<name>/<tab>` routes.
+- Added a Products top-level view with archive-wide title, brand, and ASIN search, opening the existing direct product profile (`#product/<ASIN>/<tab>`).
+- Rank and brand chart points expose native hover titles with the captured date and rank/value; chart points are easier to target.
+- Source commit `66a2a459e50a1d7e24ed5f703da378f8ea318be0`; Site v14 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_79792b3c682c8191b6b9bfe58a679dd0`; deployment `appgdep_6ae5f9525b808191837eb4b160489a97` succeeded.
+- Live browser QA on the public domain: selected Oct 15, 2026 and verified all five cards and AS OF label; verified the unchanged Oct 31 comparison; Brand directory/detail subtab and all brand profile tabs; product search, product detail tabs, and date/rank point hover. No failures reported.
+- Rollback remains available: v13 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_73f4afd3d6a48191b78b9870adc50dee`; previous known-good v12 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c997ad637d9081918267286791e664c0`. Google Sheet and fallback XLSX schemas/data were not changed.
+- Next improvement candidates: make market date selection globally synchronized across all data views; add explicit product entry/exit and missing-capture annotations to multi-market timeline; allow sorting/filtering the archive-wide product catalog by market, current rank, and first/last-seen dates.
+
+
 ## 2026-10-31 Beauty Index v13 — Overview and Brand Detail
 - Published v13 to https://liambeautyindex.dpdns.org. Overview first screen now leads with live-position/market-change KPIs and a five-market daily pulse (largest gainer, biggest drop, new entries); product trajectories follow and the brand footprint is lower on the page.
 - Added a separate Brand Detail navigation tab. Brand search and brand names open dedicated direct routes such as `https://liambeautyindex.dpdns.org/#brand/CeraVe/overview`. Profiles have Overview, Products, and Trend tabs, with five-market Top 100 share/average/best rank, current product roster, and rank/share history. Product links from a brand profile open the existing product detail page.
