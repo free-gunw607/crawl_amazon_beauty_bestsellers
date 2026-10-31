@@ -1,6 +1,15 @@
 # STATUS
 
-# 2026-11-01 Beauty Index v18 — current snapshot ranks in Product Finder
+# 2026-11-01 Beauty Index v19 — current production
+- v19 is live at https://liambeautyindex.dpdns.org. Date context explains KST capture dates vs marketplace-local archive dates, and switching markets preserves the selected date where possible.
+- Charts and sparklines show exact date/metric/value on hover, keyboard focus, and tap. Product chart coverage differentiates missing snapshots, outside-Top-100 dates, and missing price values.
+- Overview adds cross-market gain/drop signals. Product Finder caches the archive by selected date and shows current/last-captured, first-seen, and market rank information.
+- Browser QA verified Overview, date/market selectors, Trends, Brands, medicube Product Finder results, product rank and price histories. No blank screen, dead controls, clipping, or browser runtime errors reported.
+- Build and artifact validation passed. Website code only; Google Sheet and fallback XLSX data/layout were not changed.
+- Site source `aa2a9e3f2151ea611daa113cb723d873be9bf799`; v19 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_ea09fb9fee70819184683c638ff5dabd`; deployment `appgdep_6ae6687075fc81918de5021006d94a65` succeeded.
+- Rollback target: v18 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fa0d7c1803dc8191ae7076ba454867ff`. Full release ledger: `BEAUTY_INDEX_VERSIONS.md`.
+
+## Historical v18 verification — current snapshot ranks in Product Finder
 - Public feed generated at 2026-11-01 05:03:18 KST; all five snapshots are dated Nov 1 and contain 100 rows each. The feed has 34,876 history rows and 1,321 product metadata records.
 - root_rank_history stores dates in each Amazon marketplace's local calendar. The Nov 1 05:00–05:02 KST run was Oct 31 in all five markets. The run log run_job_20261101_050016_3b9adc.log reports 100 history rows appended per market; all 500 current ASIN/rank pairs match Oct 31 history rows (500/500). History data was present; its date is local-market date.
 - The actual defect was Product Finder using the latest history row/date instead of the current market snapshot. v18 overlays the selected-date snapshot into each product's market rows and Last captured value.

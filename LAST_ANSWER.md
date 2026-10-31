@@ -1,12 +1,13 @@
 # LAST ANSWER
 
-## 2026-11-01 — Product Finder v18 and live data check
-- Public feed generated at 05:03:18 KST. All five market snapshots are Nov 1 with 100/100 rows each; archive has 34,876 history rows and 1,321 products.
-- The history dates are marketplace-local. At the Nov 1 05:00–05:02 KST run, all five marketplaces were still on Oct 31. The run log records 100 rows appended per market; current snapshot ASIN/rank pairs match the Oct 31 history rows 500/500. The source history was not missing.
-- The bug was Product Finder showing the latest history row instead of the current market snapshot. v18 overlays the selected-date snapshot into the product result and uses the snapshot date for Last captured.
-- Live browser QA verified medicube B09V7Z4TJG at Nov 1 ranks US #2, UK #1, DE #15, FR #11, ES #14; the clean search-first layout remains.
-- Site source dc4fb72c38fd180e92c42330a9cf637ca3441def; saved version appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fa0d7c1803dc8191ae7076ba454867ff; deployment appgdep_6ae6660ed28481918eb19b88614f08c3 succeeded. Rollback target: v17 appgprj_6ae534c42f588191b0f2a26e03185615~appgver_0823e4b74810819188c2477d4ee73881.
-- Image candidate publisher code has been committed and pushed but is not yet deployed on the scheduled runtime; missing product images remain possible.
+## 2026-11-01 — Beauty Index v19 shipped
+- Published v19 to https://liambeautyindex.dpdns.org. The header now explains KST latest-capture dates versus marketplace-local archive dates; changing markets preserves the selected date when possible.
+- Added exact date/value/metric chart tooltips for hover, keyboard focus, and touch across large charts and sparklines; coverage labels distinguish dates without snapshots from captured dates where a product was outside Top 100 or had no price.
+- Overview now surfaces cross-market gainers/drops. Product Finder builds and caches its archive index by selected date and displays current/last-captured and first-seen dates with market ranks.
+- Live browser QA verified Overview, historical date and market switching, Trends, brand trends, medicube search and product detail/rank/price charts. No blank views, dead controls, clipping, or browser runtime errors reported; chart points displayed exact date and value tooltips.
+- Build proof: `node --check worker/index.js`, `bash scripts/build.sh`, `node scripts/validate-artifact.mjs`, and `git diff --check` passed. This was a website-only change; Google Sheet and fallback XLSX schemas/data were not modified.
+- Site source `aa2a9e3f2151ea611daa113cb723d873be9bf799`; saved v19 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_ea09fb9fee70819184683c638ff5dabd`; deployment `appgdep_6ae6687075fc81918de5021006d94a65` succeeded.
+- Rollback: v18 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fa0d7c1803dc8191ae7076ba454867ff`.
 - Version and rollback ledger: BEAUTY_INDEX_VERSIONS.md.
 ## 2026-10-31 Beauty Index v16 — Product Finder image and UX repair
 - Rebuilt Product Finder around archive search: title/brand/ASIN search, five-market filter, brand filter, full-archive vs selected-date Top 100 scope, four sort orders, reset, and 48-item pagination. Result cards show photo, brand/title/ASIN, market ranks, market breadth, and last capture date; responsive grid layout opens the existing direct product detail route.
