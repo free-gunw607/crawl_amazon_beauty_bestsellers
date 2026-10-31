@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-10-31 Beauty Index v16 — Product Finder image and UX repair
+- Rebuilt Product Finder around archive search: title/brand/ASIN search, five-market filter, brand filter, full-archive vs selected-date Top 100 scope, four sort orders, reset, and 48-item pagination. Result cards show photo, brand/title/ASIN, market ranks, market breadth, and last capture date; responsive grid layout opens the existing direct product detail route.
+- Image root cause: normalized `root_rank_history` rows intentionally omit image URLs, while photos are stored separately in the ASIN-keyed `products` metadata and latest market snapshots. Finder originally passed history rows directly to the image renderer. v15 joined the product metadata and added a canonical ASIN image fallback; live QA found one ASIN with neither metadata photo nor fallback success. v16 also joins photo/brand from selected-date market snapshots by ASIN before rendering.
+- Live browser verification: ASIN B09V7Z4TJG now shows its actual medicube photo; CeraVe search showed real photos on the first 8 cards. Confirmed archive/current Top 100 scopes, market and brand filters, sorting, reset, paging, and product-detail click-through. No clipping or runtime errors reported.
+- v16 Site version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7ec3d937aa6081918661991aefd9e290`; deployment `appgdep_6ae5ffc6d6248191b69dc4e75c19375b` succeeded; source `0365675578ddc28e73b5c8796324ffdc129808b2`.
+- v15 remains saved; v14 remains the prior feature-complete rollback. No macro-facing Google Sheet, public feed schema, or fallback XLSX structure was changed.
+
 ## 2026-10-31 Beauty Index v14 — Date-aware pulse, Brands subtabs, Product finder
 - Fixed the Overview Daily Market Pulse to use each market’s latest snapshot on or before the selected date. The heading now reports `AS OF`; each card displays its actual snapshot date and row count. Unchanged lists say `No rank changes vs [previous date] · all N positions held`, distinct from missing data or missing comparison history. Overview KPIs and brand footprint now follow the selected date.
 - Moved Brand Detail into Brands as an internal `Brand directory / Brand detail` subtab; individual brand profiles retain Overview, Products, and Trend tabs and shareable `#brand/<name>/<tab>` routes.
