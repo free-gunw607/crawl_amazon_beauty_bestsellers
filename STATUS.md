@@ -1,6 +1,13 @@
 # STATUS
 
-# 2026-11-01 Beauty Index v19 — current production
+## 2026-11-01 Beauty Index v20 — v19 hotfix, current production
+- Canonical URL remains https://liambeautyindex.dpdns.org; the page HTML now disables caching so the original address receives the deployed release without a query parameter.
+- Fixed the header structure: date context is nested below the market/date selectors in a responsive grid. Chart marks are hidden unless their individual point is active; dense sparkline hit targets shrink to preserve readable lines.
+- Browser verified the canonical URL with no query string: Overview loaded, navigation and controls stayed in view, the page had no unexpected horizontal overflow, sparklines were readable, and active-point tooltips worked. No blank state or runtime errors.
+- Site source `3cb75994e3de4faed5b20b82f52b5afa84f83ca9`; saved Site version 20 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_85fa538ac5888191b996cdf26ec74d5d`; deployment `appgdep_6ae66abf161c8191a523d91ed2839cce` succeeded.
+- Rollback target: v19 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_ea09fb9fee70819184683c638ff5dabd`. Google Sheet and fallback XLSX unchanged.
+
+## 2026-11-01 Beauty Index v19 — previous production
 - v19 is live at https://liambeautyindex.dpdns.org. Date context explains KST capture dates vs marketplace-local archive dates, and switching markets preserves the selected date where possible.
 - Charts and sparklines show exact date/metric/value on hover, keyboard focus, and tap. Product chart coverage differentiates missing snapshots, outside-Top-100 dates, and missing price values.
 - Overview adds cross-market gain/drop signals. Product Finder caches the archive by selected date and shows current/last-captured, first-seen, and market rank information.

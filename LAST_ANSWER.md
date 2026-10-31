@@ -1,5 +1,13 @@
 # LAST ANSWER
 
+## 2026-11-01 — v19 blank-screen/layout and chart hotfix shipped as Site v20
+- Root cause: v19 placed the date context as an extra flex child in the header and left page HTML cacheable for five minutes. The malformed header could push/overflow controls on narrower windows, while browser cache could keep displaying the prior response after deployment. Chart points were all shown continuously, which made dense sparklines look like thick dot bands.
+- Fix: move the date context inside the market/date control block, use a responsive two-column selector grid, set the HTML response to `no-store`, hide chart dots until an individual point is hovered/focused/tapped, and size hit targets according to point density.
+- Verified on the canonical URL with no query string: full Overview loaded, nav/date controls stayed in view, no page-level horizontal overflow, sparkline strokes remained clear, and only the active point highlighted with its date/rank tooltip. Browser found no blank state or runtime errors.
+- Site source `3cb75994e3de4faed5b20b82f52b5afa84f83ca9`; saved Site version 20 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_85fa538ac5888191b996cdf26ec74d5d`; deployment `appgdep_6ae66abf161c8191a523d91ed2839cce` succeeded.
+- Canonical address remains https://liambeautyindex.dpdns.org. Rollback to v19 if needed: `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_ea09fb9fee70819184683c638ff5dabd`.
+- Build/artifact checks passed. Google Sheet and fallback XLSX unchanged. Release ledger: BEAUTY_INDEX_VERSIONS.md.
+
 ## 2026-11-01 — Beauty Index v19 shipped
 - Published v19 to https://liambeautyindex.dpdns.org. The header now explains KST latest-capture dates versus marketplace-local archive dates; changing markets preserves the selected date when possible.
 - Added exact date/value/metric chart tooltips for hover, keyboard focus, and touch across large charts and sparklines; coverage labels distinguish dates without snapshots from captured dates where a product was outside Top 100 or had no price.
