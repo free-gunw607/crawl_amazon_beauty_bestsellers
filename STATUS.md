@@ -241,3 +241,4 @@ Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES),
 - Brands compares shelf share, average/best rank, rating, and 30-day momentum; includes representative product images, search, four sort modes, and direct brand-to-product navigation.
 - Rankings normalize duplicate rows for display and show genuine archive gaps while keeping 100 ordered positions. All 322 market/date selections passed the local UI harness; live browser passed brand interactions and confirmed date switching renders ordered ranks 1–100.
 - Scheduled data continues to the existing JSON mirror without changing Google Sheet or XLSX structure. Data refresh does not require redeployment while feed schema v1 remains compatible.
+- Main A4 repo changes were pushed to `origin/main` in commit `82a9dfb`; local run logs and crontab backup were excluded.
