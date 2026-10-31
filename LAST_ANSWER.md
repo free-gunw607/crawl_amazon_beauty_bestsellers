@@ -1,5 +1,12 @@
 # LAST ANSWER
 
+## 2026-11-01 — Brand Directory and chart interaction repair, Site v21
+- The Brands navigation now opens a distinct searchable/sortable Brand Directory. Its cards use brand monograms, not representative product photos; Brand detail opens a searchable monogram picker. Brand profile Overview/Products/Trend and Back navigation were live-verified.
+- Hover behavior is scoped by chart size: sparklines at 200px or less draw only the trend line and do not open markers, tooltips, or product previews. Larger charts have visible modest markers and exact date/value tooltips.
+- Browser QA on the canonical URL confirmed Brand tabs, medicube search/profile and return flows, no Overview content leaking into Brands, and no runtime errors. Trends brand share and product rank/price charts showed exact hover data; small trend sparklines remained static.
+- Site source `4f5e3040fe6698aa0612e4f189238583055254e0`; saved v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`; deployment `appgdep_6ae66d3d3a6c8191bb6bd48b7d9d21af` succeeded. Rollback: v20 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_85fa538ac5888191b996cdf26ec74d5d`.
+- Google Sheet and fallback XLSX are unchanged. Release ledger: BEAUTY_INDEX_VERSIONS.md.
+
 ## 2026-11-01 — v19 blank-screen/layout and chart hotfix shipped as Site v20
 - Root cause: v19 placed the date context as an extra flex child in the header and left page HTML cacheable for five minutes. The malformed header could push/overflow controls on narrower windows, while browser cache could keep displaying the prior response after deployment. Chart points were all shown continuously, which made dense sparklines look like thick dot bands.
 - Fix: move the date context inside the market/date control block, use a responsive two-column selector grid, set the HTML response to `no-store`, hide chart dots until an individual point is hovered/focused/tapped, and size hit targets according to point density.

@@ -1,6 +1,13 @@
 # STATUS
 
-## 2026-11-01 Beauty Index v20 — v19 hotfix, current production
+## 2026-11-01 Beauty Index v21 — current production
+- Restored a clearly distinct Brands area: searchable/sortable brand directory cards use brand monograms instead of product photos; the Brand detail picker is searchable; profiles open with Overview/Products/Trend and return to the directory.
+- Small rank sparklines are line-only, with no data dots, hover tooltip, or product preview. Charts wider than 200px show modest data points and exact date/value tooltips.
+- Live browser confirmed the Brand directory and detail picker, medicube profile and all three tabs, return navigation, and no Overview/product-trajectory residue in Brands. Trends brand-share and product rank/price charts showed exact hover values; small trend-table sparklines stayed static. No runtime errors.
+- Canonical URL remains https://liambeautyindex.dpdns.org. Site source `4f5e3040fe6698aa0612e4f189238583055254e0`; saved v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`; deployment `appgdep_6ae66d3d3a6c8191bb6bd48b7d9d21af` succeeded.
+- Rollback target: v20 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_85fa538ac5888191b996cdf26ec74d5d`. Google Sheet and fallback XLSX unchanged.
+
+## Historical v20 — v19 layout/cache hotfix
 - Canonical URL remains https://liambeautyindex.dpdns.org; the page HTML now disables caching so the original address receives the deployed release without a query parameter.
 - Fixed the header structure: date context is nested below the market/date selectors in a responsive grid. Chart marks are hidden unless their individual point is active; dense sparkline hit targets shrink to preserve readable lines.
 - Browser verified the canonical URL with no query string: Overview loaded, navigation and controls stayed in view, the page had no unexpected horizontal overflow, sparklines were readable, and active-point tooltips worked. No blank state or runtime errors.
