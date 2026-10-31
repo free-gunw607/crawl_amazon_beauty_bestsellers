@@ -1,5 +1,13 @@
 # STATUS
 
+## 2026-11-01 Beauty Index v22.2 — current production (Sites v24)
+- Upgraded the Brands area with a three-brand comparison view: 7/30/60-day Top 100 share chart and a five-market table for share, average rank, and best rank.
+- Fixed multi-series Trend/Brand Share chart labels; each point and hover tooltip carries its brand name, date, share, and capture context instead of a generic `Series 1` label.
+- Replaced unreliable remote favicon requests with bundled logo artwork sourced from brand sites for CeraVe, Garnier, Maybelline, medicube, The Ordinary, Revlon, and eos. Unmapped brands render their full names, never initials. Asset source/provenance is recorded in the Site source checkout at `assets/brand-logos/README.md`.
+- Published to the existing canonical address https://liambeautyindex.dpdns.org. Live browser QA confirmed the canonical URL, embedded logo rendering (including CeraVe and medicube), compare controls/table/chart, named Brand Share chart data points, and no blank screens or runtime errors. The final alias-only patch was smoke-checked for brand images; compare and tooltip interactions were fully verified immediately before it and were unchanged by that patch.
+- Site source commit `505357a84a253f5a6c7663233766dd5abe515c30`; saved Sites v24 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_84edce206a348191b345efd4d047fcac`; deployment `appgdep_6ae67233efa08191b4a807d99a5918d8` succeeded.
+- Rollback target: v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`. Google Sheet and fallback XLSX were not changed. Full release trail: `BEAUTY_INDEX_VERSIONS.md`.
+
 ## 2026-11-01 Beauty Index v21 — current production
 - Restored a clearly distinct Brands area: searchable/sortable brand directory cards use brand monograms instead of product photos; the Brand detail picker is searchable; profiles open with Overview/Products/Trend and return to the directory.
 - Small rank sparklines are line-only, with no data dots, hover tooltip, or product preview. Charts wider than 200px show modest data points and exact date/value tooltips.

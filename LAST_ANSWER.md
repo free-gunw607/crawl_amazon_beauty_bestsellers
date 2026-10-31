@@ -1,5 +1,14 @@
 # LAST ANSWER
 
+## 2026-11-01 — Brands comparison and logo upgrade, v22.2 (Sites v24)
+- Added a Compare brands tab in Brands. Select up to three brands, compare 7/30/60-day Top 100 listing share in the selected market, and compare share/average rank/best rank across the five markets.
+- Repaired Trends Brand Share point labels: the tooltip now identifies the actual brand, exact date, share, and snapshot context instead of displaying `Series 1`.
+- Added locally bundled logo artwork for CeraVe, Garnier, Maybelline, medicube, The Ordinary, Revlon, and eos. Other brands show their full name in a typographic fallback, not initials. Asset sources/provenance are in the Site source `assets/brand-logos/README.md`.
+- First v22’s remote favicon attempt failed the visual check, so it was replaced by self-contained logos in v22.1 and a name-matching hotfix in v22.2. The current production is Sites version 24; v21 remains available for rollback.
+- Live browser QA on https://liambeautyindex.dpdns.org verified logo rendering, Brand comparison selectors/chart/five-market table, real Brand Share tooltip labels, and no blank views or runtime errors. The last alias-only adjustment was smoke-checked for logos; the compare/tooltip code did not change.
+- Site source commit `505357a84a253f5a6c7663233766dd5abe515c30`; saved v24 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_84edce206a348191b345efd4d047fcac`; deployment `appgdep_6ae67233efa08191b4a807d99a5918d8` succeeded. Rollback: v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`.
+- Google Sheet and fallback XLSX were untouched. Full version trail: `BEAUTY_INDEX_VERSIONS.md`.
+
 ## 2026-11-01 — Brand Directory and chart interaction repair, Site v21
 - The Brands navigation now opens a distinct searchable/sortable Brand Directory. Its cards use brand monograms, not representative product photos; Brand detail opens a searchable monogram picker. Brand profile Overview/Products/Trend and Back navigation were live-verified.
 - Hover behavior is scoped by chart size: sparklines at 200px or less draw only the trend line and do not open markers, tooltips, or product previews. Larger charts have visible modest markers and exact date/value tooltips.
