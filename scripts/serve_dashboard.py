@@ -232,6 +232,43 @@ class DashboardData:
         for row in missing:
             row["image_url"] = image_by_asin.get(row["asin"], "")
 
+    def _enrich_image_candidates(self, rows: list[dict]) -> None:
+        """Attach all previously captured ASIN image URLs as ordered fallbacks."""
+        asins = tuple(dict.fromkeys(str(row.get("asin", "")).upper() for row in rows if row.get("asin")))
+        if not asins:
+            return
+        placeholders = ",".join("?" for _ in asins)
+        candidates: dict[str, list[str]] = {asin: [] for asin in asins}
+
+        def add(asin: str, url: object) -> None:
+            value = str(url or "").strip()
+            if value.startswith("https://") and value not in candidates.get(asin, []):
+                candidates.setdefault(asin, []).append(value)
+
+        for row in rows:
+            add(str(row.get("asin", "")).upper(), row.get("image_url"))
+        for item in self.query(
+            "SELECT asin,image_url FROM list_entries WHERE asin IN (" + placeholders + ") "
+            "AND image_url IS NOT NULL AND length(image_url)>0 ORDER BY fetched_at DESC", asins
+        ):
+            add(str(item["asin"]).upper(), item.get("image_url"))
+        for detail in self.query(
+            "SELECT asin,image_urls FROM product_details WHERE asin IN (" + placeholders + ") "
+            "AND image_urls IS NOT NULL AND length(image_urls)>2 ORDER BY fetched_at DESC", asins
+        ):
+            try:
+                urls = json.loads(detail.get("image_urls") or "[]")
+            except (TypeError, json.JSONDecodeError):
+                continue
+            if isinstance(urls, list):
+                for url in urls:
+                    add(str(detail["asin"]).upper(), url)
+        for row in rows:
+            asin = str(row.get("asin", "")).upper()
+            row["image_urls"] = candidates.get(asin, [])
+            if not row.get("image_url") and row["image_urls"]:
+                row["image_url"] = row["image_urls"][0]
+
     def summary(self) -> dict:
         sheet_history = self.sheet_history()
         out = {"regions": [], "db_updated": None, "history_days": 0, "asin_count": 0,

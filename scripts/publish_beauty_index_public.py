@@ -60,13 +60,15 @@ def _dashboard_data():
 
     # Keep product metadata separate and keyed by ASIN. This does not change the
     # macro-facing Google workbook or fallback XLSX layout.
-    product_rows = [{"asin": asin, "brand": "", "image_url": ""} for asin in sorted(all_asins)]
+    product_rows = [{"asin": asin, "brand": "", "image_url": "", "image_urls": []} for asin in sorted(all_asins)]
     for offset in range(0, len(product_rows), 350):
         batch = product_rows[offset:offset + 350]
         data._enrich_brands(batch)
         data._enrich_images(batch)
+        data._enrich_image_candidates(batch)
     products = {
-        row["asin"]: {"brand": row.get("brand", ""), "image_url": row.get("image_url", "")}
+        row["asin"]: {"brand": row.get("brand", ""), "image_url": row.get("image_url", ""),
+                      "image_urls": row.get("image_urls", [])}
         for row in product_rows
     }
     normalized_history = []
