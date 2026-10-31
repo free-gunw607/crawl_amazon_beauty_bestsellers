@@ -270,3 +270,11 @@ Fixed the route parser, added generated inline-script parsing to the artifact va
 - Deployment: `appgdep_6ae5f47c467c81918167ff57e045d7cc` (succeeded)
 - Source commit: `08aca5593890f936998f129a7198e744574d50bf`
 - Last known good rollback: v10 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_632612bb2390819182be40d0d3a6244b`. v11 is preserved but defective.
+
+## 2026-10-31 — Overview and Brand Detail redesign (v13)
+
+- Overview now opens with a polished intro and four useful KPIs, then a five-market pulse with each market's largest gainer, biggest drop, and new-entry count. Top 10 product paths follow; brand share/footprint is lower on the page.
+- Added a separate **Brand Detail** navigation tab and searchable brand picker. Each brand opens a shareable direct route such as `https://liambeautyindex.dpdns.org/#brand/CeraVe/overview` with Overview, Products, and Trend tabs. Profiles show five-market share/average/best rank, the selected-market product roster, and brand share/rank trends. Product links open product detail and return to the brand profile.
+- Production browser verification passed for Overview layout, all brand tabs, CeraVe product links and back navigation. Direct URL reload rendered the profile and five-market table without visiting the directory first.
+- Site v13 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_73f4afd3d6a48191b78b9870adc50dee`; deployment `appgdep_6ae5f6d568a0819193023109cf25f099` succeeded; source commit `1334c7bcf6f9cf3aeccff09119b64fa4aec8a909`.
+- v12 rollback remains available at `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c997ad637d9081918267286791e664c0`. Google Sheet and fallback XLSX schemas were left unchanged.

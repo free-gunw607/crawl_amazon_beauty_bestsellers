@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-10-31 Beauty Index v13 — Overview and Brand Detail
+- Published v13 to https://liambeautyindex.dpdns.org. Overview first screen now leads with live-position/market-change KPIs and a five-market daily pulse (largest gainer, biggest drop, new entries); product trajectories follow and the brand footprint is lower on the page.
+- Added a separate Brand Detail navigation tab. Brand search and brand names open dedicated direct routes such as `https://liambeautyindex.dpdns.org/#brand/CeraVe/overview`. Profiles have Overview, Products, and Trend tabs, with five-market Top 100 share/average/best rank, current product roster, and rank/share history. Product links from a brand profile open the existing product detail page.
+- Live browser verified the Overview order, Brand Detail picker, CeraVe profile, each brand tab, product-to-detail navigation and return path. A fresh load of the direct CeraVe URL rendered the complete profile without prior navigation.
+- Site version 13: `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_73f4afd3d6a48191b78b9870adc50dee`; deployment `appgdep_6ae5f6d568a0819193023109cf25f099` succeeded; source `1334c7bcf6f9cf3aeccff09119b64fa4aec8a909`.
+- Rollback: v12 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c997ad637d9081918267286791e664c0` is the previous known-good version; v10 also remains saved. No Google Sheet or fallback XLSX schema was changed.
+
 ## 2026-10-31 Beauty Index v12 hotfix
 - v11's first-party client script did not parse: the product-route regular expression contained escaped `/` characters inside the Worker's outer HTML template literal, which removed those escapes in the delivered JavaScript. The browser then stopped before data rendering and click handlers were registered. The Worker endpoint and `/api/data` were healthy; this was a browser JavaScript syntax failure.
 - Replaced the fragile route regex with a path-segment parser. Added an artifact check that extracts and parses every inline browser script, in addition to checking the Worker module. This catches this exact class of failure before publishing.
