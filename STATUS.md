@@ -1,5 +1,12 @@
 # STATUS
 
+## 2026-10-31 Beauty Index v12 hotfix
+- v11's first-party client script did not parse: the product-route regular expression contained escaped `/` characters inside the Worker's outer HTML template literal, which removed those escapes in the delivered JavaScript. The browser then stopped before data rendering and click handlers were registered. The Worker endpoint and `/api/data` were healthy; this was a browser JavaScript syntax failure.
+- Replaced the fragile route regex with a path-segment parser. Added an artifact check that extracts and parses every inline browser script, in addition to checking the Worker module. This catches this exact class of failure before publishing.
+- v12 production deployment succeeded: `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c997ad637d9081918267286791e664c0`, deployment `appgdep_6ae5f47c467c81918167ff57e045d7cc`, source commit `08aca5593890f936998f129a7198e744574d50bf`.
+- Live browser confirmed the Oct 31 archive rendered (500 ranks, 34,376 history rows), top-level nav and markets worked, product detail opened, and Overview / Rank & price / Markets all switched with populated data. No blank screen or dead controls observed.
+- v11 remains in history but is defective. Last known good rollback: v10 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_632612bb2390819182be40d0d3a6244b`; v8 baseline also remains preserved.
+
 ## 2026-10-31 Beauty Index website v11
 - Published v11 to the existing public Beauty Index site: https://liambeautyindex.dpdns.org (Sites production deployment succeeded; deployment fallback URL: https://beauty-index-rankings.trimlaugh.chatgpt.site).
 - Every product now opens an addressable internal detail page (`#product/<ASIN>/<tab>`) from ranking, movement, trend, and overview product links. Product detail tabs: Overview, Rank & price, and Markets; includes product identity/photo, rank and price history, cross-market comparison, archive coverage, and Amazon listing link.

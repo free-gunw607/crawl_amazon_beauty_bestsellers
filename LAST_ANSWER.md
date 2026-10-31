@@ -259,3 +259,14 @@ Active cron now includes:
 The underlying data endpoint and Google Sheet/fallback workbook schema were not changed by this site-only release. The production site continues to load the published ranking JSON and refresh it on its existing cadence.
 
 ---
+
+## 2026-10-31 — v11 blank-screen hotfix (v12)
+
+v11 failed because I checked the Worker source syntax but not the JavaScript embedded in the generated page. The route regex used escaped slash characters inside the Worker's outer HTML template literal; those escapes disappeared in the browser output, making the client script syntactically invalid. The browser never ran `refresh()` or registered click handlers. The Worker and public data endpoint were healthy.
+
+Fixed the route parser, added generated inline-script parsing to the artifact validator, and deployed **v12**. The live browser check confirmed the archive loaded (500 current rank positions, 34,376 history rows), navigation worked, a product opened, and all three detail tabs switched with populated content.
+
+- v12: `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c997ad637d9081918267286791e664c0`
+- Deployment: `appgdep_6ae5f47c467c81918167ff57e045d7cc` (succeeded)
+- Source commit: `08aca5593890f936998f129a7198e744574d50bf`
+- Last known good rollback: v10 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_632612bb2390819182be40d0d3a6244b`. v11 is preserved but defective.
