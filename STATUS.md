@@ -242,3 +242,8 @@ Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES),
 - Rankings normalize duplicate rows for display and show genuine archive gaps while keeping 100 ordered positions. All 322 market/date selections passed the local UI harness; live browser passed brand interactions and confirmed date switching renders ordered ranks 1–100.
 - Scheduled data continues to the existing JSON mirror without changing Google Sheet or XLSX structure. Data refresh does not require redeployment while feed schema v1 remains compatible.
 - Main A4 repo changes were pushed to `origin/main` in commit `82a9dfb`; local run logs and crontab backup were excluded.
+
+## 2026-10-31 — Beauty Index v10
+- Production v10 is deployed at https://liambeautyindex.dpdns.org; source commit `75a296d7a685d14b61aef26df3b5166c2a014aa9`.
+- Fixed Overview trend-line styling and documented its cohort/average-rank meaning. Brand momentum is rounded to one decimal maximum; Brands and Trends now state how sort values and rank paths are computed.
+- Live browser QA confirmed the line color, sort descriptions, and rounded momentum values. Local UI harness passed including 322 market/date checks.

@@ -239,3 +239,10 @@ Active cron now includes:
 - Live browser QA confirmed brand images, all four sorting modes, search, brand-filtered navigation, and date switching; the selected historical date rendered ranks 1–100 in order. Local all-date interaction validation also passed.
 - Data-only updates continue through the existing LIAM3 publisher to the same public JSON Drive mirror. The page polls every five minutes. Since v9 retains feed schema v1, morning data updates need no site redeploy; a feed schema change would require coordinated publisher/UI updates.
 - A4 repository changes, operational docs, and the date-stamped XLSX exports intended by the GitHub Actions commit-back workflow were committed as `82a9dfb` and pushed to `origin/main`. Local crontab backups and detailed per-run JSONL files remain excluded.
+
+## 2026-10-31 — Beauty Index v10 chart clarity
+- Fixed the Overview Top 10 chart's missing CSS class; its line now renders light green on the dark green panel. Added an in-page note that the y-scale fits the observed range and lower-number ranks plot higher.
+- Clarified that Overview follows today's Top 10 cohort backward and averages only products found in each archived snapshot; the point sample may be fewer than ten.
+- Brands now explains its sort definitions: shelf share = count out of 100; average rank = mean position, lower is better; best position = the brand's highest-ranked product; 30-day momentum = change in brand mean rank, with upward movement meaning stronger placement.
+- Brand momentum now rounds to at most one decimal. Brand sparklines represent the brand's mean product rank across archived dates, not one product's rank.
+- Site version 10 deployed successfully at https://liambeautyindex.dpdns.org (source `75a296d7a685d14b61aef26df3b5166c2a014aa9`, deployment `appgdep_6ae5ed9e1d088191bc04e94913e2c38c`). Live browser check confirmed the green line, definitions, and rounded values. Local UI harness passed, including all 322 market/date rank-slot checks.
