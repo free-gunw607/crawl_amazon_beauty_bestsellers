@@ -1,5 +1,21 @@
 # LAST ANSWER
 
+## 2026-10-30 scheduler duplication repair
+- Removed the stale LIAM3 `PRIMARY` cron block after backing up the full crontab with mode 0600; all unrelated cron tasks were preserved.
+- The sole LIAM3 primary is now the enabled 05:00 KST systemd timer. Its hourly catch-up and watchdog timers remain active. The crontab has no Amazon Beauty entries; user lingering is enabled and Windows WSL keepalive tasks are present.
+- Fixed `scripts/install_schedule.sh`: it now recognizes legacy, PRIMARY, and SECONDARY block markers when replacing/removing schedules, and status no longer exits when GWS is absent. Deployed the updated script to LIAM3.
+- Verified the installer status lists three active timers and no cron block; cleared the previous duplicate-run failure state. `bash -n` and `git diff --check` passed.
+- LIAM2 remains the 05:30 secondary takeover, configured for Service Account Sheets access. Its latest catch-up log reports the regional tabs current; older OAuth `invalid_grant` messages are retained in the cumulative log and do not establish a current failure.
+- The only remaining proof is tomorrow's unattended LIAM3 systemd-only run. No existing Google Sheet or fallback workbook structure/data was changed.
+
+## 2026-10-29 Beauty Index dashboard
+- Implemented a read-only web dashboard with regional Top 100 tables, daily snapshot history, movers/new/dropped comparisons, five-market freshness, and ASIN rank/price/rating charts.
+- Current rankings and complete `root_rank_history` data come from Google Sheets through the existing Service Account's read-only scope, cached for 10 minutes. SQLite fills brand labels and provides a fallback. Start locally with `python3 scripts/serve_dashboard.py --port 8781`.
+- Deployed the dashboard to LIAM3 as an enabled user systemd service. Live API returned 100 current rows for each of US/DE/UK/FR/ES dated 2026-10-29; `root_rank_history` loaded from Google Sheets with 64 dates and 1,282 ASINs, no warning. Local URL on LIAM3: `http://127.0.0.1:8781`.
+- Private Tailnet publishing is the only pending piece. Tailscale reports Serve is disabled for the tailnet and supplied the owner enablement URL; after it is enabled, `tailscale serve --bg 8781` can provide the private HTTPS endpoint. Public Funnel was not enabled.
+- Refinement is deployed to LIAM3: clearer typography/spacing, brand-aware product search, exact brand filtering, and a brand directory with Top 100 counts, avg/best rank, ratings and reviews. Added “Powered by GunWoo · For NohMin”. Live check returned 47 US brands and five CeraVe products with complete current fields.
+- Image feasibility only (no fallback or existing Sheet layout was changed): saved SQLite image URLs cover 487/500 current regional slots (US 96, UK 97, DE/FR/ES 98 each). Of 13 gaps, the conventional Amazon ASIN image URL resolves to JPEG for 7 and a 43-byte placeholder GIF for 6. A separate ASIN-to-image mapping workbook is feasible and would keep macro-facing tabs intact.
+
 ## 2026-10-29 Recovery update
 - Additional Drive hardening: bounded retries for transient GWS errors; never blindly retry non-idempotent file creation; verify remote ID, MIME type, size, MD5, target folder, and non-trashed status after upload; recheck the existing Drive file during hourly catch-up and repair missing/mismatched delivery. Local XLSX/mail fallback remains independent. Tests: 61 passed. Deployed to LIAM2/LIAM3 and passed `py_compile` on both.
 - LIAM3 live Drive update at 15:42 KST succeeded in place on existing file ID `1P1V92U9cCkeMXZfKekSLbhB3rIlZVu3R`; remote readback matched local size/checksum and expected folder. The subsequent LIAM3 catch-up systemd audit exited 0.
@@ -188,3 +204,37 @@ Active cron now includes:
 - LIAM1 SSH remains unavailable; LIAM4 SSH is also unavailable. Neither node is verified.
 - No commit or push was made.
 - Watchdog hardening: it now audits update stamps across all 15 Top100/history/analytics tabs, instead of only the five Top100 tabs. Missing or stale tabs trigger the existing email/Telegram alert path. Verification: `PYTHONPATH=src pytest -q` -> 46 passed; py_compile and `git diff --check` also passed.
+
+## 2026-10-31 — Public Beauty Index shipped
+
+- Public dashboard: https://liambeautyindex.dpdns.org
+- Replaced the blocked Worker upload endpoint with a dedicated public Google Drive JSON mirror. The dashboard reads this feed and refreshes every five minutes.
+- The JSON is separate from the macro workbook and fallback XLSX. Owner OAuth created it under the upgraded user's Drive quota; LIAM3's existing service account can update only this file. The publisher refuses to create a replacement if its saved ID is lost.
+- LIAM3 daily 05:00 pipeline publishes after the local fallback XLSX is generated; hourly catch-up compares the five Sheet timestamps and skips unchanged snapshots.
+- Verified production feed: 2026-10-31, five marketplaces each 100/100, 34,376 historical rows, 1,311 ASIN metadata records. LIAM3's second `--if-stale` run returned `current`.
+- Site version 2 deployed successfully. Build/artifact validation and Worker syntax check passed. Main A4 repo changes are uncommitted; no main-repo push was made.
+
+## 2026-10-31 Beauty Index controls repair
+- Root cause: the served inline browser script had invalid JavaScript syntax. The image `onerror` fallback string was nested inside the Worker HTML template literal; escaping was consumed, so browsers failed parsing the entire script before `/api/data` or any handlers ran.
+- Replaced the inline image error attribute with a bound DOM error handler; removed `For NohMin` from the public page.
+- Site source pushed as `1542ecdcdad52a0077757983b28275d576f08449`; version 4 deployment succeeded.
+- Live custom-domain HTML has valid JavaScript syntax and no NohMin text. Live `/api/data` returns 2026-10-31 with 100 rows for each of five markets, 34,376 history rows, and 1,311 products. Existing public URL: https://liambeautyindex.dpdns.org
+- Main A4 repository changes remain uncommitted; Site code is maintained in its separate Sites source repository.
+
+## 2026-10-31 Beauty Index interaction and image repair
+- Root cause for missing images: CSP allowed only `m.media-amazon.com`, while 1,073 of 1,232 available image URLs used `images-eu.ssl-images-amazon.com` or `images-na.ssl-images-amazon.com`. Added both exact hosts; browser QA observed 95+ of 100 current US images loaded, with 3 visible records using the no-image fallback.
+- Reworked event handling with delegated listeners so re-rendered nav, market, date, filter, brand, and product controls remain active. Search, date selector (64+ historical days), all five market selectors, Rankings, Movements filters, Brands search, and brand-to-rankings navigation passed live browser checks.
+- Product title/image links are locale-specific Amazon links; clicking elsewhere on a product row opens that marketplace in a new tab. Added a dedicated History button per row; product rank-history dialog opens and closes with dated rows.
+- `FOR NOHMIN` is hidden on Overview and shown under the descriptions on Rankings, Movements, and Brands; all four visibility states passed live browser checks.
+- Final Site source commit `69b4a20d7b0136ed299741de2f72c0ca111aadbf`; version 7 deployment succeeded at https://liambeautyindex.dpdns.org. Worker syntax, build, artifact validation, live API, and browser interactions verified.
+- Final follow-up found and fixed a Brands runtime exception: the brand-card builder discarded aggregate fields (`avg`, `count`, `best`) before rendering, so `avg.toFixed()` threw and the tab remained on its previous view. It now filters the intact brand aggregates; redundant per-render handlers were removed in favor of the delegated handler.
+- Version 8 source commit `9375071df1953af2b474df097abb673be85f6325` deployed successfully. Live browser confirmed 48 brand cards, `eos` search → 1 brand card (3 products, average rank #34.7), and selecting it opens Rankings prefiltered to 3 eos rows. The complete local interaction harness also passes Rankings/search, Movements filters, Brands/search/navigation, market-specific links, product navigation, History modal, snapshot options, and credit visibility.
+- Public snapshot file: https://drive.google.com/file/d/1pAVxxxbr8x2S3eKVoPspCBnElwv69FtB/view
+
+## 2026-10-31 — Beauty Index v9 trends and brand intelligence
+- v9 is live at https://liambeautyindex.dpdns.org (Sites deployment `appgdep_6ae5e975c6b48191b80b3c66b2f410e4`); source commit `9a9a5c206b856c73e1b8411a06e95117b359ff37`.
+- Expanded Brands with each brand's leading product image (click opens Amazon), Top 100 share, average/best rank, average rating, 30-day brand rank path/direction, search, and sorting by shelf share, average rank, best position, or 30-day momentum. “View brand products” opens Rankings filtered to that brand.
+- Version 8 remains independently saved and deployable as rollback. Existing Sheet tabs and fallback XLSX schemas were not changed.
+- Worker syntax, build, artifact validation, and local UI harness passed. The harness checked all 322 market/date selections: rankings have 100 ordered slots; duplicate rows are resolved for display and real archive gaps remain explicit.
+- Live browser QA confirmed brand images, all four sorting modes, search, brand-filtered navigation, and date switching; the selected historical date rendered ranks 1–100 in order. Local all-date interaction validation also passed.
+- Data-only updates continue through the existing LIAM3 publisher to the same public JSON Drive mirror. The page polls every five minutes. Since v9 retains feed schema v1, morning data updates need no site redeploy; a feed schema change would require coordinated publisher/UI updates.

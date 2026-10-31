@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f7f3">
+  <title>Beauty Index — Amazon Bestseller Intelligence</title>
+  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="/ux.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Beauty Index home"><span class="brand-mark">B</span><span>beauty<span class="brand-light">index</span></span></a>
+      <div class="brand-credit">POWERED BY GUNWOO <span>FOR NOHMIN</span></div>
+      <div class="side-label">WORKSPACE</div>
+      <button class="nav-item active" data-view="overview"><span class="nav-icon">◫</span>Market overview</button>
+      <button class="nav-item" data-view="rankings"><span class="nav-icon">☷</span>Live rankings</button>
+      <button class="nav-item" data-view="movements"><span class="nav-icon">↕</span>Rank movements</button>
+      <button class="nav-item" data-view="brands"><span class="nav-icon">◉</span>Brand directory</button>
+      <div class="side-label region-label">MARKETPLACE</div>
+      <div id="regionNav" class="region-list"></div>
+      <div class="sidebar-bottom"><span class="live-dot"></span><span>Connected to ranking archive</span></div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar"><div class="crumb">INTELLIGENCE <span>/</span> <b id="crumbName">Market overview</b></div><div class="top-meta"><span class="live-dot"></span> DAILY DATA <span class="top-divider"></span><span id="updatedAt">Checking latest snapshot…</span></div></header>
+
+      <section class="page-heading"><div><div class="eyebrow">BEAUTY &amp; PERSONAL CARE · AMAZON</div><h1 id="pageTitle">Market overview<span class="title-period">.</span></h1><p id="pageSubtitle">A clear view of what is winning, moving, and gaining momentum.</p></div><div class="controls" id="controls"><label class="select-wrap"><span>MARKET</span><select id="regionSelect"><option value="us">United States</option><option value="uk">United Kingdom</option><option value="de">Germany</option><option value="fr">France</option><option value="es">Spain</option></select></label><label class="select-wrap"><span>SNAPSHOT</span><select id="dateSelect"><option>Loading…</option></select></label><label class="select-wrap hidden" id="brandFilterWrap"><span>BRAND</span><select id="brandFilter"><option value="">All brands</option></select></label></div></section>
+
+      <div id="errorBox" class="error-box hidden"></div>
+      <section id="overviewView" class="view">
+        <div class="metric-grid" id="metrics"></div>
+        <div class="overview-grid">
+          <article class="panel chart-panel"><div class="panel-head"><div><div class="eyebrow">RANKING MOMENTUM</div><h2>Top movers today</h2></div><button class="text-button" data-go="movements">View all <span>↗</span></button></div><div id="moverChart" class="mover-chart"></div><div class="chart-foot"><span><i class="legend-up"></i> Climbed</span><span><i class="legend-down"></i> Fell</span><span id="compareLabel" class="compare-label"></span></div></article>
+          <article class="panel market-panel"><div class="panel-head"><div><div class="eyebrow">FIVE-MARKET COVERAGE</div><h2>Latest snapshots</h2></div><span class="mini-badge">LIVE ARCHIVE</span></div><div id="marketList" class="market-list"></div></article>
+        </div>
+        <article class="panel table-panel"><div class="panel-head"><div><div class="eyebrow">TODAY’S TOP 100</div><h2>Leading products</h2></div><button class="text-button" data-go="rankings">Explore rankings <span>↗</span></button></div><div id="topPreview"></div></article>
+        <article class="panel table-panel brand-preview-panel"><div class="panel-head"><div><div class="eyebrow">BRAND LANDSCAPE</div><h2>Brands on the leaderboard</h2><p class="panel-subtitle">Brands with the most products in this market’s Top 100.</p></div><button class="text-button" data-go="brands">Explore brands <span>↗</span></button></div><div id="brandPreview"></div></article>
+      </section>
+
+      <section id="rankingsView" class="view hidden"><div class="panel table-panel full-panel"><div class="panel-head"><div><div class="eyebrow">PRODUCT LEADERBOARD</div><h2 id="rankingHeading">Top 100</h2><p class="panel-subtitle" id="rankingSub"></p></div><div class="ranking-tools"><label class="search-box"><span>⌕</span><input id="searchInput" placeholder="Search brand, product, ASIN" autocomplete="off"></label><span class="result-count" id="resultCount"></span></div></div><div id="rankingTable"></div></div></section>
+
+      <section id="brandsView" class="view hidden"><div class="panel table-panel full-panel"><div class="panel-head"><div><div class="eyebrow">BRAND INTELLIGENCE</div><h2 id="brandHeading">Brand directory</h2><p class="panel-subtitle" id="brandSub"></p></div><label class="search-box"><span>⌕</span><input id="brandSearch" placeholder="Find a brand" autocomplete="off"></label></div><div id="brandTable"></div></div></section>
+
+      <section id="movementsView" class="view hidden"><div class="movement-summary" id="movementSummary"></div><div class="panel table-panel full-panel"><div class="panel-head"><div><div class="eyebrow">DAY-OVER-DAY COMPARISON</div><h2>Every product movement</h2><p class="panel-subtitle" id="movementSub"></p></div><div class="filter-pills" id="movementFilters"><button class="pill active" data-filter="ALL">All</button><button class="pill" data-filter="UP">Risers</button><button class="pill" data-filter="DOWN">Fallers</button><button class="pill" data-filter="NEW">New</button><button class="pill" data-filter="DROPPED">Dropped</button></div></div><div id="movementTable"></div></div></section>
+
+      <section id="productView" class="view hidden"><button class="back-button" id="backButton">← Back to rankings</button><div id="productDetail"></div></section>
+      <footer><span>BEAUTY INDEX</span><span>Historical ranks reflect the collected daily snapshots.</span><span id="footerDb"></span></footer>
+    </main>
+  </div>
+  <script src="/app.js" defer></script>
+</body>
+</html>

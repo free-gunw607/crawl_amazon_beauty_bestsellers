@@ -19,6 +19,9 @@
 - `src/crawl_amazon_beauty_bestsellers/config.py`: settings loading from `config/settings.yml`
 - `src/crawl_amazon_beauty_bestsellers/models.py`: dataclasses (ListEntry, ProductDetail, CategoryNode)
 - `src/crawl_amazon_beauty_bestsellers/server.py`: local read API (`./repo serve`)
+- `scripts/serve_dashboard.py`: read-only dashboard API, including brand enrichment, brand summaries, and full-history Sheet cache
+- `web/`: responsive Beauty Index UI for rank tables, brand directory/search, movement filters, and product history
+- `deploy/systemd/amzbs-dashboard.service`: hardened localhost-only service template for always-on hosting
 - `src/crawl_amazon_beauty_bestsellers/drive_upload.py`: Google Drive upload via service account (approval-gated, not yet active)
 
 ## Validation / Export

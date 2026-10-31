@@ -45,3 +45,10 @@ artifacts/snapshots/
 # public dataset = per-node list.csv snapshots + daily xlsx via commit-back
 artifacts/db/
 .agent/locks/
+# Detailed crawl batches are local run artifacts; CI commit-back intentionally
+# publishes list snapshots and workbooks instead.
+artifacts/details/
+# Node-local crontab backups may contain private fleet configuration.
+.agent/crontab_backup_*.txt
+# The public Site source is versioned by its own Sites source repository.
+sites/beauty-index-rankings/

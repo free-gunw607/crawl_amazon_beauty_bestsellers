@@ -13,6 +13,8 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit"
 REGIONS = ("US", "DE", "UK", "FR", "ES")
+PUBLIC_SITE_CONFIG = Path.home() / ".config" / "amzbs" / "beauty-index.env"
+PUBLIC_SITE_URL = "https://liambeautyindex.dpdns.org"
 
 
 def _env() -> dict[str, str]:
@@ -208,10 +210,11 @@ def _fallback_lines(fallback: dict[str, object], fallback_rc: int) -> list[str]:
     return lines
 
 
-def _build_final(trigger: str, root_rc: int, title_rc: int | None, fallback_rc: int, root: dict[str, object], titles: dict[str, object], fallback: dict[str, object]) -> str:
+def _build_final(trigger: str, root_rc: int, title_rc: int | None, fallback_rc: int, root: dict[str, object], titles: dict[str, object], fallback: dict[str, object], website: dict[str, object] | None = None, website_rc: int = 0) -> str:
     drive = fallback.get("drive")
     drive_uploaded = isinstance(drive, dict) and bool(drive.get("file_id"))
-    completed = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded
+    website_ok = not PUBLIC_SITE_CONFIG.is_file() or website_rc == 0
+    completed = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded and website_ok
     status = "COMPLETED" if completed else "ATTENTION REQUIRED"
     recovery = trigger in {"catchup", "secondary-takeover", "manual"}
     drive_line = (
@@ -245,6 +248,14 @@ def _build_final(trigger: str, root_rc: int, title_rc: int | None, fallback_rc: 
         "[4] Independent fallback XLSX",
         *_fallback_lines(fallback, fallback_rc),
         "Source: local SQLite, independent of Google Sheets export or Drive upload.",
+        "",
+        "[5] Public Beauty Index website",
+        f"Website: {PUBLIC_SITE_URL}",
+        (
+            "Public snapshot: " + str(website.get("status", "not reported"))
+            if website
+            else ("Public snapshot: not configured" if not PUBLIC_SITE_CONFIG.is_file() else f"Public snapshot: update failed (exit {website_rc})")
+        ),
     ]
     return "\n".join(lines)
 
@@ -351,9 +362,23 @@ def main() -> int:
             root_rc = 1
         workbook = Path(str(fallback.get("xlsx", "")))
 
-    final = _build_final(args.trigger, root_rc, title_rc, fallback_rc, root, titles, fallback)
+    website: dict[str, object] | None = None
+    website_rc = 0
+    if PUBLIC_SITE_CONFIG.is_file():
+        website_path = run_dir / "website.json"
+        website_rc = _run(
+            "public Beauty Index snapshot",
+            [sys.executable, "scripts/publish_beauty_index_public.py", "--summary-json", str(website_path)],
+            env,
+        )
+        website = _read_summary(website_path)
+    else:
+        print("[daily] public Beauty Index publishing not configured; existing Sheet and XLSX delivery is unaffected", flush=True)
+
+    final = _build_final(args.trigger, root_rc, title_rc, fallback_rc, root, titles, fallback, website, website_rc)
     drive_uploaded = isinstance(fallback.get("drive"), dict) and bool(fallback["drive"].get("file_id"))
-    complete = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded
+    website_ok = not PUBLIC_SITE_CONFIG.is_file() or website_rc == 0
+    complete = root_rc == 0 and title_rc == 0 and _titles_complete(titles) and fallback_rc == 0 and drive_uploaded and website_ok
 
     if args.silent_incomplete and not complete:
         print("[daily] recovery remains incomplete; notification is handled by the throttled catch-up alert", flush=True)

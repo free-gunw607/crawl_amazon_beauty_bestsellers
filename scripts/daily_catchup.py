@@ -13,6 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REGIONS = ["us", "de", "uk", "fr", "es"]
+PUBLIC_SITE_CONFIG = Path.home() / ".config" / "amzbs" / "beauty-index.env"
 
 
 def _env() -> dict[str, str]:
@@ -218,6 +219,7 @@ def _pending_recovery_alert(
     drive_gap: bool,
     state: dict[str, object],
     stale_tabs: list[str] | None = None,
+    public_site_gap: bool = False,
 ) -> dict[str, object]:
     now = time.time()
     last = float(state.get("recovery_alert_epoch", 0) or 0)
@@ -230,6 +232,8 @@ def _pending_recovery_alert(
         lines.append("Stale shared Sheet tabs: " + ", ".join(stale_tabs))
     if drive_gap:
         lines.append("Fallback XLSX is not confirmed in Drive.")
+    if public_site_gap:
+        lines.append("Public Beauty Index snapshot is not current; automatic retry will continue.")
     lines.append("Automatic recovery will retry the remaining delivery gaps on the next catch-up interval.")
     message = "\n".join(lines)
     try:
@@ -289,7 +293,26 @@ def main() -> int:
     # No local run means this node cannot prove that its local fallback is stale
     # or missing. The shared live Sheet is the cross-node source of truth.
     drive_gap = _fallback_missing_drive(latest_run, env) if latest_run else False
-    if not stale and not gaps and not drive_gap and not stale_aggregates:
+    public_site_gap = False
+    if PUBLIC_SITE_CONFIG.is_file():
+        public_result = subprocess.run(
+            [sys.executable, "scripts/publish_beauty_index_public.py", "--if-stale"],
+            cwd=REPO_ROOT,
+            env=env,
+        )
+        public_site_gap = public_result.returncode != 0
+        if public_site_gap:
+            previous: dict[str, object] = {}
+            if state_path.is_file():
+                try:
+                    previous = json.loads(state_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    previous = {}
+            previous = _pending_recovery_alert(gaps, drive_gap, previous, stale_aggregates, public_site_gap=True)
+            state_dir.mkdir(parents=True, exist_ok=True)
+            state_path.write_text(json.dumps(previous, ensure_ascii=False), encoding="utf-8")
+            print(f"[catchup] public website delivery gap; updater rc={public_result.returncode}", flush=True)
+    if not stale and not gaps and not drive_gap and not stale_aggregates and not public_site_gap:
         print("[catchup] all regional tabs are current and titles are complete")
         return 0
 
@@ -339,6 +362,8 @@ def main() -> int:
             if not gaps and not drive_gap:
                 return 0
     if not stale and not gaps and not drive_gap and not stale_aggregates:
+        if public_site_gap:
+            return 1
         print("[catchup] regional, title, Drive, and shared-tab checks are all current", flush=True)
         return 0
     if stale:

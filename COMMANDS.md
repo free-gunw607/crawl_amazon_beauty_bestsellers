@@ -108,6 +108,15 @@ CI publishes panel list tabs; local cron publishes details/specs_long/trend.
 `serve [--port 8790]`
 Local read API: `/health`, `/categories`, `/latest/{node_id}`, `/history?asin=`, `/stats`.
 
+`python3 scripts/serve_dashboard.py [--db PATH] [--host 127.0.0.1] [--port 8781]`
+Read-only Beauty Index web dashboard: marketplace Top 100, day-over-day movers,
+new/dropped products, brand search/directory, cross-market snapshots, and ASIN rank/price/rating history.
+Current rankings and full history come from the Google Sheet when `GDRIVE_CREDS`
+and `AMZ_BS_ROOT_SHEETS_ID` are configured; SQLite provides brand enrichment
+and an outage fallback. Google access uses a read-only Sheets scope. Keep localhost binding unless
+deploying behind an authenticated/private network endpoint.
+Systemd template: `deploy/systemd/amzbs-dashboard.service`.
+
 `stats`
 Database accumulation summary.
 
@@ -141,6 +150,7 @@ them as `<mp>:<node>` available entries.
 - `./repo registry-approve --node 11060521`
 - `./repo export-xlsx`
 - `./repo serve --port 8790`
+- `python3 scripts/serve_dashboard.py --port 8781`
 - `PYTHONPATH=src python3 scripts/run_job.py`  # manual single cycle (scheduler does this automatically)
 - `./repo upload-drive`  # publish latest workbook to Drive via gws OAuth
 - add further workflow examples here as the repo matures

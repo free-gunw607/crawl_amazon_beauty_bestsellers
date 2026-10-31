@@ -25,10 +25,6 @@ GWS_BIN="$(command -v gws || true)"
 if [[ -z "$GWS_BIN" && -x "${HOME}/.cargo/bin/gws" ]]; then
   GWS_BIN="${HOME}/.cargo/bin/gws"
 fi
-if [[ -z "$GWS_BIN" ]]; then
-  echo "gws CLI is required for Drive uploads; install it before activating this schedule" >&2
-  exit 1
-fi
 GWS_BIN_DIR="$(dirname "$GWS_BIN")"
 SERVICE_ACCOUNT_FILE="${HOME}/.config/amzbs/service-account.json"
 GWS_CONFIG_DIR="${HOME}/.config/gws-amazon"
@@ -58,14 +54,18 @@ EOF
 }
 
 install_cron() {
+  if [[ -z "$GWS_BIN" ]]; then
+    echo "gws CLI is required for Drive uploads; install it before activating this schedule" >&2
+    exit 1
+  fi
   mkdir -p "$REPO_ROOT/.agent/logs"
   systemctl --user disable --now amzbs-beauty.timer amzbs-beauty-watchdog.timer amzbs-beauty-catchup.timer >/dev/null 2>&1 || true
   local current tmp
   current="$(crontab -l 2>/dev/null || true)"
   tmp="$(mktemp)"
   printf "%s\n" "$current" | awk -v b="$CRON_MARK_BEGIN" -v e="$CRON_MARK_END" '
-    $0 == b {skip=1; next}
-    $0 == e {skip=0; next}
+    $0 == b || $0 == "# crawl_amazon_beauty_bestsellers PRIMARY BEGIN" || $0 == "# crawl_amazon_beauty_bestsellers SECONDARY BEGIN" {skip=1; next}
+    $0 == e || $0 == "# crawl_amazon_beauty_bestsellers PRIMARY END" || $0 == "# crawl_amazon_beauty_bestsellers SECONDARY END" {skip=0; next}
     !skip {print}
   ' > "$tmp"
   {
@@ -82,8 +82,8 @@ uninstall_cron() {
   current="$(crontab -l 2>/dev/null || true)"
   tmp="$(mktemp)"
   printf "%s\n" "$current" | awk -v b="$CRON_MARK_BEGIN" -v e="$CRON_MARK_END" '
-    $0 == b {skip=1; next}
-    $0 == e {skip=0; next}
+    $0 == b || $0 == "# crawl_amazon_beauty_bestsellers PRIMARY BEGIN" || $0 == "# crawl_amazon_beauty_bestsellers SECONDARY BEGIN" {skip=1; next}
+    $0 == e || $0 == "# crawl_amazon_beauty_bestsellers PRIMARY END" || $0 == "# crawl_amazon_beauty_bestsellers SECONDARY END" {skip=0; next}
     !skip {print}
   ' > "$tmp"
   crontab "$tmp"
@@ -97,6 +97,10 @@ usage() {
 }
 
 install_units() {
+  if [[ -z "$GWS_BIN" ]]; then
+    echo "gws CLI is required for Drive uploads; install it before activating this schedule" >&2
+    exit 1
+  fi
   if ! systemctl --user list-timers >/dev/null 2>&1; then
     echo "systemd user bus unavailable; installing cron fallback instead"
     install_cron
@@ -154,7 +158,11 @@ uninstall_units() {
 
 show_status() {
   systemctl --user list-timers 'amzbs-*' --no-pager || true
-  crontab -l 2>/dev/null | sed -n "/$CRON_MARK_BEGIN/,/$CRON_MARK_END/p" || true
+  crontab -l 2>/dev/null | awk '
+    /^# crawl_amazon_beauty_bestsellers( PRIMARY| SECONDARY)? BEGIN$/ {show=1}
+    show {print}
+    /^# crawl_amazon_beauty_bestsellers( PRIMARY| SECONDARY)? END$/ {show=0}
+  ' || true
 }
 
 case "${1:-}" in

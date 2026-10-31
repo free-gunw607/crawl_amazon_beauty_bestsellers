@@ -33,6 +33,13 @@ This repository is for Collect Amazon beauty bestseller lists and product detail
 - keep repository-local execution reproducible and understandable
 - keep durable handoff files current as work advances
 
+## Beauty Index dashboard
+- Run `python3 scripts/serve_dashboard.py --port 8781` to open the read-only dashboard at `http://127.0.0.1:8781`.
+- The dashboard reads current regional Top 100 snapshots and the complete append-only `root_rank_history` tab from Google Sheets using a read-only scope (10-minute memory cache). SQLite supplies local brand enrichment and a fallback if Sheets is unavailable.
+- It presents regional Top 100 rankings, brand-aware search and a brand directory, rank movements, daily snapshot selection, cross-market coverage, and per-ASIN rank history.
+- The working-copy database may lag behind production. For current daily data, run the dashboard beside the active LIAM3 SQLite database. The server binds to localhost by default; remote access should stay on an authenticated private network.
+- The public Beauty Index is deployed at https://liambeautyindex.dpdns.org. Its UI source is maintained in the connected Sites source repository (v9 commit `9a9a5c206b856c73e1b8411a06e95117b359ff37`); the daily pipeline updates its dedicated public JSON mirror without changing the macro workbook or fallback XLSX.
+
 ## Policy references
 - global policy: `~/.codex/AGENTS.md`
 - A2 guide: `~/agent-coding/agent-system/A2-workspace-memory/Guide.md`

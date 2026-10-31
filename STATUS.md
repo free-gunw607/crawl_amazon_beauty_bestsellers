@@ -1,5 +1,21 @@
 # STATUS
 
+## 2026-10-30 single-scheduler repair
+- Removed LIAM3's duplicate `PRIMARY` cron block after saving a mode-0600 crontab backup at `/home/liam2/.cache/amzbs/cron-backups/crontab_before_single_scheduler_20261030_100649.txt`. Unrelated cron jobs were preserved.
+- LIAM3 now has one primary daily trigger: enabled `amzbs-beauty.timer` at 05:00 KST. The hourly catch-up (`:55`) and Sheet watchdog (`:00`) remain enabled systemd timers. `crontab -l` has no Amazon Beauty entries; `Linger=yes` and Windows WSL keepalive scheduled tasks are present.
+- Root cause: a legacy crontab block used `PRIMARY BEGIN/END` markers, while `install_schedule.sh` only removed the older generic markers. Updated and deployed the installer so it recognizes generic, PRIMARY, and SECONDARY markers; `status` now works without requiring GWS, while `install` still requires GWS for Drive delivery.
+- Cleared the stale failed state from the 05:00 systemd invocation that lost the lock to cron. Verified `install_schedule.sh status` shows exactly the three active timers and no cron block. `bash -n` and `git diff --check` passed.
+- LIAM2 remains the 05:30 secondary cron takeover. Its current crontab sets the Service Account backend; the latest catch-up log ends with all regional tabs current. Older OAuth `invalid_grant` traces remain in its cumulative log, so they are historical evidence rather than proof of a current failure.
+- Remaining verification: the next unattended 05:00 run (2026-10-31) must confirm the systemd-only primary lane. No Sheet/XLSX structure or data was modified in this repair.
+
+## Beauty Index dashboard — initial implementation
+- Added a read-only dashboard for the five regional Top 100 snapshots, previous-day rank changes, new/dropped items, cross-market freshness, and per-ASIN rank/price/rating history.
+- `scripts/serve_dashboard.py` serves the UI and JSON endpoints. Current rankings and the complete `root_rank_history` archive are read from Google Sheets using the existing Service Account with a read-only Sheets scope. Both are cached in memory for 10 minutes; SQLite supplies brand enrichment and the outage fallback.
+- Added a hardened localhost-only systemd service template and deployed it to LIAM3 as an enabled user service. Live API verification: all five regions have 100 latest rows dated 2026-10-29; Google Sheet `root_rank_history` loaded without warning (64 unique dates, 1,282 unique ASINs).
+- The website is available on LIAM3 itself at `http://127.0.0.1:8781`. Tailscale Serve configuration is blocked because Serve is not enabled for this tailnet; LIAM3's Tailscale CLI returned the owner enablement URL. Once enabled, configure `tailscale serve --bg 8781` to provide the private HTTPS URL. No public Funnel was enabled.
+- UX refinement deployed to LIAM3: higher contrast, larger type/spacing, brand labels in result rows, product/title/ASIN/brand search, exact brand filtering, and a brand directory with Top 100 counts, average/best rank, average ratings and review totals. Added “Powered by GunWoo · For NohMin”. Live API checks returned 47 US brands and five CeraVe results with complete titles and rank/price/rating fields from the live Sheet.
+- Photo feasibility check (read-only; no fallback XLSX or existing Google Sheet structure changed): existing SQLite image URLs cover US 96/100, UK 97/100, DE 98/100, FR 98/100, ES 98/100 (487/500 slots). For the 13 gaps, Amazon's standard ASIN image URL returned actual JPEGs for 7 and a 43-byte no-image GIF for 6. A separate ASIN-to-image mapping workbook can close the remaining gaps without touching the macro source workbook.
+
 ## 2026-10-29 incomplete-run detection and recovery repair
 - The 05:00 KST production run completed the five regional Top 100 publishes. Installing the daily systemd timer after its scheduled time also triggered a second `Persistent=true` catch-up at 13:39. That extra run published US/DE/FR/ES, while UK was blocked (`crawled=0`, `published=0`, `fail=1`). Its summary nevertheless said `status=completed`: `run_job.py` recorded rc=4 as a region failure but did not set the overall exit code, and the enclosing pipeline trusted only the summary status.
 - The extra run refreshed today's other four regions. It did not erase historical rows; root history is append-only. UK retained the earlier 05:00 publication. The 14:37 UK-only recovery completed the missing market; the corrected final report was sent after final verification.
@@ -196,3 +212,32 @@ Collect Amazon Beauty & Personal Care Top 100 across 5 regions (US/DE/UK/FR/ES),
 - Stabilize `liam1` SSH/Tailscale and document the liam1-3 repo synchronization path.
 - Monitor the next unattended 05:00 pipeline through its log and the delivered dual-channel report.
 - Decide whether `fill-titles`/`fill-gaps` should become a separate throttled enrichment cron rather than part of the daily Top100 publish lane.
+
+## 2026-10-31 — Public Beauty Index
+- Public Site deployed: https://liambeautyindex.dpdns.org
+- Data feed reads a dedicated public JSON Drive mirror; it leaves the macro Google workbook and fallback XLSX layout unchanged.
+- LIAM3's existing 05:00 daily pipeline and hourly catch-up both call `scripts/publish_beauty_index_public.py`; daily publishes after fallback generation, hourly runs skip if the five Sheet stamps already match.
+- The standalone JSON file is owner-quota-backed, public-reader, and shared writer-only with the existing LIAM3 service account. If its local file ID is missing, the publisher fails closed instead of trying to create a service-account-owned Drive file.
+- Live verification: `GET /api/health` returned `data_ready:true`; `GET /api/data` served 2026-10-31 with 100 rows each for US/UK/DE/FR/ES, 34,376 history rows, and 1,311 ASIN metadata records. LIAM3 stale-check returned `current` on a second pass.
+- No changes were made to the Google workbook tabs or fallback workbook schema. Site source version 2 is deployed; main A4 repo changes remain uncommitted.
+
+## 2026-10-31 — Beauty Index controls repair
+- Root cause: malformed inline JavaScript from nested escaping in the Worker HTML template prevented the browser script from parsing; consequently the data fetch, tabs, and date selector never initialized.
+- Fixed image fallback handling via DOM event binding and removed `For NohMin` from the public UI.
+- Site source commit `1542ecdcdad52a0077757983b28275d576f08449`; version 4 deployment succeeded. `liambeautyindex.dpdns.org` remains active with SSL.
+- Verified the deployed custom-domain HTML script with `node --check`; `/api/data` serves 100 rows for US/UK/DE/FR/ES, 34,376 history rows, and 1,311 product records.
+
+## 2026-10-31 — Beauty Index image and interaction repair
+- Image CSP now permits the two Amazon SSL image hosts used by 1,073 of the 1,232 image-bearing records. Live browser QA observed 95+ loaded product images in the current US ranking; products without an image URL retain a visible fallback.
+- Event delegation keeps controls working after rerenders. Live browser checks passed for all tabs, rankings search, movement filters, brand search/navigation, market/date switching, and Amazon links.
+- Product title/photo and the rest of a row open the locale's Amazon product page in a new tab; a dedicated History button opens the rank dialog. Dialog open/close and dated rank records passed live browser checks.
+- `FOR NOHMIN` appears below the descriptions on Rankings, Movements, and Brands and stays hidden on Overview; all states passed.
+- Final published Site version 7, source commit `69b4a20d7b0136ed299741de2f72c0ca111aadbf`, deployed successfully to https://liambeautyindex.dpdns.org. Build, artifact, JavaScript syntax, and live browser verification passed.
+- Brands tab follow-up repair: an aggregate-to-search mapping discarded `count`/`avg`/`best`, causing a runtime exception before cards rendered. Fixed to retain brand summaries and use event delegation only. Published version 8, source commit `9375071df1953af2b474df097abb673be85f6325`.
+- Live browser verified 48 brand cards; searching `eos` returns one card (3 products, average rank #34.7), and selecting it opens Rankings with 3 matching rows. Local interaction harness passes all tab flows, searches, movement filters, market switching, Amazon links, product history modal, and `FOR NOHMIN` visibility.
+
+## 2026-10-31 — Beauty Index v9
+- Production: https://liambeautyindex.dpdns.org, Sites version 9 deployed (`appgdep_6ae5e975c6b48191b80b3c66b2f410e4`); v8 remains the saved rollback.
+- Brands compares shelf share, average/best rank, rating, and 30-day momentum; includes representative product images, search, four sort modes, and direct brand-to-product navigation.
+- Rankings normalize duplicate rows for display and show genuine archive gaps while keeping 100 ordered positions. All 322 market/date selections passed the local UI harness; live browser passed brand interactions and confirmed date switching renders ordered ranks 1–100.
+- Scheduled data continues to the existing JSON mirror without changing Google Sheet or XLSX structure. Data refresh does not require redeployment while feed schema v1 remains compatible.
