@@ -1,13 +1,13 @@
 # LAST ANSWER
 
-## 2026-11-01 — Product Finder v17 and live data check
-- Morning public feed is current: generated `2026-11-01 05:03:18 KST`; all five markets have 100/100 entries dated Nov 1; history has 34,876 rows and the product archive has 1,321 products.
-- Product Finder v17 removes the oversized green count panel and default #1 product. It opens on a clean search input with a short prompt; filters are collapsed until needed. Product image loading now cycles through available captured URLs and suppresses the loud “NO PHOTO” placeholder.
-- Site source commit `4df35ca023e3d5244288c5c13bfc51c57e28be1e`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_0823e4b74810819188c2477d4ee73881`; deployment `appgdep_6ae66342de2c8191a000fe7a89bcee30` succeeded. Browser verification confirmed the Nov 1 date, clean finder entry, medicube image, and interactive filters.
-- Coverage nuance: all five latest market snapshots are Nov 1, but the feed's historical `history` array still ends Oct 31. Product Finder archive ranks and “Last captured” labels are derived from that array, so the finder shows Oct 31 rank data until daily history rows are appended. Main rankings/Overview and product-detail latest-market table use the current market snapshots.
-- The data publisher can now include all previously captured image candidates, but that A4-side code has not yet been deployed to the scheduled runtime. Therefore a product with no working captured or canonical Amazon image can still lack a visible photo; this is not claimed as 100% solved.
-- Release history and rollback IDs are maintained in [`BEAUTY_INDEX_VERSIONS.md`](BEAUTY_INDEX_VERSIONS.md).
-
+## 2026-11-01 — Product Finder v18 and live data check
+- Public feed generated at 05:03:18 KST. All five market snapshots are Nov 1 with 100/100 rows each; archive has 34,876 history rows and 1,321 products.
+- The history dates are marketplace-local. At the Nov 1 05:00–05:02 KST run, all five marketplaces were still on Oct 31. The run log records 100 rows appended per market; current snapshot ASIN/rank pairs match the Oct 31 history rows 500/500. The source history was not missing.
+- The bug was Product Finder showing the latest history row instead of the current market snapshot. v18 overlays the selected-date snapshot into the product result and uses the snapshot date for Last captured.
+- Live browser QA verified medicube B09V7Z4TJG at Nov 1 ranks US #2, UK #1, DE #15, FR #11, ES #14; the clean search-first layout remains.
+- Site source dc4fb72c38fd180e92c42330a9cf637ca3441def; saved version appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fa0d7c1803dc8191ae7076ba454867ff; deployment appgdep_6ae6660ed28481918eb19b88614f08c3 succeeded. Rollback target: v17 appgprj_6ae534c42f588191b0f2a26e03185615~appgver_0823e4b74810819188c2477d4ee73881.
+- Image candidate publisher code has been committed and pushed but is not yet deployed on the scheduled runtime; missing product images remain possible.
+- Version and rollback ledger: BEAUTY_INDEX_VERSIONS.md.
 ## 2026-10-31 Beauty Index v16 — Product Finder image and UX repair
 - Rebuilt Product Finder around archive search: title/brand/ASIN search, five-market filter, brand filter, full-archive vs selected-date Top 100 scope, four sort orders, reset, and 48-item pagination. Result cards show photo, brand/title/ASIN, market ranks, market breadth, and last capture date; responsive grid layout opens the existing direct product detail route.
 - Image root cause: normalized `root_rank_history` rows intentionally omit image URLs, while photos are stored separately in the ASIN-keyed `products` metadata and latest market snapshots. Finder originally passed history rows directly to the image renderer. v15 joined the product metadata and added a canonical ASIN image fallback; live QA found one ASIN with neither metadata photo nor fallback success. v16 also joins photo/brand from selected-date market snapshots by ASIN before rendering.

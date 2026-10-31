@@ -24,6 +24,9 @@ This ledger records the saved source version and rollback target for every relea
 | v15 | Expanded finder filtering/sorting/pagination and joined product metadata images with an ASIN image fallback. | `361e20943ef002def8c291b91025c7baf94b20fd` | `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_59e1a92b83348191af745cf3628692cb` | `appgdep_6ae5fe25d2b481919fa65106dfd0ec45` |
 | v16 | Joined selected-date snapshot images and brands into archive products by ASIN; verified real medicube and CeraVe images. | `0365675578ddc28e73b5c8796324ffdc129808b2` | `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7ec3d937aa6081918661991aefd9e290` | `appgdep_6ae5ffc6d6248191b69dc4e75c19375b` |
 | v17 | Product Finder now starts with a clean search field and no automatic #1 result or oversized tinted count panel; filters are collapsed until requested; product image rendering retries captured candidates and quietly suppresses the “NO PHOTO” label. | `4df35ca023e3d5244288c5c13bfc51c57e28be1e` | `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_0823e4b74810819188c2477d4ee73881` | `appgdep_6ae66342de2c8191a000fe7a89bcee30` (succeeded; `https://liambeautyindex.dpdns.org`) |
+| v18 | Product Finder merges the selected market snapshot into archive results, so rank and Last captured reflect Nov 1 KST even though append-only history uses each marketplace's local calendar. | `dc4fb72c38fd180e92c42330a9cf637ca3441def` | `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fa0d7c1803dc8191ae7076ba454867ff` | `appgdep_6ae6660ed28481918eb19b88614f08c3` (succeeded; `https://liambeautyindex.dpdns.org`) |
+
+Latest rollback target for v18: v17 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_0823e4b74810819188c2477d4ee73881`.
 
 ## Future release entry template
 
