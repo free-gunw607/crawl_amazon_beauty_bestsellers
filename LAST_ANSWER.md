@@ -246,3 +246,16 @@ Active cron now includes:
 - Brands now explains its sort definitions: shelf share = count out of 100; average rank = mean position, lower is better; best position = the brand's highest-ranked product; 30-day momentum = change in brand mean rank, with upward movement meaning stronger placement.
 - Brand momentum now rounds to at most one decimal. Brand sparklines represent the brand's mean product rank across archived dates, not one product's rank.
 - Site version 10 deployed successfully at https://liambeautyindex.dpdns.org (source `75a296d7a685d14b61aef26df3b5166c2a014aa9`, deployment `appgdep_6ae5ed9e1d088191bc04e94913e2c38c`). Live browser check confirmed the green line, definitions, and rounded values. Local UI harness passed, including all 322 market/date rank-slot checks.
+# Beauty Index v11 — 2026-10-31
+
+**Status: deployed successfully.** Public site: https://liambeautyindex.dpdns.org
+
+- A product image/title/rank row now opens a product-specific internal page with a stable `#product/<ASIN>/<tab>` URL. Each product page has Overview, Rank & price, and Markets tabs, with rank/price observations, a 90-day rank chart, five-market rank/price/rating/coverage comparison, product photo, and Amazon link.
+- Overview now shows the database's five-market brand footprint (Top 100 share and average rank per market) and separate 30-day paths for today's Top 10 products. Trends includes Top 5 brand share history. Missing dates/items are shown as chart gaps.
+- Build, JS syntax, and deployment artifact validation passed. Sites reports production deployment `succeeded`. Browser click-through QA was unavailable here, so interaction behavior is source- and build-verified, not live-browser-verified.
+- Current deployed Site version: **v11**, ID `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_83b58445fb148191aa7049a902d6aeb3`; source commit `9a304db634820d7f929e2c845e47423465d0f8b0`.
+- Rollback remains available: **v10** `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_632612bb2390819182be40d0d3a6244b`; earlier baseline **v8** `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_b335a1c259f48191bcd85884ad10314a`.
+
+The underlying data endpoint and Google Sheet/fallback workbook schema were not changed by this site-only release. The production site continues to load the published ranking JSON and refresh it on its existing cadence.
+
+---

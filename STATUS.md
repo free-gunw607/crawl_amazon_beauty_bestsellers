@@ -1,5 +1,14 @@
 # STATUS
 
+## 2026-10-31 Beauty Index website v11
+- Published v11 to the existing public Beauty Index site: https://liambeautyindex.dpdns.org (Sites production deployment succeeded; deployment fallback URL: https://beauty-index-rankings.trimlaugh.chatgpt.site).
+- Every product now opens an addressable internal detail page (`#product/<ASIN>/<tab>`) from ranking, movement, trend, and overview product links. Product detail tabs: Overview, Rank & price, and Markets; includes product identity/photo, rank and price history, cross-market comparison, archive coverage, and Amazon listing link.
+- Overview now visualizes the database's key value directly: a five-market brand footprint heatmap and individual Top 10 product trajectories. Missing dates remain chart gaps. Trends includes brand share over captured dates.
+- Site source commit: `9a304db634820d7f929e2c845e47423465d0f8b0`. Site version 11 ID: `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_83b58445fb148191aa7049a902d6aeb3`; deployment `appgdep_6ae5f1ad425081918aee9682761d58af` succeeded.
+- Rollback versions preserved: v10 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_632612bb2390819182be40d0d3a6244b` (production immediately before v11); v8 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_b335a1c259f48191bcd85884ad10314a`.
+- Verification: `node --check worker/index.js`, site build, and `scripts/validate-artifact.mjs` passed; source is pushed and deployment status is `succeeded`. Live in-browser click-through was not run in this environment.
+- Website code is maintained in the separate Sites source checkout `/tmp/beauty-index-site-checkout`; this A4 repository does not track that checkout. The deployed v11 artifact/version is the production record.
+
 ## 2026-10-30 single-scheduler repair
 - Removed LIAM3's duplicate `PRIMARY` cron block after saving a mode-0600 crontab backup at `/home/liam2/.cache/amzbs/cron-backups/crontab_before_single_scheduler_20261030_100649.txt`. Unrelated cron jobs were preserved.
 - LIAM3 now has one primary daily trigger: enabled `amzbs-beauty.timer` at 05:00 KST. The hourly catch-up (`:55`) and Sheet watchdog (`:00`) remain enabled systemd timers. `crontab -l` has no Amazon Beauty entries; `Linger=yes` and Windows WSL keepalive scheduled tasks are present.
