@@ -1,12 +1,11 @@
 # LAST ANSWER
 
-## 2026-11-01 — Brands comparison and logo upgrade, v22.2 (Sites v24)
+## 2026-11-01 — Brands comparison and logo upgrade, v22.4 (Sites v26)
 - Added a Compare brands tab in Brands. Select up to three brands, compare 7/30/60-day Top 100 listing share in the selected market, and compare share/average rank/best rank across the five markets.
 - Repaired Trends Brand Share point labels: the tooltip now identifies the actual brand, exact date, share, and snapshot context instead of displaying `Series 1`.
-- Added locally bundled logo artwork for CeraVe, Garnier, Maybelline, medicube, The Ordinary, Revlon, and eos. Other brands show their full name in a typographic fallback, not initials. Asset sources/provenance are in the Site source `assets/brand-logos/README.md`.
-- First v22’s remote favicon attempt failed the visual check, so it was replaced by self-contained logos in v22.1 and a name-matching hotfix in v22.2. The current production is Sites version 24; v21 remains available for rollback.
-- Live browser QA on https://liambeautyindex.dpdns.org verified logo rendering, Brand comparison selectors/chart/five-market table, real Brand Share tooltip labels, and no blank views or runtime errors. The last alias-only adjustment was smoke-checked for logos; the compare/tooltip code did not change.
-- Site source commit `505357a84a253f5a6c7663233766dd5abe515c30`; saved v24 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_84edce206a348191b345efd4d047fcac`; deployment `appgdep_6ae67233efa08191b4a807d99a5918d8` succeeded. Rollback: v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`.
+- Added 11 bundled brand marks: CeraVe, Garnier, Maybelline, medicube, The Ordinary, Revlon, eos, ANUA, Native, Nizoral, and PanOxyl. Remaining brands use their complete name as a typographic fallback, never initials. Asset sources/provenance are in the Site source `assets/brand-logos/README.md`.
+- The first remote favicon approach failed visual review; v22.1 onward uses self-contained logo assets. Current production is Sites version 26. Live browser QA on https://liambeautyindex.dpdns.org verified all 11 logo mappings, the Compare brands chart/table, and no blank views. The previous full QA verified exact Brand Share tooltip labels (brand/date/value), and the final deploy smoke-checked that Compare brands still renders.
+- Site source commit `eac0147f661a9cc40da0f0131e90e2a4e2abcf4a`; saved v26 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`; deployment `appgdep_6ae67476f0848191b03bf9d0061f1de0` succeeded. Rollback: v21 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_fadd5592c7788191816eb63df13cf865`.
 - Google Sheet and fallback XLSX were untouched. Full version trail: `BEAUTY_INDEX_VERSIONS.md`.
 
 ## 2026-11-01 — Brand Directory and chart interaction repair, Site v21
