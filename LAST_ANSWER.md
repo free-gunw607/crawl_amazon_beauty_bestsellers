@@ -1,5 +1,11 @@
 # LAST ANSWER
 
+## 2026-11-01 — Custom comparison periods and inline Brands panel, v22.5.1 (Sites v28)
+- Added free day-count comparison windows to Trends and Brand profile Trend; baselines use the nearest archived capture on or before the target date.
+- Moved Compare brands into an expandable panel inside Brands → Brand directory. It retains up to three brands, share history, and the five-market table.
+- Added the requested small gray Trends note: counts compare listings present at both endpoints; current listings absent from the baseline are called out separately.
+- Published v28 at https://liambeautyindex.dpdns.org. Build, artifact validation, and deployment succeeded; browser interaction QA is pending. Source `0e1b789ea0bf6fc911384d6894e452fe45666875`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`; deployment `appgdep_6ae6a4f8fbd0819193a979ad6b24fc6f`. Rollback: v22.4 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`.
+- Website-only release; Google Sheet and fallback XLSX untouched.
 ## 2026-11-01 — Brands comparison and logo upgrade, v22.4 (Sites v26)
 - Added a Compare brands tab in Brands. Select up to three brands, compare 7/30/60-day Top 100 listing share in the selected market, and compare share/average rank/best rank across the five markets.
 - Repaired Trends Brand Share point labels: the tooltip now identifies the actual brand, exact date, share, and snapshot context instead of displaying `Series 1`.

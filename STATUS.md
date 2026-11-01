@@ -1,6 +1,20 @@
+## 2026-11-01 Beauty Index v22.5.1 — current production (Sites v28)
+- Trends and Brand profile Trend offer 7/30/60-day presets plus a custom comparison window, bounded by the available archive. Baselines resolve to the nearest captured date on or before the requested period.
+- Compare brands is an expandable panel inside the Brand Directory, with brand selectors, archive-period controls, share history, and the five-market table.
+- Trends uses a small muted note to explain that movement counts include only listings present on both dates; current listings absent from the baseline are stated separately.
+- Build and artifact validation passed. Site v28 source `0e1b789ea0bf6fc911384d6894e452fe45666875`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`; production deployment `appgdep_6ae6a4f8fbd0819193a979ad6b24fc6f` succeeded at https://liambeautyindex.dpdns.org. Live browser QA on the canonical address passed: Trends showed the muted 73/100 comparable + 27 absent-from-baseline explanation; applying 14 days updated the baseline and table. Brands comparison expanded inline with three selectors, custom periods, share chart, and five-market table. No runtime errors.
+- Rollback target: v22.4 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`. Google Sheet and fallback XLSX were not changed.
+
+## 2026-11-01 Beauty Index v22.5.1 — current production (Sites v28)
+- Trends and Brand profile Trend now offer 7/30/60-day presets plus a custom comparison window, bounded by the available archive. Baselines resolve to the nearest captured date on or before the requested period.
+- Compare brands is an expandable panel inside the Brand Directory, with brand selectors, archive-period controls, share history, and the five-market table.
+- Trends now uses a small muted note to explain that gain/loss/unchanged totals count only listings present on both dates; current listings absent from baseline are stated separately.
+- Build and artifact validation passed. Sites v28 saved from source `0e1b789ea0bf6fc911384d6894e452fe45666875` as `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`; production deployment `appgdep_6ae6a4f8fbd0819193a979ad6b24fc6f` succeeded at https://liambeautyindex.dpdns.org. Live browser QA passed on the canonical address: the subtle 73/100 + 27 explanation rendered, custom 14-day selection updated the baseline and table, and the inline Brands panel showed selectors, chart, and all five market rows. No runtime errors.
+- Rollback target: v22.4 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`. Google Sheet and fallback XLSX were not changed.
+
 # STATUS
 
-## 2026-11-01 Beauty Index v22.4 — current production (Sites v26)
+## 2026-11-01 Beauty Index v22.4 — previous production (Sites v26)
 - Upgraded the Brands area with a three-brand comparison view: 7/30/60-day Top 100 share chart and a five-market table for share, average rank, and best rank.
 - Fixed multi-series Trend/Brand Share chart labels; each point and hover tooltip carries its brand name, date, share, and capture context instead of a generic `Series 1` label.
 - Replaced unreliable remote favicon requests with 11 bundled logo assets: CeraVe, Garnier, Maybelline, medicube, The Ordinary, Revlon, eos, ANUA, Native, Nizoral, and PanOxyl. Other brands render their full names, never initials. Asset source/provenance is recorded in the Site source checkout at `assets/brand-logos/README.md`.
