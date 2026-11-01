@@ -1,5 +1,13 @@
 # LAST ANSWER
 
+## 2026-11-01 — Workbench launch and runtime fixes (Sites v29–v31)
+- Added Workbench as a distinct sidebar tab, separate from Overview. It provides archive-driven dashboards, date/market/brand/product filters, line/bar/heatmap/table visualizations, draggable field shelves, multiple local dashboards, save/share/import/export controls, and archive coverage/fingerprint export.
+- Live QA found two release defects in sequence: missing `state.workbench` initialization, then undefined `isRank` in the default rank-bar chart. Both are fixed in current v31.
+- Browser verified the canonical URL loads the 2026-11-01 snapshot, Workbench canvas and four default cards render, Add visualization opens the field-shelf editor, and no error banner or JavaScript errors remain.
+- Current source `efbdce50f01ec76f7d63622fcadd2f789c44466a`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_51a571e18ae88191b1b386ff059bc5a9`; deployment `appgdep_6ae6b2429acc8191b753f8904b1057b2` succeeded at https://liambeautyindex.dpdns.org. Rollback target: v28 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`.
+- Dashboard layout is saved per browser in localStorage; share URL carries dashboard configuration, not data. Google Sheet and fallback XLSX are untouched.
+
+
 ## 2026-11-01 — Custom comparison periods and inline Brands panel, v22.5.1 (Sites v28)
 - Added free day-count comparison windows to Trends and Brand profile Trend; baselines use the nearest archived capture on or before the target date.
 - Moved Compare brands into an expandable panel inside Brands → Brand directory. It retains up to three brands, share history, and the five-market table.

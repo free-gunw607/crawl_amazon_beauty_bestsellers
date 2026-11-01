@@ -1,11 +1,11 @@
-## 2026-11-01 Beauty Index v22.5.1 — current production (Sites v28)
-- Trends and Brand profile Trend offer 7/30/60-day presets plus a custom comparison window, bounded by the available archive. Baselines resolve to the nearest captured date on or before the requested period.
-- Compare brands is an expandable panel inside the Brand Directory, with brand selectors, archive-period controls, share history, and the five-market table.
-- Trends uses a small muted note to explain that movement counts include only listings present on both dates; current listings absent from the baseline are stated separately.
-- Build and artifact validation passed. Site v28 source `0e1b789ea0bf6fc911384d6894e452fe45666875`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`; production deployment `appgdep_6ae6a4f8fbd0819193a979ad6b24fc6f` succeeded at https://liambeautyindex.dpdns.org. Live browser QA on the canonical address passed: Trends showed the muted 73/100 comparable + 27 absent-from-baseline explanation; applying 14 days updated the baseline and table. Brands comparison expanded inline with three selectors, custom periods, share chart, and five-market table. No runtime errors.
-- Rollback target: v22.4 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`. Google Sheet and fallback XLSX were not changed.
+## 2026-11-01 Beauty Index v22.5.4 — current production (Sites v31)
+- Workbench is a standalone tab separate from Overview. It reads the daily archive and includes shared market/brand/product/date filters; line, bar, heatmap, and table visualizations; draggable field shelves; browser-local dashboards; share/import/export; and archive coverage/fingerprint export.
+- Live QA caught and fixed two runtime defects: uninitialized Workbench state and an undefined `isRank` variable in the rank-bar renderer.
+- Build and generated-artifact validation passed. Live browser verified the Workbench heading, all four default charts, Add visualization editor and shelves, and no error banner or JS exceptions. Data showed Nov 1, 2026, 34,876 historical rank rows and 500/500 latest positions.
+- Current source `efbdce50f01ec76f7d63622fcadd2f789c44466a`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_51a571e18ae88191b1b386ff059bc5a9`; deployment `appgdep_6ae6b2429acc8191b753f8904b1057b2` succeeded at https://liambeautyindex.dpdns.org. Rollback: v28 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`.
+- Website-only change; Google Sheet and fallback XLSX are untouched.
 
-## 2026-11-01 Beauty Index v22.5.1 — current production (Sites v28)
+## 2026-11-01 Beauty Index v22.5.1 — previous production (Sites v28)
 - Trends and Brand profile Trend now offer 7/30/60-day presets plus a custom comparison window, bounded by the available archive. Baselines resolve to the nearest captured date on or before the requested period.
 - Compare brands is an expandable panel inside the Brand Directory, with brand selectors, archive-period controls, share history, and the five-market table.
 - Trends now uses a small muted note to explain that gain/loss/unchanged totals count only listings present on both dates; current listings absent from baseline are stated separately.
