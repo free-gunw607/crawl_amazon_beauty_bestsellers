@@ -1,12 +1,13 @@
 # LAST ANSWER
 
-## 2026-11-03 — Italy rollout in progress; Beauty Index v32 deployed
-- Amazon.it was collected in three consecutive isolated runs; each returned 100 entries, 100 unique ASINs and ranks 1–100. Up to three page-pair attempts are now allowed; incomplete results are not persisted.
-- All 63 repository tests pass. Production Sheet/Drive and scheduler have not yet been updated.
-- Beauty Index v32 is deployed at the existing canonical URL https://liambeautyindex.dpdns.org. Its API is responding with the five currently published markets (100 rows each); Italy will appear once its Sheet snapshot is published. v31 is the immediate rollback and v28 remains preserved.
-- v32 source `cf9a34a4f8dd4b8cf01781f81a2eff86138ec10d`; saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_a9705bb7a320819194f97ca01e8b5741`; deployment `appgdep_6ae9684119f881919f7d45469b33e176`.
-- LIAM3's existing checkout is 37 commits behind and dirty with tracked changes and daily XLSX artifacts. It has not been overwritten; production code synchronization and next scheduled run validation remain pending.
-- Rollout and data-compatibility contract: `docs/ITALY_MARKET_ROLLOUT.md`; pre-change workbook/source baseline: `.agent/baselines/pre_italy_20261103.md`.
+## 2026-11-03 — Italy production rollout; history-title follow-up
+- Amazon.it collection completed at 100 unique products/ranks. Google Sheet, 19-tab fallback XLSX, public Drive JSON, and Beauty Index v32 are live; the six-market feed contains Italy without changing the five legacy aggregate protocols.
+- LIAM3's 05:00 daily schedule plus hourly catch-up/watchdog were pointed at the isolated release worktree. Catch-up and watchdog both passed after switch. The old dirty checkout and artifacts were preserved.
+- Site integration is data-driven: v32 adds Italy after the original markets when the public feed contains a complete Italian snapshot. No sheet/XLSX schema changes were made to existing tabs. v31 is the immediate saved rollback; v28 is also retained. Canonical URL is unchanged: https://liambeautyindex.dpdns.org.
+- Audit found six blank titles in today's Italy history feed. Commit `d002aec` repairs only blank title cells by exact history key, with today's Top 100 as fallback; it never overwrites populated titles or historical rows. Full suite: 67 passed; `git diff --check` clean.
+- Code commit `d002aec` is pushed. This session cannot reach LIAM3 because local `tailscaled` is stopped; the final production re-publish and verification that those six blanks are gone are still outstanding. No claim of complete title repair until that live check passes.
+- v32 saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_a9705bb7a320819194f97ca01e8b5741`; deployment `appgdep_6ae9684119f881919f7d45469b33e176`; immediate rollback v31 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_51a571e18ae88191b1b386ff059bc5a9`; v28 remains available.
+- Rollout/compatibility contract: `docs/ITALY_MARKET_ROLLOUT.md`; baseline: `.agent/baselines/pre_italy_20261103.md`.
 
 ## 2026-11-01 — Workbench launch and runtime fixes (Sites v29–v31)
 - Added Workbench as a distinct sidebar tab, separate from Overview. It provides archive-driven dashboards, date/market/brand/product filters, line/bar/heatmap/table visualizations, draggable field shelves, multiple local dashboards, save/share/import/export controls, and archive coverage/fingerprint export.
