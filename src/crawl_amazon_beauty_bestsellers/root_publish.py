@@ -221,6 +221,38 @@ def root_history_rows(store, settings: Settings, region: str) -> list[list[str]]
     return out
 
 
+def _italy_history_title_repairs(
+    existing_rows: list[list[str]],
+    history_rows: list[list[str]],
+    latest_top_grid: list[list[str]],
+    *,
+    has_header: bool,
+) -> list[dict[str, object]]:
+    """Repair blank Italy history titles, using today's Top 100 as a final source."""
+    titles_by_key = {
+        (row[0], row[2], str(row[3])): row[8]
+        for row in history_rows if len(row) > 8 and row[8]
+    }
+    latest_day = max((row[0] for row in history_rows if row and row[0]), default="")
+    titles_by_asin = {
+        row[1]: row[2]
+        for row in latest_top_grid[3:]
+        if len(row) > 2 and row[1] and row[2]
+    }
+    repairs: list[dict[str, object]] = []
+    for offset, row in enumerate(existing_rows):
+        if len(row) < 4 or (len(row) > 8 and str(row[8]).strip()):
+            continue
+        title = titles_by_key.get((row[0], row[2], str(row[3])))
+        if not title and row[0] == latest_day:
+            title = titles_by_asin.get(row[2], "")
+        if not title:
+            continue
+        sheet_row = (3 if has_header else 2) + offset
+        repairs.append({"range": f"'IT Rank History'!I{sheet_row}", "values": [[title]]})
+    return repairs
+
+
 def root_trend_grid(store, settings: Settings, region: str, days: int = 14) -> list[list[str]]:
     profile = settings.marketplace(region)
     tz = ZoneInfo(profile.timezone if profile else "UTC")
@@ -513,19 +545,10 @@ def publish_root_region(
         # rows whose existing keys match local SQLite; never rewrite history
         # rows or replace nonblank analyst-facing values.
         if region == "it":
-            titles_by_key = {
-                (row[0], row[2], str(row[3])): row[8]
-                for row in history_new if len(row) > 8 and row[8]
-            }
-            repairs = []
-            for offset, row in enumerate(existing_rows):
-                if len(row) < 4 or (len(row) > 8 and str(row[8]).strip()):
-                    continue
-                title = titles_by_key.get((row[0], row[2], str(row[3])))
-                if not title:
-                    continue
-                sheet_row = (3 if italy_history_has_header else 2) + offset
-                repairs.append({"range": f"'{history_tab}'!I{sheet_row}", "values": [[title]]})
+            repairs = _italy_history_title_repairs(
+                existing_rows, history_new, tabs[f"[{region.upper()}] Top 100"],
+                has_header=italy_history_has_header,
+            )
             for batch in (repairs[i:i + 300] for i in range(0, len(repairs), 300)):
                 if backend == "gws":
                     _gws(
