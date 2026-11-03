@@ -13,7 +13,11 @@ from openpyxl.utils import get_column_letter
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
-REGIONS = ["us", "de", "uk", "fr", "es"]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import LEGACY_AGGREGATE_MARKETS, MARKETPLACE_CODES
+
+REGIONS = list(MARKETPLACE_CODES)
+CORE_REGIONS = [code for code in LEGACY_AGGREGATE_MARKETS if code in REGIONS]
 
 
 def _xlsx_sheet_title(title: str) -> str:
@@ -69,12 +73,13 @@ def build_workbook(output: Path) -> None:
         wb.remove(wb.active)
         generated = time.strftime("%Y-%m-%d %H:%M %Z")
         stamp = [generated, "source=local SQLite", "fallback workbook"]
-        for region in REGIONS:
+        # Keep the legacy five-country workbook tabs and their order stable.
+        for region in CORE_REGIONS:
             _write_grid(wb, f"[{region.upper()}] Top 100", root_panel_grid(store, settings, region), stamp)
         _write_grid(wb, "[ALL] Top 100", all_top100_grid(store, settings), stamp)
 
         history_rows: list[list[str]] = []
-        for region in REGIONS:
+        for region in CORE_REGIONS:
             history_rows.extend(root_history_rows(store, settings, region))
         history_rows.sort(key=lambda row: (row[0], row[1], int(row[3]) if row[3].isdigit() else 999))
         _write_grid(
@@ -82,7 +87,7 @@ def build_workbook(output: Path) -> None:
             "root_rank_history",
             [["date", "region", "asin", "rank", "price_krw", "currency", "rating", "ratings_count", "title"], *history_rows],
         )
-        for region in REGIONS:
+        for region in CORE_REGIONS:
             _write_grid(wb, f"{region.upper()} Rank History", rank_history_pivot_grid(store, settings, region), stamp)
         _write_grid(wb, "trend_14d", root_trend_grid(store, settings, "es"), stamp)
         _write_grid(wb, "Cross-Region Catalog", cross_region_catalog_grid(store, settings), stamp)
@@ -94,11 +99,22 @@ def build_workbook(output: Path) -> None:
         manifest.append(["source", "local SQLite; independent of Google Sheets read/write availability"])
         manifest.append(["purpose", "daily recovery artifact and email fallback"])
         manifest.append(["source_sheet_tab", "xlsx_tab"])
-        for region in REGIONS:
+        for region in CORE_REGIONS:
             source_tab = f"[{region.upper()}] Top 100"
             manifest.append([source_tab, _xlsx_sheet_title(source_tab)])
         manifest.append(["[ALL] Top 100", _xlsx_sheet_title("[ALL] Top 100")])
         manifest["A1"].font = Font(bold=True)
+
+        # Append Italy-specific tabs after the full legacy tab sequence. The
+        # macro-facing aggregate tabs and shared root_rank_history stay as-is.
+        if "it" in REGIONS:
+            _write_grid(wb, "IT Top 100", root_panel_grid(store, settings, "it"), stamp)
+            it_history = root_history_rows(store, settings, "it")
+            _write_grid(wb, "IT Rank History", [[
+                "date", "region", "asin", "rank", "price_krw", "currency", "rating", "ratings_count", "title",
+            ], *it_history], stamp)
+            manifest.append(["[IT] Top 100", "IT Top 100"])
+            manifest.append(["IT Rank History", "IT Rank History"])
         output.parent.mkdir(parents=True, exist_ok=True)
         wb.save(output)
     finally:

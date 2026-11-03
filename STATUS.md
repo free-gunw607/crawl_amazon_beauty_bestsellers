@@ -1,3 +1,10 @@
+# 2026-11-03 Italy market rollout — local implementation, production not yet rolled out
+- Amazon.it Beauty root Top 100 exists and the repository’s actual crawler GET is working (both pages HTTP 200). An isolated production-pipeline run using temporary SQLite/snapshot paths produced exactly 100 unique ASINs at ranks 1–100.
+- One live two-page pair had 98 unique ASINs; the cause is not proven because the raw pair was not retained. Three subsequent isolated production-pipeline runs each returned 100 rows, 100 unique ASINs, and ranks 1–100. The collector now allows up to three page-pair attempts and refuses to persist any partial Italy snapshot. The initial 60/100 list titles are supported by the existing detail-title recovery path; Italian comma-decimal ratings are parsed.
+- Local code adds a six-market registry, Italy-specific `[IT] Top 100` and `IT Rank History` tabs, appended fallback workbook tabs, and optional public-feed/site market handling. Existing five-market aggregate/history protocols are preserved.
+- Corrected Italy history title repair to work even when no new rank keys need appending and when Sheets omits trailing blank title cells. It updates only blank title cells matched by date/ASIN/rank. All 63 repository tests, Python compile, and `git diff --check` pass; watchdog covers 17 tabs (legacy 15 plus Italy 2).
+- No live Sheet/Drive write, schedule activation, Git push, or public-site deployment has occurred. LIAM3’s checkout is stale and dirty; preserve its existing artifacts during synchronization. Rollout gates and rollback are in `docs/ITALY_MARKET_ROLLOUT.md`; pre-change checkpoint is `.agent/baselines/pre_italy_20261103.md`.
+
 ## 2026-11-01 Beauty Index v22.5.4 — current production (Sites v31)
 - Workbench is a standalone tab separate from Overview. It reads the daily archive and includes shared market/brand/product/date filters; line, bar, heatmap, and table visualizations; draggable field shelves; browser-local dashboards; share/import/export; and archive coverage/fingerprint export.
 - Live QA caught and fixed two runtime defects: uninitialized Workbench state and an undefined `isRank` variable in the rank-bar renderer.
@@ -11,6 +18,18 @@
 - Trends now uses a small muted note to explain that gain/loss/unchanged totals count only listings present on both dates; current listings absent from baseline are stated separately.
 - Build and artifact validation passed. Sites v28 saved from source `0e1b789ea0bf6fc911384d6894e452fe45666875` as `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_c7c0fbd89fb081919dae1b28a0c063ca`; production deployment `appgdep_6ae6a4f8fbd0819193a979ad6b24fc6f` succeeded at https://liambeautyindex.dpdns.org. Live browser QA passed on the canonical address: the subtle 73/100 + 27 explanation rendered, custom 14-day selection updated the baseline and table, and the inline Brands panel showed selectors, chart, and all five market rows. No runtime errors.
 - Rollback target: v22.4 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_7f2c4cdc941081918dfc0e429365f885`. Google Sheet and fallback XLSX were not changed.
+
+# 2026-11-03 Italy market rollout — implementation in progress
+- Saved the pre-Italy code/workbook/site checkpoint at `.agent/baselines/pre_italy_20261103.md`; its source baseline is `312eda439a94bcf07a70160a3a4f2cc359d22679`, with Sites v31 current and v28 preserved as a prior known-good version.
+- Added a canonical six-market registry and routed Italy through root collection, localized Amazon.it URLs/ratings/delivery location, Google Sheet publishing, daily catch-up/watchdog checks, XLSX fallback, and the public JSON feed.
+- Verified the actual collector against Amazon.it: pages 1 and 2 returned HTTP 200; the modified `Pipeline.crawl_list("it:ROOT")`, using temporary SQLite/snapshot paths, returned 100 unique ASINs at ranks 1–100. A prior page pair returned 98 unique ASINs, so the collector now allows one fresh two-page reconciliation when both pages parse but the combined snapshot is incomplete. No production database was touched.
+- The list parser returned titles, ratings, and prices for 60/100 slots. A blank-title item's product page returned HTTP 200 with a usable Italian `#productTitle`; localized comma-decimal ratings are now handled in both list and product-detail parsers. Republish also repairs only blank titles in the dedicated Italy history tab by exact row key.
+- Italy writes only to dedicated `[IT] Top 100` and `IT Rank History` tabs. Existing five-market `root_rank_history`, aggregate tabs, and original XLSX tabs/order remain pinned to the legacy five.
+- Italy root publishing is gated on exactly 100 unique ASINs with ranks 1–100. An incomplete first result returns failure before creating or writing the Italy tabs. Public publishing treats Italy as optional until a complete snapshot exists.
+- Updated the separate Sites source for market-driven navigation, views, comparison tables, and Overview country labels. Build and browser-script artifact validation passed after repairing a syntax issue in the generated client script.
+- Python source compilation and `git diff --check` passed before the latest history-title repair change; they will be rerun. A bare HEAD request returned 503, while the actual polite crawler GET returned 200, so the HEAD result was not a valid crawler-availability check. No Sheet, Drive, or public-site write has occurred.
+- Production is not yet updated: LIAM3's WSL checkout is 37 commits behind the fetched `origin/main` and has local modifications/untracked daily artifacts. Preserve those files; do not deploy by overwriting that checkout. The local implementation is based on current `origin/main` (`312eda4`).
+- Rollout/verification/rollback gates: `docs/ITALY_MARKET_ROLLOUT.md`. Do not declare Italy scheduled or live until the code is safely synchronized, the live workbook tabs/history and fallback XLSX are verified, and a new Sites version is saved/deployed.
 
 # STATUS
 

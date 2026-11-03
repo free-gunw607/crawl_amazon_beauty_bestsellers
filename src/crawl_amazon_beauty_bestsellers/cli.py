@@ -8,8 +8,9 @@ import time
 from typing import Any
 
 from .config import load_settings
+from .marketplaces import MARKETPLACE_CODES
 from .http_client import AmazonClient
-from .pipeline import Pipeline
+from .pipeline import IncompleteItalyRootSnapshot, Pipeline, is_complete_italy_root_snapshot
 from .storage.xlsx_export import export_day
 
 
@@ -264,6 +265,21 @@ def main(argv: list[str] | None = None) -> int:
                         entries = pipeline.crawl_list(key)
                         _print({"region": region.upper(), "crawled": len(entries),
                                 "ranks": [min(e.rank for e in entries), max(e.rank for e in entries)] if entries else []})
+                        if region == "it":
+                            if not is_complete_italy_root_snapshot(entries):
+                                ranks = {entry.rank for entry in entries}
+                                asins = {entry.asin for entry in entries if entry.asin}
+                                _print({"region": "IT", "incomplete": True, "published": 0,
+                                        "unique_asins": len(asins),
+                                        "rank_count": len(ranks),
+                                        "reason": "Italy snapshot must contain 100 unique ASINs at ranks 1..100"})
+                                return 4
+                    except IncompleteItalyRootSnapshot as exc:
+                        _print({"region": "IT", "crawled": 0, "published": 0,
+                                "incomplete": True, "unique_asins": exc.unique_asins,
+                                "rank_count": exc.rank_count, "attempts": exc.attempts,
+                                "reason": str(exc)})
+                        return 4
                     except CaptchaBlocked as exc:
                         _print({"region": region.upper(), "crawled": 0, "blocked": str(exc.url)})
                         if args.command == "root-cycle":
@@ -282,7 +298,7 @@ def main(argv: list[str] | None = None) -> int:
             from .http_client import CaptchaBlocked
             from .root_publish import publish_root_region
 
-            regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
+            regions = list(MARKETPLACE_CODES) if args.region.lower() == "all" else [args.region.lower()]
             for region in regions:
                 key = "ROOT" if region == "us" else f"{region}:ROOT"
                 # Phase 1: fill ASINs with no detail record at all
@@ -339,7 +355,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "fill-titles":
             from .root_publish import publish_root_region
 
-            regions = ["us", "uk", "de", "fr", "es"] if args.region.lower() == "all" else [args.region.lower()]
+            regions = list(MARKETPLACE_CODES) if args.region.lower() == "all" else [args.region.lower()]
             for region in regions:
                 result = pipeline.fill_titles_only(region, limit=args.limit)
                 _print(result)

@@ -12,7 +12,10 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-REGIONS = ["us", "de", "uk", "fr", "es"]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES
+
+REGIONS = list(MARKETPLACE_CODES)
 PUBLIC_SITE_CONFIG = Path.home() / ".config" / "amzbs" / "beauty-index.env"
 
 
@@ -40,7 +43,13 @@ def _stale_regions(env: dict[str, str]) -> list[str]:
     today = datetime.now().date()
     stale: list[str] = []
     for region in REGIONS:
-        rows = _gws_values(f"[{region.upper()}] Top 100!A1:C1", env)
+        try:
+            rows = _gws_values(f"[{region.upper()}] Top 100!A1:C1", env)
+        except Exception:
+            if region == "it":
+                stale.append(region)  # first Italy publish has not provisioned its tab yet
+                continue
+            raise
         stamp = rows[0][0] if rows and rows[0] else ""
         products = _gws_values(f"[{region.upper()}] Top 100!A5:B104", env)
         valid_rows = [
@@ -83,7 +92,12 @@ def _title_gaps(env: dict[str, str]) -> dict[str, list[tuple[str, str]]]:
 
     gaps: dict[str, list[tuple[str, str]]] = {}
     for region in REGIONS:
-        titled, total, missing = _sheet_title_count(region, env)
+        try:
+            titled, total, missing = _sheet_title_count(region, env)
+        except Exception:
+            if region == "it":
+                continue  # the Italy Top 100 tab is created by its first complete publish
+            raise
         if total < 100 or missing:
             gaps[region] = missing
     return gaps

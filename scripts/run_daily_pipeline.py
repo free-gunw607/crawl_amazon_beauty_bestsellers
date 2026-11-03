@@ -11,8 +11,11 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES
+
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80/edit"
-REGIONS = ("US", "DE", "UK", "FR", "ES")
+REGIONS = tuple(code.upper() for code in MARKETPLACE_CODES)
 PUBLIC_SITE_CONFIG = Path.home() / ".config" / "amzbs" / "beauty-index.env"
 PUBLIC_SITE_URL = "https://liambeautyindex.dpdns.org"
 
@@ -85,7 +88,7 @@ def _root_table(root: dict[str, object]) -> list[str]:
     if not isinstance(rows, list):
         return ["No root summary was produced."]
     by_region = {str(row.get("region", "")).upper(): row for row in rows if isinstance(row, dict)}
-    lines = ["             US    DE    UK    FR    ES   TOTAL"]
+    lines = [" " * 13 + " ".join(f"{region:>5}" for region in REGIONS) + "   TOTAL"]
     for label, key in (
         ("Collected", "crawled"),
         ("Published", "published"),
@@ -291,7 +294,7 @@ def main() -> int:
         help="Do not send repeated incomplete recovery reports; the catch-up scheduler owns the throttled pending alert.",
     )
     parser.add_argument("--regions", nargs="+", choices=REGIONS, default=list(REGIONS),
-                        help="Regions to collect for this run; defaults to all five.")
+                        help="Regions to collect for this run; defaults to all configured marketplaces.")
     args = parser.parse_args()
     env = _env()
     if args.report_existing and args.resume_existing:

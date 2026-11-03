@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sqlite3
+import sys
 import threading
 import time
 from datetime import date
@@ -17,7 +18,17 @@ from urllib.parse import parse_qs, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 WEB_ROOT = ROOT / "web"
 DEFAULT_DB = ROOT / "artifacts/db/bestsellers.sqlite"
-REGIONS = {"us": "ROOT", "de": "de:ROOT", "uk": "uk:ROOT", "fr": "fr:ROOT", "es": "es:ROOT"}
+sys.path.insert(0, str(ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.config import load_settings
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES, MARKETPLACE_META
+
+_SETTINGS = load_settings(ROOT)
+REGIONS = {code: ("ROOT" if code == "us" else f"{code}:ROOT") for code in MARKETPLACE_CODES}
+DISPLAY_CURRENCIES = {"us": "USD", "uk": "GBP", "de": "EUR", "fr": "EUR", "es": "EUR", "it": "EUR"}
+
+
+def _profile(region: str):
+    return _SETTINGS.marketplace(region)
 
 
 class DashboardData:
@@ -49,7 +60,13 @@ class DashboardData:
                     creds_path, scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"]
                 )
                 credentials.refresh(Request())
-                ranges = ["'root_rank_history'!A1:I"] + [f"'[{region.upper()}] Top 100'!A1:G104" for region in REGIONS]
+                # Keep the established feed readable before Italy's first
+                # publish creates its tabs. A missing optional tab must never
+                # break the five-market public dashboard.
+                ranges = ["'root_rank_history'!A1:I"] + [
+                    f"'[{region.upper()}] Top 100'!A1:G104"
+                    for region in REGIONS if region != "it"
+                ]
                 response = requests.get(
                     f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchGet",
                     params=[("ranges", item) for item in ranges],
@@ -57,6 +74,21 @@ class DashboardData:
                 )
                 response.raise_for_status()
                 value_ranges = response.json().get("valueRanges", [])
+                if "it" in REGIONS:
+                    try:
+                        optional_ranges = ["'[IT] Top 100'!A1:G104", "'IT Rank History'!A1:I"]
+                        optional_response = requests.get(
+                            f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchGet",
+                            params=[("ranges", item) for item in optional_ranges],
+                            headers={"Authorization": f"Bearer {credentials.token}"},
+                            timeout=30,
+                        )
+                        optional_response.raise_for_status()
+                        value_ranges.extend(optional_response.json().get("valueRanges", []))
+                    except Exception:
+                        # Italy is an additive market; first-run or temporary
+                        # Italy tab issues leave the existing markets online.
+                        pass
                 values = value_ranges[0].get("values", []) if value_ranges else []
                 # Row 1 is the schema header: date, region, asin, rank, price, currency, rating, reviews, title.
                 rows = []
@@ -75,9 +107,30 @@ class DashboardData:
                     except (TypeError, ValueError):
                         continue
                 self._sheet_rows = rows
+                # Italy keeps its raw append-only history in a dedicated tab;
+                # merge it in memory so the macro-facing root history is unchanged.
+                legacy_value_count = len(REGIONS)  # root history + five markets
+                if "it" in REGIONS and len(value_ranges) > legacy_value_count + 1:
+                    it_grid = value_ranges[legacy_value_count + 1].get("values", [])
+                    for cells in it_grid[2:]:  # row 1 stamp, row 2 schema header
+                        if len(cells) < 4:
+                            continue
+                        try:
+                            rows.append({
+                                "day": str(cells[0]), "region": "it", "asin": str(cells[2]).upper(),
+                                "rank": int(float(cells[3])),
+                                "price_amount": _number(cells[4] if len(cells) > 4 else ""),
+                                "price_currency": str(cells[5]) if len(cells) > 5 else "EUR",
+                                "rating": _number(cells[6] if len(cells) > 6 else ""),
+                                "ratings_count": _number(cells[7] if len(cells) > 7 else ""),
+                                "title": str(cells[8]) if len(cells) > 8 else "",
+                            })
+                        except (TypeError, ValueError):
+                            continue
                 snapshots = {}
-                currencies = {"us": "USD", "uk": "GBP", "de": "EUR", "fr": "EUR", "es": "EUR"}
-                for region, value_range in zip(REGIONS, value_ranges[1:]):
+                currencies = {code: DISPLAY_CURRENCIES.get(code, "") for code in REGIONS}
+                legacy_regions = [code for code in REGIONS if code != "it"]
+                for region, value_range in zip(legacy_regions, value_ranges[1:legacy_value_count]):
                     grid = value_range.get("values", [])
                     if not grid:
                         continue
@@ -97,7 +150,7 @@ class DashboardData:
                                 "rating": _number(cells[3] if len(cells) > 3 else ""),
                                 "ratings_count": _number(cells[4] if len(cells) > 4 else ""),
                                 "price_amount": _number(cells[5] if len(cells) > 5 else ""),
-                                "price_currency": currencies[region],
+                            "price_currency": currencies.get(region, ""),
                                 "url": str(cells[6]) if len(cells) > 6 else "",
                                 "image_url": "", "fetched_at": stamp, "brand": "",
                             })
@@ -107,6 +160,33 @@ class DashboardData:
                         self._enrich_brands(entries)
                         self._enrich_images(entries)
                         snapshots[region] = {"day": snapshot_day, "entries": entries, "stamp": stamp}
+                if "it" in REGIONS and len(value_ranges) > legacy_value_count:
+                    grid = value_ranges[legacy_value_count].get("values", [])
+                    if grid:
+                        stamp = str((grid[0] or [""])[0])
+                        snapshot_day = stamp[:10]
+                        if len(snapshot_day) == 10 and snapshot_day[4] == "-":
+                            entries = []
+                            for cells in grid[4:]:
+                                if len(cells) < 2 or not str(cells[1]).strip():
+                                    continue
+                                try:
+                                    entries.append({
+                                        "rank": int(float(cells[0])), "asin": str(cells[1]).upper(),
+                                        "title": str(cells[2]) if len(cells) > 2 else "",
+                                        "rating": _number(cells[3] if len(cells) > 3 else ""),
+                                        "ratings_count": _number(cells[4] if len(cells) > 4 else ""),
+                                        "price_amount": _number(cells[5] if len(cells) > 5 else ""),
+                                        "price_currency": "EUR",
+                                        "url": str(cells[6]) if len(cells) > 6 else "",
+                                        "image_url": "", "fetched_at": stamp, "brand": "",
+                                    })
+                                except (TypeError, ValueError):
+                                    continue
+                            if entries:
+                                self._enrich_brands(entries)
+                                self._enrich_images(entries)
+                                snapshots["it"] = {"day": snapshot_day, "entries": entries, "stamp": stamp}
                 self._sheet_snapshots = snapshots
                 self._sheet_error = None
             except Exception as exc:
@@ -123,7 +203,7 @@ class DashboardData:
     @staticmethod
     def node(region: str) -> str:
         if region not in REGIONS:
-            raise ValueError("region must be one of us, de, uk, fr, es")
+            raise ValueError("region must be one of " + ", ".join(REGIONS))
         return REGIONS[region]
 
     def dates(self, region: str) -> list[str]:
@@ -153,9 +233,11 @@ class DashboardData:
         if day and sheet_rows:
             history = [r for r in sheet_rows if r["region"] == region and r["day"] == day]
             if history:
-                currency = {"us": "USD", "uk": "GBP", "de": "EUR", "fr": "EUR", "es": "EUR"}[region]
+                currency = DISPLAY_CURRENCIES.get(region, "")
+                profile = _profile(region)
+                base_url = profile.base_url if profile else "https://www.amazon.com"
                 entries = [{"day": r["day"], "rank": r["rank"], "asin": r["asin"], "title": r["title"],
-                            "url": f"https://www.amazon.{ {'us':'com','uk':'co.uk','de':'de','fr':'fr','es':'es'}[region] }/dp/{r['asin']}",
+                            "url": f"{base_url}/dp/{r['asin']}",
                             "image_url": "", "rating": r["rating"], "ratings_count": r["ratings_count"],
                             "price_amount": r["price_amount"], "price_currency": r["price_currency"] or currency,
                             "fetched_at": r["day"], "brand": "", "image_url": ""} for r in history]

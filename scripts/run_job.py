@@ -11,6 +11,9 @@ import uuid
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES, MARKETPLACE_META
+
 LOCK_PATH = REPO_ROOT / ".agent" / "locks" / "run_job.lock"
 LOG_DIR = REPO_ROOT / ".agent" / "logs"
 NOTIFY_SCRIPT = REPO_ROOT / "scripts" / "notify_telegram.sh"
@@ -31,8 +34,8 @@ E_LOCK_CONFLICT = 11
 E_NO_ACTIVE_NODES = 12
 E_RUN_FAILED = 13
 
-REGIONS = ["us", "de", "uk", "fr", "es"]
-REGION_NAMES = {"us": "🇺🇸 US", "de": "🇩🇪 DE", "uk": "🇬🇧 UK", "fr": "🇫🇷 FR", "es": "🇪🇸 ES"}
+REGIONS = list(MARKETPLACE_CODES)
+REGION_NAMES = {code: f"{MARKETPLACE_META[code]['flag']} {code.upper()}" for code in MARKETPLACE_CODES}
 
 
 def _load_env_file(path: Path, allowed_keys: set[str] | None = None) -> None:

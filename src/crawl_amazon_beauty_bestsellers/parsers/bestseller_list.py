@@ -3,6 +3,7 @@ from __future__ import annotations
 import html as html_module
 import json
 import re
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup, Tag
 
@@ -10,7 +11,7 @@ from ..models import ListEntry
 
 RANK_PATTERN = re.compile(r"#(\d+)")
 STARS_PATTERN = re.compile(
-    r"([\d]+[.,][\d])\s*(?:out of|sur|von|de|su|di|van)?\s*5\s*(?:stars?|étoiles?|Stern(?:en)?|estrellas?|sterren?|stjernor?)",
+    r"([\d]+[.,][\d])\s*(?:out of|sur|von|de|su|di|van)?\s*5\s*(?:stars?|étoiles?|Stern(?:en)?|estrellas?|sterren?|stjernor?|stelle)",
     re.I,
 )
 COUNT_PATTERN = re.compile(r"^\s*([\d.,]*\d[\d.]*)\s*$")
@@ -54,7 +55,7 @@ def _parse_rank(item: Tag) -> int | None:
     return None
 
 
-def _parse_title(item: Tag) -> tuple[str, str, str]:
+def _parse_title(item: Tag, base_url: str = "https://www.amazon.com") -> tuple[str, str, str]:
     img = item.find("img", src=True)
     title = (img.get("alt") or "").strip() if img is not None else ""
     image_url = img["src"] if img is not None else ""
@@ -71,7 +72,7 @@ def _parse_title(item: Tag) -> tuple[str, str, str]:
                 break
     link = item.select_one("a.a-link-normal[href*='/dp/']")
     href = link["href"].split("?")[0] if link is not None and link.has_attr("href") else ""
-    url = f"https://www.amazon.com{href}" if href.startswith("/") else href
+    url = urljoin(base_url.rstrip("/") + "/", href) if href else ""
     return title, image_url, url
 
 
@@ -82,13 +83,13 @@ def _parse_rating_and_count(item: Tag) -> tuple[float | None, int | None]:
     if alt is not None:
         match = STARS_PATTERN.search(_text(alt))
         if match:
-            rating = float(match.group(1))
+            rating = float(match.group(1).replace(",", "."))
     if rating is None:
         star = item.select_one("i.a-icon-star-small") or item.select_one("i.a-icon-star")
         if star is not None:
             match = STARS_PATTERN.search(_text(star))
             if match:
-                rating = float(match.group(1))
+                rating = float(match.group(1).replace(",", "."))
     for anchor in item.select("a.a-size-small.a-link-normal"):
         text = _text(anchor).replace("ratings", "").strip()
         match = COUNT_PATTERN.match(text)
@@ -233,6 +234,7 @@ def parse_list_page(
     page: int,
     fetched_at: str,
     run_id: str,
+    base_url: str = "https://www.amazon.com",
 ) -> list[ListEntry]:
     soup = BeautifulSoup(html, "lxml")
     entries: dict[str, ListEntry] = {}
@@ -243,7 +245,7 @@ def parse_list_page(
             continue
         fallback_rank += 1
         warnings: list[str] = []
-        title, image_url, url = _parse_title(item)
+        title, image_url, url = _parse_title(item, base_url)
         if not title:
             warnings.append("title_missing")
         rank = _parse_rank(item)

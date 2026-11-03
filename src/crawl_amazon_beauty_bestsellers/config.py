@@ -7,6 +7,8 @@ from typing import Any
 
 import yaml
 
+from .marketplaces import MARKETPLACE_META, default_marketplaces
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
@@ -27,6 +29,8 @@ class MarketplaceProfile:
     currency_pref: str = "KRW"
     language: str = "en-US"
     url_style: str = "gp"
+    name: str = ""
+    flag: str = ""
 
     @staticmethod
     def from_dict(payload: dict[str, Any]) -> "MarketplaceProfile":
@@ -37,16 +41,12 @@ class MarketplaceProfile:
             currency_pref=str(payload.get("currency_pref", "KRW")),
             language=str(payload.get("language", "en-US")),
             url_style=str(payload.get("url_style", "gp")),
+            name=str(payload.get("name", MARKETPLACE_META.get(str(payload["code"]).lower(), {}).get("name", ""))),
+            flag=str(payload.get("flag", MARKETPLACE_META.get(str(payload["code"]).lower(), {}).get("flag", ""))),
         )
 
 
-DEFAULT_MARKETPLACES = [
-    {"code": "us", "base_url": "https://www.amazon.com", "timezone": "America/New_York", "currency_pref": "USD"},
-    {"code": "uk", "base_url": "https://www.amazon.co.uk", "timezone": "Europe/London", "currency_pref": "USD", "url_style": "legacy"},
-    {"code": "de", "base_url": "https://www.amazon.de", "timezone": "Europe/Berlin", "currency_pref": "USD"},
-    {"code": "fr", "base_url": "https://www.amazon.fr", "timezone": "Europe/Paris", "currency_pref": "USD"},
-    {"code": "es", "base_url": "https://www.amazon.es", "timezone": "Europe/Madrid", "currency_pref": "USD"},
-]
+DEFAULT_MARKETPLACES = default_marketplaces()
 
 
 @dataclass

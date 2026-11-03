@@ -273,9 +273,9 @@ def parse_product_detail(html: str, asin: str, fetched_at: str, run_id: str) -> 
         "#acrPopover span.a-icon-alt"
     )
     if acr_alt is not None:
-        stars_match = re.search(r"([\d.]+) out of 5 stars", _text(acr_alt))
+        stars_match = re.search(r"([\d.,]+)\s*(?:out of|su)\s*5\s*(?:stars?|stelle)", _text(acr_alt), re.I)
         if stars_match:
-            rating = float(stars_match.group(1))
+            rating = float(stars_match.group(1).replace(",", "."))
     acr_count = soup.select_one("#acrCustomerReviewText")
     if acr_count is not None:
         count_match = re.search(r"([\d,]+)", _text(acr_count))

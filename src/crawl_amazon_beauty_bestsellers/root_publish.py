@@ -18,6 +18,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from .config import Settings
+from .marketplaces import MARKETPLACE_CODES
 from .mr_publish import _api, _chunk_rows
 from .sheets_publish import (
     SheetsPublishError,
@@ -212,7 +213,8 @@ def root_history_rows(store, settings: Settings, region: str) -> list[list[str]]
         meta = snap_by_asin.get(asin, {})
         out.append([
             day, region.upper(), asin, str(row["best_rank"]),
-            str(meta.get("price_amount") or ""), str(meta.get("price_currency") or "KRW"),
+            str(meta.get("price_amount") or ""),
+            str(meta.get("price_currency") or ("EUR" if region == "it" else "KRW")),
             str(meta.get("rating") or ""), str(row.get("max_ratings") or ""),
             str(meta.get("title") or "")[:140],
         ])
@@ -378,10 +380,13 @@ def publish_root_region(
             raise SheetsPublishError("shared views currently use the ES analytics timezone; pass --region es")
         tabs = _shared_root_tabs(store, settings, region)
     else:
-        tabs = {
-            f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region),
-            f"{region.upper()} Rank History": rank_history_pivot_grid(store, settings, region),
-        }
+        tabs = {f"[{region.upper()}] Top 100": root_panel_grid(store, settings, region)}
+        if region == "it":
+            # Isolate Italy's append-only history in a new tab. The established
+            # shared root_rank_history remains byte/layout-compatible for macros.
+            tabs["IT Rank History"] = [HISTORY_HEADER]
+        else:
+            tabs[f"{region.upper()} Rank History"] = rank_history_pivot_grid(store, settings, region)
         if region == "es":
             tabs.update(_shared_root_tabs(store, settings, region))
     changes: list[dict] = []
@@ -460,17 +465,28 @@ def publish_root_region(
 
     history_new = root_history_rows(store, settings, region)
     appended = len(history_new)
-    if appended:
+    history_titles_repaired = 0
+    # Italy history title repair must still run when every rank key is already
+    # present (for example, title enrichment completed after the first append).
+    if appended or region == "it":
+        history_tab = "IT Rank History" if region == "it" else HISTORY_TAB
+        history_range = "A2:I" if region == "it" else "A2:E"
         known = set()
         if backend == "gws":
             existing = _gws(
                 ["sheets", "spreadsheets", "values", "get"],
-                {"spreadsheetId": sheet_id, "range": f"'{HISTORY_TAB}'!A2:E", "majorDimension": "ROWS"},
+                {"spreadsheetId": sheet_id, "range": f"'{history_tab}'!{history_range}", "majorDimension": "ROWS"},
             )
         else:
-            existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A2:E", tok or "",
+            existing = _api("GET", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{history_tab}'!{history_range}", tok or "",
                             params={"majorDimension": "ROWS"})
-        for row in existing.get("values", []):
+        existing_rows = existing.get("values", [])
+        italy_history_has_header = bool(
+            region == "it" and existing_rows and existing_rows[0][:4] == HISTORY_HEADER[:4]
+        )
+        if italy_history_has_header:
+            existing_rows = existing_rows[1:]
+        for row in existing_rows:
             if len(row) >= 4:
                 known.add((row[0], row[1], row[2], row[3]))
         fresh = [r for r in history_new if (r[0], r[1], r[2], r[3]) not in known]
@@ -481,21 +497,57 @@ def publish_root_region(
                     ["sheets", "spreadsheets", "values", "append"],
                     {
                         "spreadsheetId": sheet_id,
-                        "range": f"'{HISTORY_TAB}'!A1",
+                        "range": f"'{history_tab}'!{'A2' if region == 'it' else 'A1'}",
                         "valueInputOption": "RAW",
                         "insertDataOption": "INSERT_ROWS",
                     },
                     {"values": chunk},
                 )
             else:
-                _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{HISTORY_TAB}'!A1:append",
+                _api("POST", f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values/'{history_tab}'!{'A2' if region == 'it' else 'A1'}:append",
                      tok or "", params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
                      body={"values": chunk})
+
+        # Italy's first history append can precede the daily title-recovery
+        # phase. On the subsequent publish, fill only blank title cells for
+        # rows whose existing keys match local SQLite; never rewrite history
+        # rows or replace nonblank analyst-facing values.
+        if region == "it":
+            titles_by_key = {
+                (row[0], row[2], str(row[3])): row[8]
+                for row in history_new if len(row) > 8 and row[8]
+            }
+            repairs = []
+            for offset, row in enumerate(existing_rows):
+                if len(row) < 4 or (len(row) > 8 and str(row[8]).strip()):
+                    continue
+                title = titles_by_key.get((row[0], row[2], str(row[3])))
+                if not title:
+                    continue
+                sheet_row = (3 if italy_history_has_header else 2) + offset
+                repairs.append({"range": f"'{history_tab}'!I{sheet_row}", "values": [[title]]})
+            for batch in (repairs[i:i + 300] for i in range(0, len(repairs), 300)):
+                if backend == "gws":
+                    _gws(
+                        ["sheets", "spreadsheets", "values", "batchUpdate"],
+                        {"spreadsheetId": sheet_id},
+                        {"valueInputOption": "RAW", "data": batch},
+                    )
+                else:
+                    _api(
+                        "POST",
+                        f"https://sheets.googleapis.com/v4/spreadsheets/{sheet_id}/values:batchUpdate",
+                        tok or "",
+                        params={"valueInputOption": "RAW"},
+                        body={"valueInputOption": "RAW", "data": batch},
+                    )
+                history_titles_repaired += len(batch)
 
     price_appended = 0
     main_count = len(tabs[f"[{region.upper()}] Top 100"]) - 3
     return {
         "backend": backend, "sheet": sheet_id, "region": region.upper(),
         "history_appended": appended, "price_appended": price_appended,
+        "history_titles_repaired": history_titles_repaired,
         "published": main_count,
     }

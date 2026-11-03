@@ -53,9 +53,11 @@ def test_history_metrics_separates_populated_rows_from_blank_physical_rows() -> 
     }
 
 
-def test_watchdog_covers_all_fifteen_published_workbook_tabs() -> None:
-    assert len(STAMPED_TABS) == 15
+def test_watchdog_covers_legacy_tabs_and_optional_italy_tabs() -> None:
+    assert len(STAMPED_TABS) == 17
     assert "UK Rank History" in STAMPED_TABS
+    assert "[IT] Top 100" in STAMPED_TABS
+    assert "IT Rank History" in STAMPED_TABS
     assert "[ALL] Top 100" in STAMPED_TABS
     assert "Price History" in STAMPED_TABS
     assert len(AGGREGATE_TABS) == 5

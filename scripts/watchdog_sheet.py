@@ -11,9 +11,12 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES
+
 SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
 GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
-REGIONS = ["US", "DE", "UK", "FR", "ES"]
+REGIONS = [code.upper() for code in MARKETPLACE_CODES]
 TOP100_TABS = [f"[{region}] Top 100" for region in REGIONS]
 REGIONAL_HISTORY_TABS = [f"{region} Rank History" for region in REGIONS]
 AGGREGATE_TABS = [
@@ -192,7 +195,16 @@ def main() -> int:
     stale_regions: list[str] = []
     ok_regions: list[str] = []
     for tab in STAMPED_TABS:
-        rows = _gws_values(f"'{tab}'!A1:C1")
+        try:
+            rows = _gws_values(f"'{tab}'!A1:C1")
+        except Exception:
+            if tab in {"[IT] Top 100", "IT Rank History"}:
+                line = f"{tab}: not provisioned yet"
+                stale.append(line)
+                if tab in TOP100_TABS:
+                    stale_regions.append(line)
+                continue
+            raise
         stamp = rows[0][0] if rows and rows[0] else ""
         fresh, detail = _stamp_is_fresh(stamp, now, args.max_age_hours)
         line = f"{tab}: {detail}"

@@ -64,6 +64,28 @@ def _manifest_path(settings: Settings, run_id: str) -> Path:
     return settings.resolve(settings.storage.runs_dir) / f"run_{run_id}.json"
 
 
+def is_complete_italy_root_snapshot(entries: list[ListEntry]) -> bool:
+    """Italy may publish only a full, unique rank sequence from the two root pages."""
+    return (
+        len(entries) == 100
+        and {entry.rank for entry in entries} == set(range(1, 101))
+        and len({entry.asin for entry in entries if entry.asin}) == 100
+    )
+
+
+class IncompleteItalyRootSnapshot(RuntimeError):
+    """Raised when bounded page-pair retries cannot produce a safe Top 100."""
+
+    def __init__(self, entries: list[ListEntry], attempts: int):
+        self.unique_asins = len({entry.asin for entry in entries if entry.asin})
+        self.rank_count = len({entry.rank for entry in entries})
+        self.attempts = attempts
+        super().__init__(
+            f"Italy Beauty root remained incomplete after {attempts} page-pair attempts "
+            f"({self.unique_asins}/100 unique ASINs, {self.rank_count}/100 ranks)"
+        )
+
+
 class Pipeline:
     def __init__(self, settings: Settings | None = None):
         self.settings = settings or Settings()
@@ -126,18 +148,59 @@ class Pipeline:
         base_url = profile.base_url if profile else self.settings.amazon.base_url
         client = self._client(profile)
         _, raw_node = self._split_key(node_id)
-        all_entries: list[ListEntry] = []
-        for page in range(1, pages + 1):
-            url = build_list_url(
-                base_url, slug, raw_node, list_type, page,
-                url_style=profile.url_style if profile else "legacy",
+        def fetch_pages() -> list[list[ListEntry]]:
+            batches: list[list[ListEntry]] = []
+            for page in range(1, pages + 1):
+                url = build_list_url(
+                    base_url, slug, raw_node, list_type, page,
+                    url_style=profile.url_style if profile else "legacy",
+                )
+                result = client.get(url)
+                client.save_raw(result.text, f"list_{list_type}", f"{node_id}_p{page}")
+                entries = parse_list_page(
+                    result.text, node_id, node_path, page, _now(), run_id, base_url=base_url
+                )
+                batches.append(entries)
+                if len(entries) == 0 and page > 1:
+                    break
+            return batches
+
+        page_batches = fetch_pages()
+        all_entries = [entry for batch in page_batches for entry in batch]
+        if node_id == "it:ROOT" and pages >= 2:
+            # Do not persist a partial Italy run: it could become the newest
+            # SQLite snapshot and contaminate the fallback workbook/dashboard.
+            # Rank movement between page 1 and page 2 can create transient
+            # overlaps, so retry a bounded number of complete page pairs.
+            max_page_pair_attempts = 3
+            attempts = 1
+            best_entries = all_entries
+            best_score = (
+                len({entry.asin for entry in best_entries if entry.asin}),
+                len({entry.rank for entry in best_entries}),
             )
-            result = client.get(url)
-            client.save_raw(result.text, f"list_{list_type}", f"{node_id}_p{page}")
-            entries = parse_list_page(result.text, node_id, node_path, page, _now(), run_id)
-            all_entries.extend(entries)
-            if len(entries) == 0 and page > 1:
-                break
+            while not is_complete_italy_root_snapshot(all_entries) and attempts < max_page_pair_attempts:
+                if not all(page_batches):
+                    break  # an empty parse is a block/markup signal; don't retry-storm
+                attempts += 1
+                print(
+                    f"[IT] incomplete root ({best_score[0]}/100 unique ASINs, "
+                    f"{best_score[1]}/100 ranks); fetching page pair {attempts}/{max_page_pair_attempts}",
+                    flush=True,
+                )
+                retry_batches = fetch_pages()
+                retry_entries = [entry for batch in retry_batches for entry in batch]
+                retry_score = (
+                    len({entry.asin for entry in retry_entries if entry.asin}),
+                    len({entry.rank for entry in retry_entries}),
+                )
+                if retry_score > best_score:
+                    best_entries, best_score = retry_entries, retry_score
+                page_batches, all_entries = retry_batches, retry_entries
+                if is_complete_italy_root_snapshot(all_entries):
+                    break
+            if not is_complete_italy_root_snapshot(all_entries):
+                raise IncompleteItalyRootSnapshot(best_entries, attempts)
         self.store.insert_list_entries(all_entries)
         self.registry.mark_crawled(node_id)
         if all_entries:

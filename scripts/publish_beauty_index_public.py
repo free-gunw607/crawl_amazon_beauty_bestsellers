@@ -12,9 +12,13 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES, MARKETPLACE_META
+
 CONFIG_FILE = Path.home() / ".config" / "amzbs" / "beauty-index.env"
 DRIVE_FILE_ID_PATH = Path.home() / ".config" / "amzbs" / "beauty-index-drive-id"
-REGIONS = ("us", "uk", "de", "fr", "es")
+REGIONS = MARKETPLACE_CODES
+REQUIRED_REGIONS = ("us", "uk", "de", "fr", "es")
 
 
 def _settings() -> dict[str, str]:
@@ -42,7 +46,7 @@ def _dashboard_data():
 
     markets = {}
     all_asins = {row["asin"] for row in history}
-    for region in REGIONS:
+    for region in REQUIRED_REGIONS:
         snapshot = data._sheet_snapshots.get(region)
         if not snapshot:
             raise RuntimeError(f"Missing Google Sheet snapshot for {region.upper()}.")
@@ -53,9 +57,29 @@ def _dashboard_data():
             raise RuntimeError(f"Refusing incomplete {region.upper()} snapshot ({len(entries)}/100 rows).")
         all_asins.update(asins)
         markets[region] = {
+            "name": MARKETPLACE_META[region]["name"],
+            "flag": MARKETPLACE_META[region]["flag"],
+            "display_order": MARKETPLACE_META[region]["display_order"],
             "day": snapshot["day"],
             "stamp": snapshot["stamp"],
             "entries": entries,
+        }
+
+    # New markets are opt-in by data presence: a failed first Italy run cannot
+    # block or replace the five established markets' public update.
+    for region in (code for code in REGIONS if code not in REQUIRED_REGIONS):
+        snapshot = data._sheet_snapshots.get(region)
+        if not snapshot:
+            continue
+        entries = snapshot["entries"]
+        if len(entries) != 100 or {entry["rank"] for entry in entries} != set(range(1, 101)) or len({entry["asin"] for entry in entries}) != 100:
+            continue
+        all_asins.update(entry["asin"] for entry in entries)
+        markets[region] = {
+            "name": MARKETPLACE_META[region]["name"],
+            "flag": MARKETPLACE_META[region]["flag"],
+            "display_order": MARKETPLACE_META[region]["display_order"],
+            "day": snapshot["day"], "stamp": snapshot["stamp"], "entries": entries,
         }
 
     # Keep product metadata separate and keyed by ASIN. This does not change the
@@ -107,7 +131,7 @@ def _publish_drive_snapshot(payload: dict, path: Path, settings: dict[str, str],
     if not file_id:
         raise RuntimeError("Dedicated public Drive mirror ID is not provisioned; refusing to create a file under the service account quota")
     media = MediaFileUpload(str(path), mimetype="application/json", resumable=True)
-    stamp_map = {region: payload["markets"][region]["stamp"] for region in REGIONS}
+    stamp_map = {region: value["stamp"] for region, value in payload["markets"].items()}
     marker = "beauty-index-stamps:" + json.dumps(stamp_map, sort_keys=True, separators=(",", ":"))
     if file_id and if_stale:
         current = service.files().get(fileId=file_id, supportsAllDrives=True, fields="description,modifiedTime,size").execute()
@@ -145,7 +169,7 @@ def main() -> int:
     started = time.monotonic()
     try:
         payload = _dashboard_data()
-        latest_stamps = {region: payload["markets"][region]["stamp"] for region in REGIONS}
+        latest_stamps = {region: value["stamp"] for region, value in payload["markets"].items()}
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         SNAPSHOT_PATH = Path(os.environ.get("TMPDIR", "/tmp")) / "beauty-index-public.json"
         SNAPSHOT_PATH.write_bytes(body)

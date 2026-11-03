@@ -12,11 +12,14 @@ from typing import Iterable
 from urllib.parse import quote
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+from crawl_amazon_beauty_bestsellers.marketplaces import MARKETPLACE_CODES
+
 SHEET3_ID = "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80"
 GWS_CONFIG_DIR = str(Path.home() / ".config" / "gws-amazon")
-DEFAULT_REGIONS = ["us", "de", "uk", "fr", "es"]
-DEFAULT_FALLBACK_MARKETS = ["de", "uk", "fr", "us", "es"]
-REGIONS_ALL = ["us", "de", "uk", "fr", "es"]
+DEFAULT_REGIONS = list(MARKETPLACE_CODES)
+DEFAULT_FALLBACK_MARKETS = ["de", "uk", "fr", "us", "es", "it"]
+REGIONS_ALL = list(MARKETPLACE_CODES)
 TITLE_OVERRIDES_PATH = REPO_ROOT / "scripts" / "title_overrides.json"
 
 

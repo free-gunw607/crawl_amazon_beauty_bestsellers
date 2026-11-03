@@ -38,7 +38,8 @@ This repository is for Collect Amazon beauty bestseller lists and product detail
 - The dashboard reads current regional Top 100 snapshots and the complete append-only `root_rank_history` tab from Google Sheets using a read-only scope (10-minute memory cache). SQLite supplies local brand enrichment and a fallback if Sheets is unavailable.
 - It presents regional Top 100 rankings, brand-aware search and a brand directory, rank movements, daily snapshot selection, cross-market coverage, and per-ASIN rank history.
 - The working-copy database may lag behind production. For current daily data, run the dashboard beside the active LIAM3 SQLite database. The server binds to localhost by default; remote access should stay on an authenticated private network.
-- The public Beauty Index is deployed at https://liambeautyindex.dpdns.org. Its UI source is maintained in the connected Sites source repository (v10 commit `75a296d7a685d14b61aef26df3b5166c2a014aa9`); the daily pipeline updates its dedicated public JSON mirror without changing the macro workbook or fallback XLSX.
+- The public Beauty Index is deployed at https://liambeautyindex.dpdns.org. Its current UI is Sites v31; the pre-Italy baseline and rollback IDs are recorded in `.agent/baselines/pre_italy_20261103.md`. The daily pipeline updates its dedicated public JSON mirror without changing the macro workbook.
+- Italy rollout rules and recovery gates are documented in `docs/ITALY_MARKET_ROLLOUT.md`. The trial adds Italy-specific tabs to the live Sheet and fallback XLSX while preserving every existing five-market tab and column.
 
 ## Policy references
 - global policy: `~/.codex/AGENTS.md`
