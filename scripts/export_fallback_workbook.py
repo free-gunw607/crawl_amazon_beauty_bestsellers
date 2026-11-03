@@ -25,6 +25,23 @@ def _xlsx_sheet_title(title: str) -> str:
     return title.translate(str.maketrans("", "", "[]:*?/\\"))[:31]
 
 
+def _repair_latest_italy_history_titles(
+    history_rows: list[list[str]], latest_top_grid: list[list[str]]
+) -> list[list[str]]:
+    """Fill blank titles for today's Italy rows from the verified current Top 100."""
+    repaired = [list(row) for row in history_rows]
+    latest_day = max((row[0] for row in repaired if row and row[0]), default="")
+    titles_by_asin = {
+        row[1]: row[2]
+        for row in latest_top_grid[3:]
+        if len(row) > 2 and row[1] and row[2]
+    }
+    for row in repaired:
+        if len(row) > 8 and row[0] == latest_day and not str(row[8]).strip():
+            row[8] = titles_by_asin.get(row[2], "")
+    return repaired
+
+
 def _env() -> None:
     os.environ.setdefault("AMZ_BS_ROOT_BACKEND", "gws")
     os.environ.setdefault("AMZ_BS_ROOT_SHEETS_ID", "1XQoI7SSuFKbuRAeD23uQIfJu3FBXEv__6rvm68Zfo80")
@@ -108,8 +125,10 @@ def build_workbook(output: Path) -> None:
         # Append Italy-specific tabs after the full legacy tab sequence. The
         # macro-facing aggregate tabs and shared root_rank_history stay as-is.
         if "it" in REGIONS:
-            _write_grid(wb, "IT Top 100", root_panel_grid(store, settings, "it"), stamp)
+            it_top_grid = root_panel_grid(store, settings, "it")
+            _write_grid(wb, "IT Top 100", it_top_grid, stamp)
             it_history = root_history_rows(store, settings, "it")
+            it_history = _repair_latest_italy_history_titles(it_history, it_top_grid)
             _write_grid(wb, "IT Rank History", [[
                 "date", "region", "asin", "rank", "price_krw", "currency", "rating", "ratings_count", "title",
             ], *it_history], stamp)
