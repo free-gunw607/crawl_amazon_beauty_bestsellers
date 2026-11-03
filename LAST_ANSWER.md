@@ -1,12 +1,13 @@
 # LAST ANSWER
 
-## 2026-11-03 — Italy production rollout; history-title follow-up
+## 2026-11-03 — Italy production rollout complete
 - Amazon.it collection completed at 100 unique products/ranks. Google Sheet, 19-tab fallback XLSX, public Drive JSON, and Beauty Index v32 are live; the six-market feed contains Italy without changing the five legacy aggregate protocols.
 - LIAM3's 05:00 daily schedule plus hourly catch-up/watchdog were pointed at the isolated release worktree. Catch-up and watchdog both passed after switch. The old dirty checkout and artifacts were preserved.
 - Site integration is data-driven: v32 adds Italy after the original markets when the public feed contains a complete Italian snapshot. No sheet/XLSX schema changes were made to existing tabs. v31 is the immediate saved rollback; v28 is also retained. Canonical URL is unchanged: https://liambeautyindex.dpdns.org.
-- Audit found six blank titles in today's Italy history feed. Commit `d002aec` repairs only blank title cells by exact history key, with today's Top 100 as fallback; it never overwrites populated titles or historical rows. Full suite: 67 passed; `git diff --check` clean.
-- Code commit `d002aec` is pushed. This session cannot reach LIAM3 because local `tailscaled` is stopped; the final production re-publish and verification that those six blanks are gone are still outstanding. No claim of complete title repair until that live check passes.
-- v32 saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_a9705bb7a320819194f97ca01e8b5741`; deployment `appgdep_6ae9684119f881919f7d45469b33e176`; immediate rollback v31 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_51a571e18ae88191b1b386ff059bc5a9`; v28 remains available.
+- Audit found six blank titles in today's Italy history feed and the pre-repair fallback workbook. Commit `d002aec` repaired the existing Sheet cells (0 history rows appended, 6 titles repaired); `a5b2e99` added the same-day-only title recovery to XLSX export. Full suite: 68 passed.
+- Public API verified after publish: six markets, 100 entries each; Italy history for 2026-11-03 has 100 rows and 0 blank titles. Fallback XLSX verified with 19 tabs; IT Top 100 100/100 unique with 0 blank titles; today's IT Rank History 100/100 with 0 blank titles. Existing fallback Drive file ID `1-QYo4YEySvDAV5sx9fbtbuR1zTP0YujG` was updated; public JSON Drive mirror ID `1pAVxxxbr8x2S3eKVoPspCBnElwv69FtB` was refreshed.
+- LIAM3 watchdog passed at 14:53 KST. Daily timer is scheduled for 2026-11-04 05:00 KST; hourly catch-up and watchdog timers are active. Latest production code is `a5b2e99` (fallback title fix), with the docs follow-up commit recorded below.
+- v32 saved version `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_a9705bb7a320819194f97ca01e8b5741`; deployment `appgdep_6ae9684119f881919f7d45469b33e176`; immediate rollback v31 `appgprj_6ae534c42f588191b0f2a26e03185615~appgver_51a571e18ae88191b1b386ff059bc5a9`; v28 remains available. Canonical site address unchanged.
 - Rollout/compatibility contract: `docs/ITALY_MARKET_ROLLOUT.md`; baseline: `.agent/baselines/pre_italy_20261103.md`.
 
 ## 2026-11-01 — Workbench launch and runtime fixes (Sites v29–v31)
