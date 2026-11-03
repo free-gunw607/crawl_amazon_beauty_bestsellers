@@ -98,6 +98,30 @@ def _get_gws_file(file_id: str, *, env: dict[str, str] | None = None, retry_not_
 
 def verify_file(file_id: str, file_path: Path, folder_id: str, *, env: dict[str, str] | None = None) -> bool:
     """Check that Drive still has the exact local XLSX in the expected folder."""
+    config = env or os.environ
+    backend = config.get("AMZ_BS_DRIVE_BACKEND", "gws").lower()
+    if backend == "sa":
+        creds_env = config.get("GDRIVE_CREDS", "")
+        if not creds_env:
+            raise DriveUploadError("GDRIVE_CREDS is required for service-account Drive verification")
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        try:
+            creds_json = Path(creds_env).read_text(encoding="utf-8")
+        except FileNotFoundError:
+            creds_json = creds_env
+        credentials = service_account.Credentials.from_service_account_info(
+            json.loads(creds_json), scopes=["https://www.googleapis.com/auth/drive"]
+        )
+        service = build("drive", "v3", credentials=credentials, cache_discovery=False)
+        info = service.files().get(
+            fileId=file_id, supportsAllDrives=True,
+            fields="id,name,mimeType,size,md5Checksum,modifiedTime,parents,trashed,webViewLink",
+        ).execute()
+        return _file_matches_local(info, file_path, folder_id)
+    if backend != "gws":
+        raise DriveUploadError(f"unsupported Drive verification backend: {backend}")
     try:
         info = _get_gws_file(file_id, env=env)
     except DriveUploadError as exc:

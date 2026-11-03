@@ -191,7 +191,7 @@ def _fallback_missing_drive(run_dir: Path | None, env: dict[str, str] | None = N
         workbook = Path(str(summary.get("xlsx", "")))
         if not workbook.is_file() or not isinstance(drive, dict) or not bool(drive.get("file_id")):
             return True
-        if env is None or env.get("AMZ_BS_DRIVE_BACKEND", "gws").lower() != "gws":
+        if env is None or env.get("AMZ_BS_DRIVE_BACKEND", "gws").lower() not in {"gws", "sa"}:
             return False
         from crawl_amazon_beauty_bestsellers.drive_upload import DEFAULT_GWS_FOLDER_ID, verify_file
 

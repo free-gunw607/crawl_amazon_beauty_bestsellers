@@ -207,3 +207,39 @@ def test_service_account_updates_same_daily_xlsx_and_verifies_checksum(monkeypat
     assert result == {"file_id": "same-file", "name": workbook.name, "link": "https://drive.example/same-file"}
     assert calls == ["list", "update", "get"]
     assert scope_capture == [["https://www.googleapis.com/auth/drive"]]
+
+
+def test_service_account_drive_verification_checks_remote_bytes_and_parent(monkeypatch, tmp_path: Path) -> None:
+    from google.oauth2 import service_account
+    from googleapiclient import discovery
+
+    workbook = tmp_path / "daily.xlsx"
+    workbook.write_bytes(b"verified service-account workbook")
+    creds_file = tmp_path / "service-account.json"
+    creds_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(service_account.Credentials, "from_service_account_info", lambda *_args, **_kwargs: object())
+    remote = {
+        "id": "daily-file", "mimeType": drive_upload.XLSX_MIME,
+        "size": str(workbook.stat().st_size), "md5Checksum": hashlib.md5(workbook.read_bytes()).hexdigest(),
+        "parents": ["folder-id"], "trashed": False,
+    }
+
+    class Request:
+        def execute(self):
+            return remote
+
+    class Files:
+        def get(self, **kwargs):
+            assert kwargs["fileId"] == "daily-file"
+            return Request()
+
+    class Service:
+        def files(self):
+            return Files()
+
+    monkeypatch.setattr(discovery, "build", lambda *_args, **_kwargs: Service())
+
+    assert drive_upload.verify_file(
+        "daily-file", workbook, "folder-id",
+        env={"AMZ_BS_DRIVE_BACKEND": "sa", "GDRIVE_CREDS": str(creds_file)},
+    )
