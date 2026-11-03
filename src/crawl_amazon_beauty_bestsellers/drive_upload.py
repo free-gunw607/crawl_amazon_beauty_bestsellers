@@ -178,7 +178,7 @@ def _upload_via_gws(file_path: Path, folder_id: str, remote_name: str | None = N
 def upload_file(file_path: Path, remote_name: str | None = None) -> dict[str, str]:
     backend = os.environ.get("AMZ_BS_DRIVE_BACKEND", "gws").lower()
     creds_env = os.environ.get("GDRIVE_CREDS", "")
-    folder_id = os.environ.get("AMZ_BS_DRIVE_FOLDER_ID", "")
+    folder_id = os.environ.get("AMZ_BS_DRIVE_FOLDER_ID", "") or DEFAULT_GWS_FOLDER_ID
     if backend == "gws":
         return _upload_via_gws(file_path, folder_id or DEFAULT_GWS_FOLDER_ID, remote_name)
     if backend != "sa":
@@ -195,16 +195,49 @@ def upload_file(file_path: Path, remote_name: str | None = None) -> dict[str, st
         except FileNotFoundError:
             creds_json = creds_env
         info = json.loads(creds_json)
-        scopes = ["https://www.googleapis.com/auth/drive.file"]
+        # The existing fallback XLSX may have been created by the workspace
+        # user. Full Drive scope lets the service account find/update that same
+        # file in the shared delivery folder instead of creating daily dupes.
+        scopes = ["https://www.googleapis.com/auth/drive"]
         credentials = service_account.Credentials.from_service_account_info(info, scopes=scopes)
         service = build("drive", "v3", credentials=credentials, cache_discovery=False)
         media = MediaFileUpload(str(file_path), mimetype=XLSX_MIME)
-        file_metadata = {"name": remote_name or file_path.name}
-        if folder_id:
-            file_metadata["parents"] = [folder_id]
-        created = (
-            service.files()
-            .create(body=file_metadata, media_body=media, fields="id, name, webViewLink", supportsAllDrives=True)
-            .execute()
-        )
-        return {"file_id": created.get("id", ""), "name": created.get("name", ""), "link": created.get("webViewLink", "")}
+        name = remote_name or file_path.name
+        escaped_name = name.replace("\\", "\\\\").replace("'", "\\'")
+        escaped_folder = folder_id.replace("\\", "\\\\").replace("'", "\\'")
+        listed = service.files().list(
+            q=f"name = '{escaped_name}' and '{escaped_folder}' in parents and trashed = false",
+            pageSize=100, orderBy="modifiedTime desc",
+            fields="files(id,name,mimeType,size,md5Checksum,modifiedTime,parents,trashed,webViewLink)",
+            supportsAllDrives=True, includeItemsFromAllDrives=True,
+        ).execute()
+        matches = listed.get("files", [])
+        existing = matches[0] if matches and isinstance(matches[0], dict) else None
+        if existing and existing.get("id"):
+            info = service.files().update(
+                fileId=existing["id"], media_body=media,
+                fields="id,name,mimeType,size,md5Checksum,modifiedTime,parents,trashed,webViewLink",
+                supportsAllDrives=True,
+            ).execute()
+        else:
+            # Create is single-shot: on an ambiguous response the next run
+            # starts with a name lookup and updates the created file.
+            info = service.files().create(
+                body={"name": name, "parents": [folder_id]}, media_body=media,
+                fields="id,name,mimeType,size,md5Checksum,modifiedTime,parents,trashed,webViewLink",
+                supportsAllDrives=True,
+            ).execute()
+        file_id = str(info.get("id", ""))
+        if not file_id:
+            raise DriveUploadError("Drive upload response contained no file ID")
+        verified = service.files().get(
+            fileId=file_id, supportsAllDrives=True,
+            fields="id,name,mimeType,size,md5Checksum,modifiedTime,parents,trashed,webViewLink",
+        ).execute()
+        if not _file_matches_local(verified, file_path, folder_id):
+            raise DriveUploadError("Drive upload verification failed: remote XLSX does not match local file or target folder")
+        return {
+            "file_id": file_id,
+            "name": str(verified.get("name") or name),
+            "link": str(verified.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"),
+        }

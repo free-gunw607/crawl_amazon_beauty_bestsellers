@@ -163,7 +163,7 @@ def main() -> int:
     parser.add_argument("--summary-json", type=Path)
     args = parser.parse_args()
     settings = _settings()
-    if settings.get("AMZ_BS_DRIVE_BACKEND", "gws").lower() != "gws":
+    if settings.get("AMZ_BS_DRIVE_BACKEND", "gws").lower() not in {"gws", "sa"}:
         print("[beauty-index] public publishing is not configured", flush=True)
         return 2
     started = time.monotonic()

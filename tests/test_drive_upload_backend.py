@@ -140,3 +140,70 @@ def test_remote_verification_detects_wrong_content_or_folder(tmp_path: Path) -> 
     assert drive_upload._file_matches_local(valid, workbook, "folder-id")
     assert not drive_upload._file_matches_local({**valid, "parents": ["other-folder"]}, workbook, "folder-id")
     assert not drive_upload._file_matches_local({**valid, "md5Checksum": "wrong"}, workbook, "folder-id")
+
+
+def test_service_account_updates_same_daily_xlsx_and_verifies_checksum(monkeypatch, tmp_path: Path) -> None:
+    from google.oauth2 import service_account
+    from googleapiclient import discovery
+    from googleapiclient import http as google_http
+
+    workbook = tmp_path / "daily.xlsx"
+    workbook.write_bytes(b"service-account workbook")
+    creds_file = tmp_path / "service-account.json"
+    creds_file.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("GDRIVE_CREDS", str(creds_file))
+    monkeypatch.setenv("AMZ_BS_DRIVE_BACKEND", "sa")
+    monkeypatch.setenv("AMZ_BS_DRIVE_FOLDER_ID", "folder-id")
+
+    scope_capture: list[list[str]] = []
+    monkeypatch.setattr(
+        service_account.Credentials, "from_service_account_info",
+        lambda _info, scopes: scope_capture.append(scopes) or object(),
+    )
+    remote = {
+        "id": "same-file", "name": workbook.name, "mimeType": drive_upload.XLSX_MIME,
+        "size": str(workbook.stat().st_size),
+        "md5Checksum": hashlib.md5(workbook.read_bytes()).hexdigest(),
+        "parents": ["folder-id"], "trashed": False,
+        "webViewLink": "https://drive.example/same-file",
+    }
+    calls: list[str] = []
+
+    class Request:
+        def __init__(self, payload):
+            self.payload = payload
+
+        def execute(self):
+            return self.payload
+
+    class Files:
+        def list(self, **kwargs):
+            calls.append("list")
+            assert "'folder-id' in parents" in kwargs["q"]
+            return Request({"files": [{"id": "same-file"}]})
+
+        def update(self, **kwargs):
+            calls.append("update")
+            assert kwargs["fileId"] == "same-file"
+            return Request(remote)
+
+        def create(self, **_kwargs):
+            raise AssertionError("idempotent update must not create a duplicate")
+
+        def get(self, **kwargs):
+            calls.append("get")
+            assert kwargs["fileId"] == "same-file"
+            return Request(remote)
+
+    class Service:
+        def files(self):
+            return Files()
+
+    monkeypatch.setattr(discovery, "build", lambda *_args, **_kwargs: Service())
+    monkeypatch.setattr(google_http, "MediaFileUpload", lambda *args, **kwargs: (args, kwargs))
+
+    result = drive_upload.upload_file(workbook)
+
+    assert result == {"file_id": "same-file", "name": workbook.name, "link": "https://drive.example/same-file"}
+    assert calls == ["list", "update", "get"]
+    assert scope_capture == [["https://www.googleapis.com/auth/drive"]]
